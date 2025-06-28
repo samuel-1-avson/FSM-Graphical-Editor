@@ -1,0 +1,87 @@
+{# bsm_designer_project/templates/python_fsm.py.j2 - Jinja2 Template for Python FSM #}
+# Auto-generated Python FSM by {{ app_name }} v{{ app_version }}
+# FSM Name: {{ fsm_name_original }}
+# Generated on: {{ timestamp }}
+
+from statemachine import StateMachine, State
+
+class {{ class_name }}(StateMachine):
+    """
+    {{ description }}
+    """
+    # --- State Definitions ---
+{% for state in states %}
+    {{ state.py_var_name }} = State(name="{{ state.original_name }}", value="{{ state.original_name }}", initial={{ 'True' if state.is_initial else 'False' }}{% if state.is_final %}, final=True{% endif %}{% if state.entry_method %}, entry="{{ state.entry_method }}"{% endif %}{% if state.exit_method %}, exit="{{ state.exit_method }}"{% endif %})
+{%- endfor %}
+
+    # --- Transition Definitions ---
+{% for trans in transitions %}
+    {{ trans.py_var_name }} = {{ trans.source_py_var }}.to({{ trans.target_py_var }}, event="{{ trans.event_str }}"{% if trans.cond_method %}, cond="{{ trans.cond_method }}"{% endif %}{% if trans.on_method %}, on="{{ trans.on_method }}"{% endif %})
+{%- endfor %}
+
+    # --- Action and Condition Methods ---
+    def __init__(self, *args, **kwargs):
+        # You can add custom initialization here
+        # E.g., self.my_variable = 0
+        super({{ class_name }}, self).__init__(*args, **kwargs)
+
+{% for state in states %}
+{%- if state.entry_method %}
+
+    def {{ state.entry_method }}(self):
+        """Entry action for state '{{ state.original_name }}'."""
+        {% if 'Python' not in state.action_language -%}# WARNING: Original language was '{{ state.action_language }}'. Code below might not be valid Python.
+        {% endif -%}
+{{ state.entry_action_code|indent(8) }}
+{%- endif %}
+{%- if state.exit_method %}
+
+    def {{ state.exit_method }}(self):
+        """Exit action for state '{{ state.original_name }}'."""
+        {% if 'Python' not in state.action_language -%}# WARNING: Original language was '{{ state.action_language }}'. Code below might not be valid Python.
+        {% endif -%}
+{{ state.exit_action_code|indent(8) }}
+{%- endif %}
+{%- if state.during_action_code %}
+    # NOTE: "During" action for state '{{ state.original_name }}' is not natively supported by a state definition.
+    # You can implement this by calling a method from your main loop when the FSM is in this state,
+    # or by creating a self-transition on an internal 'tick' event.
+    # def during_action_{{ state.py_var_name }}(self):
+    #   """During action for state '{{ state.original_name }}'."""
+{{ ("# " + state.during_action_code)|indent(4) }}
+{%- endif %}
+{% endfor %}
+{%- for trans in transitions %}
+{%- if trans.cond_method %}
+
+    def {{ trans.cond_method }}(self):
+        """Condition for '{{ trans.event_str }}' from '{{ trans.source_name }}' to '{{ trans.target_name }}'."""
+        {% if 'Python' not in trans.action_language -%}# WARNING: Original language was '{{ trans.action_language }}'. Code below might not be valid Python.
+        {% endif -%}
+        return {{ trans.condition_code }}
+{%- endif %}
+{%- if trans.on_method %}
+
+    def {{ trans.on_method }}(self):
+        """Action for '{{ trans.event_str }}' from '{{ trans.source_name }}' to '{{ trans.target_name }}'."""
+        {% if 'Python' not in trans.action_language -%}# WARNING: Original language was '{{ trans.action_language }}'. Code below might not be valid Python.
+        {% endif -%}
+{{ trans.action_code|indent(8) }}
+{%- endif %}
+{% endfor %}
+
+if __name__ == '__main__':
+    # Example usage:
+    fsm = {{ class_name }}()
+    print(f"Initial state: {fsm.current_state.id}")
+    
+    # To trigger an event, you can either call it as a method:
+    # try:
+    #     fsm.power_on()
+    #     print(f"State after event: {fsm.current_state.id}")
+    # except Exception as e:
+    #     print(f"Could not trigger event: {e}")
+
+    # Or send the event by its string name:
+    # fsm.send("power_off")
+    # print(f"State after event: {fsm.current_state.id}")
