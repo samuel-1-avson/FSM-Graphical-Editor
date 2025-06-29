@@ -291,7 +291,6 @@ class MainWindow(QMainWindow):
         self.log_message("INFO", f"Properties updated via dock for item.")
 
 
-
     def _on_revert_dock_properties(self):
         if not self._current_edited_item_in_dock or not self._current_edited_item_original_props_in_dock: return
 

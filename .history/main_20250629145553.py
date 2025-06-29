@@ -291,7 +291,6 @@ class MainWindow(QMainWindow):
         self.log_message("INFO", f"Properties updated via dock for item.")
 
 
-
     def _on_revert_dock_properties(self):
         if not self._current_edited_item_in_dock or not self._current_edited_item_original_props_in_dock: return
 
@@ -353,7 +352,7 @@ class MainWindow(QMainWindow):
         self.matlab_connection = MatlabConnection()
         self.ai_chatbot_manager = AIChatbotManager(self)
         self.py_sim_ui_manager = PySimulationUIManager(self)
-        self.git_manager = GitManager(self)
+        self.git_manager = GitManager(self) # NEW GitManager
         
         # 4. Now, call setup_ui which creates the dock widgets etc.
         self.ui_manager.setup_ui() 

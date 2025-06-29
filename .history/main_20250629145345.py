@@ -291,7 +291,6 @@ class MainWindow(QMainWindow):
         self.log_message("INFO", f"Properties updated via dock for item.")
 
 
-
     def _on_revert_dock_properties(self):
         if not self._current_edited_item_in_dock or not self._current_edited_item_original_props_in_dock: return
 
@@ -353,7 +352,7 @@ class MainWindow(QMainWindow):
         self.matlab_connection = MatlabConnection()
         self.ai_chatbot_manager = AIChatbotManager(self)
         self.py_sim_ui_manager = PySimulationUIManager(self)
-        self.git_manager = GitManager(self)
+        self.git_manager = GitManager(self) # NEW GitManager
         
         # 4. Now, call setup_ui which creates the dock widgets etc.
         self.ui_manager.setup_ui() 
@@ -413,12 +412,15 @@ class MainWindow(QMainWindow):
             self.recent_files_menu.addSeparator()
             self.recent_files_menu.addAction("Clear List", self._clear_recent_files_list)
     
+    def _clear_recent_files_list(self):
+        self.settings_manager.set("recent_files", [])
+        self.log_message("INFO", "Recent files list cleared.")
+
     _update_dock_color_button_style = lambda self, *args: None
     _on_dock_color_button_clicked = lambda self, *args: None
     _on_dock_property_changed_mw = lambda self, *args: None
     _on_apply_dock_properties = lambda self, *args: None
     _on_revert_dock_properties = lambda self, *args: None
-    _update_item_properties_from_move = lambda self, *args: None
     _populate_perspectives_menu = lambda self, *args: None
     _update_current_perspective_check = lambda self, *args: None
     apply_perspective = lambda self, *args: None
@@ -432,6 +434,7 @@ class MainWindow(QMainWindow):
     _update_zoom_to_selection_action_enable_state = lambda self, *args: None
     _update_align_distribute_actions_enable_state = lambda self, *args: None
     connect_state_item_signals = lambda self, *args: None
+    log_message = lambda self, *args: None
     _add_fsm_data_to_scene = lambda self, *args: None
     on_show_preferences_dialog = lambda self, *args: None
     _update_resource_display = lambda self, *args: None
@@ -450,10 +453,6 @@ class MainWindow(QMainWindow):
     update_zoom_status_display = lambda self, *args: None
     update_problems_dock = lambda self, *args: None
     on_problem_item_double_clicked = lambda self, *args: None
-        
-    def _clear_recent_files_list(self):
-        self.settings_manager.set("recent_files", [])
-        self.log_message("INFO", "Recent files list cleared.")
         
      
      
@@ -500,6 +499,7 @@ class MainWindow(QMainWindow):
 
     
     def _connect_signals(self):
+        # Preferences action
         if hasattr(self, 'preferences_action'):
             self.preferences_action.triggered.connect(self.on_show_preferences_dialog)
             
@@ -523,7 +523,7 @@ class MainWindow(QMainWindow):
             self.ide_manager.ide_language_combo_changed.connect(self._on_ide_language_changed_by_manager)
         if hasattr(self, 'target_device_combo'):
             self.target_device_combo.currentTextChanged.connect(self.on_target_device_changed)
-        if self.git_manager:
+        if self.git_manager: # NEW
             self.git_manager.git_status_updated.connect(self._on_git_status_updated)
 
 

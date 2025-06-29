@@ -291,7 +291,6 @@ class MainWindow(QMainWindow):
         self.log_message("INFO", f"Properties updated via dock for item.")
 
 
-
     def _on_revert_dock_properties(self):
         if not self._current_edited_item_in_dock or not self._current_edited_item_original_props_in_dock: return
 
@@ -353,7 +352,7 @@ class MainWindow(QMainWindow):
         self.matlab_connection = MatlabConnection()
         self.ai_chatbot_manager = AIChatbotManager(self)
         self.py_sim_ui_manager = PySimulationUIManager(self)
-        self.git_manager = GitManager(self)
+        self.git_manager = GitManager(self) # NEW GitManager
         
         # 4. Now, call setup_ui which creates the dock widgets etc.
         self.ui_manager.setup_ui() 
@@ -413,12 +412,15 @@ class MainWindow(QMainWindow):
             self.recent_files_menu.addSeparator()
             self.recent_files_menu.addAction("Clear List", self._clear_recent_files_list)
     
+    def _clear_recent_files_list(self):
+        self.settings_manager.set("recent_files", [])
+        self.log_message("INFO", "Recent files list cleared.")
+
     _update_dock_color_button_style = lambda self, *args: None
     _on_dock_color_button_clicked = lambda self, *args: None
     _on_dock_property_changed_mw = lambda self, *args: None
     _on_apply_dock_properties = lambda self, *args: None
     _on_revert_dock_properties = lambda self, *args: None
-    _update_item_properties_from_move = lambda self, *args: None
     _populate_perspectives_menu = lambda self, *args: None
     _update_current_perspective_check = lambda self, *args: None
     apply_perspective = lambda self, *args: None
@@ -432,6 +434,7 @@ class MainWindow(QMainWindow):
     _update_zoom_to_selection_action_enable_state = lambda self, *args: None
     _update_align_distribute_actions_enable_state = lambda self, *args: None
     connect_state_item_signals = lambda self, *args: None
+    log_message = lambda self, *args: None
     _add_fsm_data_to_scene = lambda self, *args: None
     on_show_preferences_dialog = lambda self, *args: None
     _update_resource_display = lambda self, *args: None
@@ -450,10 +453,6 @@ class MainWindow(QMainWindow):
     update_zoom_status_display = lambda self, *args: None
     update_problems_dock = lambda self, *args: None
     on_problem_item_double_clicked = lambda self, *args: None
-        
-    def _clear_recent_files_list(self):
-        self.settings_manager.set("recent_files", [])
-        self.log_message("INFO", "Recent files list cleared.")
         
      
      
@@ -500,6 +499,7 @@ class MainWindow(QMainWindow):
 
     
     def _connect_signals(self):
+        # Preferences action
         if hasattr(self, 'preferences_action'):
             self.preferences_action.triggered.connect(self.on_show_preferences_dialog)
             
@@ -523,7 +523,7 @@ class MainWindow(QMainWindow):
             self.ide_manager.ide_language_combo_changed.connect(self._on_ide_language_changed_by_manager)
         if hasattr(self, 'target_device_combo'):
             self.target_device_combo.currentTextChanged.connect(self.on_target_device_changed)
-        if self.git_manager:
+        if self.git_manager: # NEW
             self.git_manager.git_status_updated.connect(self._on_git_status_updated)
 
 
@@ -563,7 +563,7 @@ class MainWindow(QMainWindow):
             if index != -1:
                 self.tab_widget.setTabText(index, new_editor.get_tab_title())
                 self._update_window_title()
-            if self.git_manager:
+            if self.git_manager: # NEW: check status on load
                 QTimer.singleShot(50, lambda p=file_path: self.git_manager.check_file_status(p))
         else:
             index = self.tab_widget.indexOf(new_editor)
@@ -584,7 +584,7 @@ class MainWindow(QMainWindow):
         if hasattr(editor.scene, 'itemsBoundingRectChanged'):
              editor.scene.itemsBoundingRectChanged.connect(self.update_resource_estimation)
         if hasattr(editor.scene, 'sceneRectChanged'):
-             editor.scene.sceneRectChanged.connect(self.update_resource_estimation) 
+             editor.scene.sceneRectChanged.connect(self.update_resource_estimation)   
              
              
     def add_new_editor_tab(self) -> EditorWidget:
@@ -596,7 +596,7 @@ class MainWindow(QMainWindow):
         self._connect_editor_signals(new_editor)
         self._on_current_tab_changed(index)
         self._update_window_title()
-        QTimer.singleShot(10, self._update_git_menu_actions_state)
+        QTimer.singleShot(10, self._update_git_menu_actions_state) # Give a moment for tab to become "current"
         return new_editor
 
 
@@ -681,6 +681,7 @@ class MainWindow(QMainWindow):
         if not isinstance(editor, EditorWidget) or not self._prompt_save_on_close(editor):
             return
         
+        # Remove associated find dialog if it exists
         if editor in self._find_dialogs:
             self._find_dialogs[editor].close()
             del self._find_dialogs[editor]
@@ -689,11 +690,12 @@ class MainWindow(QMainWindow):
         editor.deleteLater()
         
         if self.tab_widget.count() == 0:
-            self.action_handler.on_new_file(silent=True)
+            self.action_handler.on_new_file(silent=True) # Ensure there's always a tab
 
     @pyqtSlot(int)
     def _on_current_tab_changed(self, index: int):
         """Update global UI state and undo/redo actions when the active tab changes."""
+        # Disconnect old undo/redo actions
         if hasattr(self, 'undo_action'): 
             try: self.undo_action.triggered.disconnect()
             except TypeError: pass
@@ -703,6 +705,7 @@ class MainWindow(QMainWindow):
         
         editor = self.current_editor()
         if editor:
+            # Connect actions to the new active stack
             if hasattr(self, 'undo_action'): self.undo_action.triggered.connect(editor.undo_stack.undo)
             if hasattr(self, 'redo_action'): self.redo_action.triggered.connect(editor.undo_stack.redo)
             editor.undo_stack.canUndoChanged.connect(self.undo_action.setEnabled)
@@ -710,10 +713,6 @@ class MainWindow(QMainWindow):
             editor.undo_stack.undoTextChanged.connect(lambda text: self.undo_action.setText(f"&Undo {text}"))
             editor.undo_stack.redoTextChanged.connect(lambda text: self.redo_action.setText(f"&Redo {text}"))
 
-        if editor and editor.file_path and self.git_manager:
-            self.git_manager.check_file_status(editor.file_path)
-
-        self._update_git_menu_actions_state()
         self._update_all_ui_element_states()
 
 
