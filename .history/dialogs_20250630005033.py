@@ -17,30 +17,27 @@ from PyQt5.QtCore import Qt, QDir, QSize, QPointF, pyqtSignal, QVariant
 from .settings_manager import SettingsManager
 from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
 from .config import (
-    APP_NAME,
+    APP_NAME, 
     COLOR_ITEM_STATE_DEFAULT_BG, COLOR_ITEM_TRANSITION_DEFAULT, COLOR_TEXT_PRIMARY,
     COLOR_TEXT_ON_ACCENT, MECHATRONICS_SNIPPETS, COLOR_ACCENT_PRIMARY, COLOR_ACCENT_ERROR,
     DEFAULT_EXECUTION_ENV, EXECUTION_ENV_PYTHON_GENERIC, EXECUTION_ENV_ARDUINO_CPP,
     EXECUTION_ENV_C_GENERIC, EXECUTION_ENV_RASPBERRYPI_PYTHON, EXECUTION_ENV_MICROPYTHON,
     APP_FONT_SIZE_SMALL, COLOR_TEXT_SECONDARY, COLOR_BACKGROUND_DIALOG,COLOR_ACCENT_SUCCESS,
     COLOR_BACKGROUND_LIGHT, COLOR_ACCENT_PRIMARY_LIGHT, COLOR_BORDER_MEDIUM,
-    APP_FONT_FAMILY,
-    DEFAULT_STATE_SHAPE, DEFAULT_STATE_BORDER_STYLE, DEFAULT_STATE_BORDER_WIDTH,
-    DEFAULT_TRANSITION_LINE_STYLE, DEFAULT_TRANSITION_LINE_WIDTH, DEFAULT_TRANSITION_ARROWHEAD,
+    APP_FONT_FAMILY, 
+    DEFAULT_STATE_SHAPE, DEFAULT_STATE_BORDER_STYLE, DEFAULT_STATE_BORDER_WIDTH, 
+    DEFAULT_TRANSITION_LINE_STYLE, DEFAULT_TRANSITION_LINE_WIDTH, DEFAULT_TRANSITION_ARROWHEAD, 
     COLOR_GRID_MINOR, COLOR_GRID_MAJOR, COLOR_SNAP_GUIDELINE,
-    THEME_KEYS, THEME_KEY_LABELS
+    THEME_KEYS, THEME_KEY_LABELS # NEW THEME IMPORTS
 )
-# --- NEW: Import for AiSettingsDialog ---
-from .ai_providers import get_available_providers
 from .code_editor import CodeEditor
 from .utils import get_standard_icon
 from .matlab_integration import MatlabConnection
 from .snippet_manager import CustomSnippetManager
-from .theme_manager import ThemeManager
+from .theme_manager import ThemeManager # NEW
 
 import logging
 logger = logging.getLogger(__name__)
-
 
 try:
     from .graphics_scene import DiagramScene, ZoomableView

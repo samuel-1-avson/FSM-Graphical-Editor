@@ -5,16 +5,14 @@ pynvml==11.5.0
 python-statemachine==2.5.0
 google-generativeai==0.7.1
 pydot==2.0.0
-# pygraphviz==1.12 # Comment out the old line
-pygraphviz>=1.11 # Use a more flexible version
+pygraphviz==1.12
 Pillow==10.4.0
 jinja2==3.1.4
 markdown-it-py==3.0.0
 
 # --- NEW: Added for Multi-Model AI Support ---
 openai==1.35.3
-anthropic==0.28.0
-groq==0.9.0
+# anthropic==0.28.0 # Example if you add Anthropic next
 
 # Development and Testing
 pytest

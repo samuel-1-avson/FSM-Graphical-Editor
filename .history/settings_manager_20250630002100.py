@@ -55,12 +55,11 @@ class SettingsManager(QObject):
         "item_default_comment_bg_color": "#FFF9C4",
         
         # --- NEW: AI Assistant Settings ---
+        # Default to Gemini, but allow storing keys for others
         "ai_provider_name": "Gemini (Google AI)",
         "ai_api_key_Gemini (Google AI)": "",
         "ai_api_key_OpenAI (GPT)": "",
-        "ai_api_key_Anthropic (Claude)": "",
-        "ai_api_key_DeepSeek": "",
-        "ai_api_key_Groq (Llama3)": "",
+        # Add keys for other providers as they are implemented
         
         # Perspective Settings
         "last_used_perspective": "Design Focus",

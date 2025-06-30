@@ -18,7 +18,7 @@ from .ai_providers.base import AIProvider
 from PyQt5.QtGui import QMovie, QIcon, QColor, QDesktopServices
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTextBrowser, QHBoxLayout, QLineEdit,
                              QPushButton, QLabel, QStyle, QMessageBox, QInputDialog, QAction, QApplication,
-                             QDialog, QFormLayout, QDialogButtonBox,QGroupBox, QComboBox)
+                             QDialog, QFormLayout, QDialogButtonBox, QComboBox)
 
 from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
@@ -354,9 +354,7 @@ class AiSettingsDialog(QDialog):
         self.description_label.setWordWrap(True)
         self.description_label.setTextFormat(Qt.RichText)
         self.description_label.setOpenExternalLinks(True)
-        self.description_label.setStyleSheet(
-            f"background-color: {QColor(COLOR_BACKGROUND_DIALOG).lighter(102).name()}; padding: 8px; border-radius: 4px;"
-        )
+        self.description_label.setStyleSheet(f"background-color: {QColor(COLOR_BACKGROUND_LIGHT).lighter(102).name()}; padding: 8px; border-radius: 4px;")
         desc_layout.addWidget(self.description_label)
         main_layout.addWidget(desc_group)
         # --- END NEW ---

@@ -36,23 +36,18 @@
         background-color: #444;
         border-color: #555;
       }
-      .new-feature,
-      .model-card {
+      .new-feature {
         border-left: 3px solid #ff8f00;
         padding-left: 15px;
-        margin: 1.5em 0;
+        margin: 1em 0;
         background-color: #fff8e1;
       }
-      .dark-mode .new-feature,
-      .dark-mode .model-card {
+      .dark-mode .new-feature {
         border-left-color: #ffb74d;
         background-color: #3d372c;
       }
       ul {
         padding-left: 20px;
-      }
-      .model-card h3 {
-        margin-bottom: 0.5em;
       }
     </style>
   </head>
@@ -117,106 +112,12 @@
       </p>
     </div>
 
-    <h2>AI Assistant</h2>
+    <h2>AI Assistant (Gemini)</h2>
     <p>
-      Configure your AI provider and API Key in "AI Assistant" > "AI Assistant
-      Settings...". You can then chat with the AI, ask it to generate FSMs from
-      descriptions, or even analyze your code from the IDE.
+      Configure your Google AI API Key in "AI Assistant" > "AI Assistant
+      Settings (Gemini)...". You can then chat with the AI, ask it to generate
+      FSMs from descriptions, or even analyze your code from the IDE.
     </p>
-
-    <div class="new-feature">
-      <h3>Choosing Your AI Model</h3>
-      <p>
-        Different AI models excel at different tasks. Here’s a guide to help you
-        choose the best one for your needs in the AI Assistant Settings.
-      </p>
-
-      <div class="model-card">
-        <h3>Groq (Llama 3)</h3>
-        <p>
-          <strong>Best For:</strong> The fastest, most responsive
-          general-purpose experience.
-        </p>
-        <ul>
-          <li>Extremely fast chat and code generation.</li>
-          <li>Excellent at following instructions for FSM JSON creation.</li>
-          <li>Strong coding and reasoning abilities.</li>
-        </ul>
-        <p><em>Consideration: A great default choice for most tasks.</em></p>
-      </div>
-
-      <div class="model-card">
-        <h3>OpenAI (GPT-4o)</h3>
-        <p>
-          <strong>Best For:</strong> The highest quality and most reliable
-          results, especially for complex tasks.
-        </p>
-        <ul>
-          <li>Industry-leading performance in coding and logical reasoning.</li>
-          <li>Highly reliable JSON generation for FSM design.</li>
-          <li>Excellent for debugging and complex problem-solving.</li>
-        </ul>
-        <p><em>Consideration: May have higher API costs.</em></p>
-      </div>
-
-      <div class="model-card">
-        <h3>DeepSeek Coder</h3>
-        <p>
-          <strong>Best For:</strong> Pure code generation and technical code
-          analysis.
-        </p>
-        <ul>
-          <li>Specialized model trained specifically on code.</li>
-          <li>
-            Produces highly accurate and idiomatic code snippets (C++, Python).
-          </li>
-          <li>
-            Great for optimizing or fixing code in your actions and conditions.
-          </li>
-        </ul>
-        <p><em>Consideration: Less conversational than other models.</em></p>
-      </div>
-
-      <div class="model-card">
-        <h3>Anthropic (Claude 3.5 Sonnet)</h3>
-        <p>
-          <strong>Best For:</strong> In-depth explanations, learning, and
-          analyzing large projects.
-        </p>
-        <ul>
-          <li>Produces very clean, well-documented, and "safe" code.</li>
-          <li>
-            Excellent for detailed explanations of FSM concepts or simulation
-            logic.
-          </li>
-          <li>
-            Huge context window can analyze an entire FSM diagram at once.
-          </li>
-        </ul>
-        <p>
-          <em
-            >Consideration: A fantastic choice for research and educational
-            use.</em
-          >
-        </p>
-      </div>
-
-      <div class="model-card">
-        <h3>Gemini 1.5 Flash</h3>
-        <p>
-          <strong>Best For:</strong> Fast, balanced performance and analyzing
-          very large diagrams.
-        </p>
-        <ul>
-          <li>Provides a good balance of speed and quality.</li>
-          <li>
-            Massive context window allows it to analyze your entire project.
-          </li>
-          <li>Strong general chat and brainstorming capabilities.</li>
-        </ul>
-        <p><em>Consideration: Google AI API key is required.</em></p>
-      </div>
-    </div>
 
     <div class="new-feature">
       <h3>New: Full Theming and Customization</h3>

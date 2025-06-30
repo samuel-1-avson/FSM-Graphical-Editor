@@ -18,7 +18,7 @@ from .ai_providers.base import AIProvider
 from PyQt5.QtGui import QMovie, QIcon, QColor, QDesktopServices
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTextBrowser, QHBoxLayout, QLineEdit,
                              QPushButton, QLabel, QStyle, QMessageBox, QInputDialog, QAction, QApplication,
-                             QDialog, QFormLayout, QDialogButtonBox,QGroupBox, QComboBox)
+                             QDialog, QFormLayout, QDialogButtonBox, QComboBox)
 
 from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
@@ -111,6 +111,41 @@ class ChatbotWorker(QObject):
             self.errorOccurred.emit(AIStatus.ERROR, msg)
             self.statusUpdate.emit(AIStatus.ERROR, "Status: Unexpected Setup Error.")
 
+
+
+    def _initialize_client(self):
+        if self.api_key:
+            try:
+                genai.configure(api_key=self.api_key)
+                safety_settings = {
+                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                }
+                self.client = genai.GenerativeModel(self.model_name, safety_settings=safety_settings)
+                logger.info(f"Gemini client initialized for model {self.model_name}.")
+            except Exception as e:
+                self.client = None
+                logger.error(f"Failed to initialize Gemini client: {e}", exc_info=True)
+        else:
+            self.client = None
+            logger.info("Gemini client not initialized (no API key).")
+
+    @pyqtSlot(str)
+    def set_api_key_slot(self, api_key: str):
+        logger.info(f"WORKER: set_api_key_slot called (new key {'SET' if api_key else 'NOT SET'}).")
+        self.api_key = api_key
+        self._initialize_client()
+
+        if not self.api_key:
+            self.statusUpdate.emit(AIStatus.API_KEY_REQUIRED, "Status: API Key cleared. AI Assistant inactive.")
+        elif self.client:
+             self.statusUpdate.emit(AIStatus.READY, "Status: API Key set and AI Assistant ready.")
+        else:
+            self.errorOccurred.emit(AIStatus.API_KEY_ERROR, "Failed to initialize Gemini client with the new API key.")
+            self.statusUpdate.emit(AIStatus.API_KEY_ERROR, "Status: API Key Error.")
+
     @pyqtSlot(str)
     def set_diagram_context_slot(self, diagram_json_str: str):
         if not diagram_json_str:
@@ -134,13 +169,39 @@ class ChatbotWorker(QObject):
             return
 
         self.statusUpdate.emit(AIStatus.THINKING, f"Status: Thinking ({self.provider.get_name()})...")
+        if not self.api_key:
+            error_msg = "Gemini API key not set. Please set it in AI Assistant Settings."
+            logger.warning("process_message: %s", error_msg)
+            self.errorOccurred.emit(AIStatus.API_KEY_REQUIRED, error_msg)
+            self.statusUpdate.emit(AIStatus.API_KEY_REQUIRED, "Status: API Key required.")
+            self._current_processing_had_error = True
+            return
 
-        keywords_for_generation = [
+        if not self.client:
+            error_msg = "Gemini client not initialized. This might be due to an invalid API key or a network issue during initialization."
+            logger.warning("process_message: %s", error_msg)
+            self.errorOccurred.emit(AIStatus.API_KEY_ERROR, error_msg)
+            self.statusUpdate.emit(AIStatus.API_KEY_ERROR, "Status: API Client Error.")
+            self._current_processing_had_error = True
+            return
+
+        if self._is_stopped:
+            logger.info("WORKER_PROCESS: Worker stopped before API call.")
+            return
+
+        self.statusUpdate.emit(AIStatus.THINKING, "Status: Thinking...")
+
+        is_fsm_generation_attempt = False
+        if force_fsm_generation:
+            is_fsm_generation_attempt = True
+        else:
+            keywords_for_generation = [
             "generate fsm", "create fsm", "generate an fsm model", "generate state machine",
             "create state machine", "design state machine", "/generate_fsm"
         ]
-        user_msg_lower = user_message.lower()
-        is_fsm_generation_attempt = force_fsm_generation or any(re.search(r'\b' + re.escape(keyword) + r'\b', user_msg_lower) for keyword in keywords_for_generation)
+            is_fsm_generation_attempt = force_fsm_generation or any(re.search(r'\b' + re.escape(keyword) + r'\b', user_message.lower()) for keyword in keywords_for_generation)
+            user_msg_lower = user_message.lower()
+            is_fsm_generation_attempt = any(re.search(r'\b' + re.escape(keyword) + r'\b', user_msg_lower) for keyword in keywords_for_generation)
 
         is_embedded_code_request = False
         if not is_fsm_generation_attempt:
@@ -150,7 +211,8 @@ class ChatbotWorker(QObject):
                 "i2c", "spi", "sensor code", "actuator code", "mechatronics code",
                 "robotics code", "control system code", "firmware snippet"
             ]
-            if any(re.search(r'\b' + re.escape(keyword) + r'\b', user_msg_lower) for keyword in embedded_keywords):
+            user_msg_lower_for_embedded = user_message.lower()
+            if any(re.search(r'\b' + re.escape(keyword) + r'\b', user_msg_lower_for_embedded) for keyword in embedded_keywords):
                 is_embedded_code_request = True
                 logger.debug(f"WORKER_PROCESS: Detected embedded code request keywords in '{user_message[:50]}...'")
 
@@ -164,9 +226,12 @@ class ChatbotWorker(QObject):
                     num_states = len(diagram.get("states", []))
                     num_transitions = len(diagram.get("transitions", []))
                     if num_states > 0:
+                        # --- FIX for BUG-04 ---
+                        # Instead of joining state names, provide a safe, descriptive summary.
                         context_summary = (
                             f" The current diagram has {num_states} state(s) and {num_transitions} transition(s)."
                         )
+                        # --- END FIX ---
                         system_prompt_content += context_summary
                     else:
                         system_prompt_content += " The current diagram is empty."
@@ -180,6 +245,7 @@ class ChatbotWorker(QObject):
              system_prompt_content += " No diagram context was provided for this request."
 
         if is_fsm_generation_attempt:
+            # --- AI IMPROVEMENT: Enhanced FSM Generation Prompt ---
             system_prompt_content += (
                 " When asked to generate an FSM, you MUST respond with ONLY a valid JSON object. "
                 "First, think step-by-step about the states and transitions needed. Then, based on your reasoning, construct the final JSON. "
@@ -203,196 +269,150 @@ class ChatbotWorker(QObject):
                 '```\n'
                 "Do not include comments, explanations, or any other text outside the main JSON object."
             )
-        elif is_embedded_code_request:
-            system_prompt_content += (
-                " You are also an expert assistant for mechatronics and embedded systems programming. "
-                "If the user asks for Arduino code, structure it with `void setup() {}` and `void loop() {}`. "
-                "If for Raspberry Pi, provide Python code, using `RPi.GPIO` for GPIO tasks if appropriate, or other common libraries like `smbus` for I2C. "
-                "For other microcontrollers like ESP32 or STM32, provide C/C++ code in a typical embedded style (e.g., using Arduino framework for ESP32 if common, or HAL/LL for STM32 if specified). "
-                "Provide clear, well-commented code snippets. "
-                "If including explanations, clearly separate the code block using markdown (e.g., ```c or ```python or ```cpp). "
-                "Focus on the specific request and aim for functional, copy-pasteable code where possible. "
-                "For general mechatronics algorithms (e.g., PID, kinematics), pseudocode or Python is often suitable unless a specific language is requested."
-            )
         else:
-             system_prompt_content += " For general conversation, provide helpful and concise answers."
+            if is_embedded_code_request:
+                system_prompt_content += (
+                    " You are also an expert assistant for mechatronics and embedded systems programming. "
+                    "If the user asks for Arduino code, structure it with `void setup() {}` and `void loop() {}`. "
+                    "If for Raspberry Pi, provide Python code, using `RPi.GPIO` for GPIO tasks if appropriate, or other common libraries like `smbus` for I2C. "
+                    "For other microcontrollers like ESP32 or STM32, provide C/C++ code in a typical embedded style (e.g., using Arduino framework for ESP32 if common, or HAL/LL for STM32 if specified). "
+                    "Provide clear, well-commented code snippets. "
+                    "If including explanations, clearly separate the code block using markdown (e.g., ```c or ```python or ```cpp). "
+                    "Focus on the specific request and aim for functional, copy-pasteable code where possible. "
+                    "For general mechatronics algorithms (e.g., PID, kinematics), pseudocode or Python is often suitable unless a specific language is requested."
+                )
+            else:
+                 system_prompt_content += " For general conversation, provide helpful and concise answers."
 
         api_contents = []
         if system_prompt_content:
             api_contents.append({"role": "system", "content": system_prompt_content})
-            
-        # Append previous conversation (up to a limit)
-        history_context_limit = -6
-        for msg in self.conversation_history[history_context_limit:]:
-            api_contents.append(msg)
 
-        # Append current message
-        api_contents.append({"role": "user", "content": user_message})
+        history_context_limit = -6
+        if self.conversation_history:
+            for msg in self.conversation_history[history_context_limit:]:
+                if isinstance(msg, dict) and "role" in msg and "parts" in msg:
+                    if msg["role"] in ["user", "model"]:
+                        if api_contents and api_contents[-1]["role"] == msg["role"]:
+                            dummy_role = "model" if msg["role"] == "user" else "user"
+                            api_contents.append({"role": dummy_role, "parts": [{"text": "Okay."}]})
+                        api_contents.append(msg)
+                    else:
+                        logger.warning(f"Skipping malformed history message with invalid role: {msg.get('role')}")
+                else:
+                    logger.warning(f"Skipping malformed history message: {msg}")
+
+        if api_contents and api_contents[-1]["role"] == "user":
+            api_contents.append({"role": "model", "parts": [{"text": "Acknowledged."}]})
+
+        api_contents.append({"role": "user", "parts": [{"text": user_message}]})
+
+        generation_config = genai.types.GenerationConfig(
+            temperature=0.7,
+        )
+        if is_fsm_generation_attempt:
+            generation_config.response_mime_type = "application/json"
+            logger.info("WORKER_PROCESS: Requesting JSON object format from Gemini.")
 
         try:
-            ai_response_content = self.provider.generate_response(api_contents, is_fsm_generation_attempt)
-
             if self._is_stopped:
+                logger.info("WORKER_PROCESS: Worker stopped just before creating completion.")
                 return
 
-            self.conversation_history.append({"role": "user", "content": user_message})
-            self.conversation_history.append({"role": "assistant", "content": ai_response_content})
+            generation_args = {"contents": api_contents, "generation_config": generation_config}
+
+            logger.debug(f"WORKER_PROCESS: Sending to Gemini. Contents (first part text len, role):")
+            for i, item_content in enumerate(api_contents):
+                first_part_text = item_content.get("parts", [{}])[0].get("text", "")
+                preview = first_part_text[:80].replace('\n', ' ') + ('...' if len(first_part_text) > 80 else '')
+                logger.debug(f"  Part {i}: Role '{item_content.get('role', 'N/A')}', Text Len: {len(first_part_text)}, Preview: '{preview}'")
+
+            response = self.client.generate_content(**generation_args)
+
+            if self._is_stopped:
+                logger.info("WORKER_PROCESS: Worker stopped during/after API call, discarding response.")
+                return
+
+            ai_response_content = ""
+            if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+                ai_response_content = response.candidates[0].content.parts[0].text
+            elif hasattr(response, 'text'):
+                ai_response_content = response.text
+            else:
+                feedback = response.prompt_feedback if hasattr(response, 'prompt_feedback') else "No feedback."
+                finish_reason = response.candidates[0].finish_reason if response.candidates else "Unknown reason."
+                error_msg = f"Gemini response was empty or blocked. Finish Reason: {finish_reason}. Feedback: {feedback}"
+                logger.error(error_msg)
+                if hasattr(response, 'prompt_feedback') and response.prompt_feedback:
+                    block_reason_msg = getattr(response.prompt_feedback, 'block_reason_message', None)
+                    if block_reason_msg: error_msg += f" Block Reason Message: {block_reason_msg}"
+                    for rating in response.prompt_feedback.safety_ratings:
+                        if rating.blocked:
+                             error_msg += f" Safety Blocked: Category {rating.category}, Probability {rating.probability.name}"
+                self.errorOccurred.emit(AIStatus.CONTENT_BLOCKED, error_msg)
+                self._current_processing_had_error = True
+                self.statusUpdate.emit(AIStatus.ERROR, f"Status: Error - {error_msg[:50]}...")
+                return
+
+
+            self.conversation_history.append({"role": "user", "parts": [{"text": user_message}]})
+            self.conversation_history.append({"role": "model", "parts": [{"text": ai_response_content}]})
+            logger.debug("WORKER_PROCESS: AI response received and added to history.")
             self.responseReady.emit(ai_response_content, is_fsm_generation_attempt)
 
-        except PermissionError as e:
-            self.errorOccurred.emit(AIStatus.AUTHENTICATION_ERROR, str(e))
-            self.statusUpdate.emit(AIStatus.API_KEY_ERROR, "Status: API Key Error.")
+        except google.api_core.exceptions.ServiceUnavailable as e:
+            err_str = f"API Connection Error: {str(e)[:200]}"
+            logger.error("Gemini API Connection/Service Error: %s", err_str, exc_info=True)
+            self.errorOccurred.emit(AIStatus.CONNECTION_ERROR, err_str)
+            self.statusUpdate.emit(AIStatus.OFFLINE, "Status: Offline/Connection Error.")
             self._current_processing_had_error = True
-        except ConnectionAbortedError as e: # Rate Limit
-            self.errorOccurred.emit(AIStatus.RATE_LIMIT, str(e))
+        except google.api_core.exceptions.ResourceExhausted as e:
+            err_str = f"Rate Limit Exceeded: {str(e)[:200]}"
+            logger.error("Gemini Rate Limit Exceeded: %s", err_str, exc_info=True)
+            self.errorOccurred.emit(AIStatus.RATE_LIMIT, err_str)
             self.statusUpdate.emit(AIStatus.ERROR, "Status: Rate Limit Exceeded.")
             self._current_processing_had_error = True
-        except ConnectionError as e:
-            self.errorOccurred.emit(AIStatus.CONNECTION_ERROR, str(e))
-            self.statusUpdate.emit(AIStatus.OFFLINE, "Status: Connection Error.")
+        except (google.api_core.exceptions.PermissionDenied, google.auth.exceptions.RefreshError, google.auth.exceptions.DefaultCredentialsError) as e:
+            err_str = f"Authentication Error (Invalid API Key?): {str(e)[:200]}"
+            logger.error("Gemini Authentication/Permission Error: %s", err_str, exc_info=True)
+            self.errorOccurred.emit(AIStatus.AUTHENTICATION_ERROR, err_str)
+            self.statusUpdate.emit(AIStatus.API_KEY_ERROR, "Status: API Key Error.")
+            self._current_processing_had_error = True
+        except google.api_core.exceptions.GoogleAPIError as e:
+            error_detail = str(e)
+            if hasattr(e, 'message') and e.message: error_detail = e.message
+            err_str = f"Google API Error: {type(e).__name__} - {error_detail[:250]}"
+            logger.error("Gemini API Error: %s - %s", type(e).__name__, error_detail[:250], exc_info=True)
+            self.errorOccurred.emit(AIStatus.ERROR, err_str)
+            self.statusUpdate.emit(AIStatus.ERROR, f"Status: API Error - {type(e).__name__}.")
+            self._current_processing_had_error = True
+        except (genai.types.BlockedPromptException, genai.types.StopCandidateException) as e:
+            error_msg = f"Gemini content generation blocked or stopped: {e}"
+            logger.error("WORKER_PROCESS: %s", error_msg, exc_info=True)
+            self.errorOccurred.emit(AIStatus.CONTENT_BLOCKED, error_msg)
+            self.statusUpdate.emit(AIStatus.ERROR, "Status: Content Blocked.")
             self._current_processing_had_error = True
         except Exception as e:
-            err_msg = f"Unexpected error from '{self.provider.get_name()}': {e}"
-            self.errorOccurred.emit(AIStatus.ERROR, err_msg)
-            self.statusUpdate.emit(AIStatus.ERROR, "Status: Unexpected Provider Error.")
+            error_msg = f"Unexpected error in AI worker: {type(e).__name__} - {str(e)[:150]}"
+            logger.error("WORKER_PROCESS: %s", error_msg, exc_info=True)
+            self.errorOccurred.emit(AIStatus.ERROR, error_msg)
+            self.statusUpdate.emit(AIStatus.ERROR, "Status: Unexpected Error.")
             self._current_processing_had_error = True
         finally:
-            if not self._current_processing_had_error and self.provider and not self._is_stopped:
-                self.statusUpdate.emit(AIStatus.READY, f"Status: Ready ({self.provider.get_name()}).")
-        
+            if not self._current_processing_had_error and self.client and not self._is_stopped:
+                self.statusUpdate.emit(AIStatus.READY, "Status: Ready.")
 
     @pyqtSlot()
     def clear_history_slot(self):
         self.conversation_history = []
         logger.info("Conversation history cleared.")
         self.statusUpdate.emit(AIStatus.HISTORY_CLEARED, "Status: Chat history cleared.")
-        
+
     @pyqtSlot()
     def stop_processing_slot(self):
         logger.info("WORKER: stop_processing_slot called.")
         self._is_stopped = True
 
-
-class AiSettingsDialog(QDialog):
-    """New dialog to select AI provider and enter API key, with descriptions."""
-
-    MODEL_DESCRIPTIONS = {
-        "Groq (Llama3)": {
-            "best_for": "The fastest, most responsive general-purpose experience.",
-            "points": [
-                "Extremely fast chat and code generation.",
-                "Excellent at following instructions for FSM JSON creation.",
-                "Strong coding and reasoning abilities."
-            ],
-            "note": "A great default choice for most tasks."
-        },
-        "OpenAI (GPT)": {
-            "best_for": "The highest quality and most reliable results, especially for complex tasks.",
-            "points": [
-                "Industry-leading performance in coding and logical reasoning.",
-                "Highly reliable JSON generation for FSM design.",
-                "Excellent for debugging and complex problem-solving."
-            ],
-            "note": "May have higher API costs."
-        },
-        "DeepSeek": {
-            "best_for": "Pure code generation and technical code analysis.",
-            "points": [
-                "Specialized model trained specifically on code.",
-                "Produces highly accurate and idiomatic code snippets (C++, Python).",
-                "Great for optimizing or fixing code in your actions and conditions."
-            ],
-            "note": "Less conversational than other models."
-        },
-        "Anthropic (Claude)": {
-            "best_for": "In-depth explanations, learning, and analyzing large projects.",
-            "points": [
-                "Produces very clean, well-documented, and 'safe' code.",
-                "Excellent for detailed explanations of FSM concepts or simulation logic.",
-                "Huge context window can analyze an entire FSM diagram at once."
-            ],
-            "note": "A fantastic choice for research and educational use."
-        },
-        "Gemini (Google AI)": {
-            "best_for": "Fast, balanced performance and analyzing very large diagrams.",
-            "points": [
-                "Provides a good balance of speed and quality.",
-                "Massive context window allows it to analyze your entire project.",
-                "Strong general chat and brainstorming capabilities."
-            ],
-            "note": "Google AI API key is required."
-        }
-    }
-
-    def __init__(self, settings_manager, parent=None):
-        super().__init__(parent)
-        self.settings_manager = settings_manager
-        self.setWindowTitle("AI Assistant Settings")
-        self.setMinimumWidth(550)
-        
-        main_layout = QVBoxLayout(self)
-        form_widget = QWidget()
-        layout = QFormLayout(form_widget)
-        main_layout.addWidget(form_widget)
-
-        self.provider_combo = QComboBox()
-        self.provider_combo.addItems(sorted(list(get_available_providers().keys())))
-        current_provider = self.settings_manager.get("ai_provider_name")
-        if current_provider:
-            self.provider_combo.setCurrentText(current_provider)
-        layout.addRow("AI Provider:", self.provider_combo)
-
-        self.api_key_edit = QLineEdit()
-        self.api_key_edit.setEchoMode(QLineEdit.Password)
-        self.api_key_edit.setPlaceholderText("Enter API Key for selected provider")
-        layout.addRow("API Key:", self.api_key_edit)
-
-        # --- NEW: Description Area ---
-        desc_group = QGroupBox("Model Information")
-        desc_layout = QVBoxLayout(desc_group)
-        self.description_label = QLabel()
-        self.description_label.setWordWrap(True)
-        self.description_label.setTextFormat(Qt.RichText)
-        self.description_label.setOpenExternalLinks(True)
-        self.description_label.setStyleSheet(
-            f"background-color: {QColor(COLOR_BACKGROUND_DIALOG).lighter(102).name()}; padding: 8px; border-radius: 4px;"
-        )
-        desc_layout.addWidget(self.description_label)
-        main_layout.addWidget(desc_group)
-        # --- END NEW ---
-
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        main_layout.addWidget(button_box)
-        
-        self.provider_combo.currentTextChanged.connect(self.on_provider_changed)
-        self.on_provider_changed(self.provider_combo.currentText()) # Load initial key and description
-
-    def on_provider_changed(self, provider_name):
-        # Update API key field
-        last_key = self.settings_manager.get(f"ai_api_key_{provider_name}", "")
-        self.api_key_edit.setText(last_key)
-        
-        # Update description label
-        desc_data = self.MODEL_DESCRIPTIONS.get(provider_name, {
-            "best_for": "General purpose model.",
-            "points": ["No specific information available for this provider."],
-            "note": ""
-        })
-        
-        points_html = "".join([f"<li>{point}</li>" for point in desc_data['points']])
-        
-        html = f"""
-        <p><b>Best For:</b> {desc_data['best_for']}</p>
-        <ul>{points_html}</ul>
-        <p><i><b>Note:</b> {desc_data['note']}</i></p>
-        """
-        self.description_label.setText(html)
-
-
-    def get_selection(self) -> tuple[str, str]:
-        return self.provider_combo.currentText(), self.api_key_edit.text().strip()
 
 class AIChatUIManager(QObject):
     def __init__(self, main_window, parent=None):
@@ -411,8 +431,10 @@ class AIChatUIManager(QObject):
         self._original_status_text: str = ""
         self._original_status_stylesheet: str = ""
 
+        # --- NEW: markdown-it instance ---
         self.md_parser = MarkdownIt("commonmark", {"breaks": True, "html": False})
-        
+        # --- END NEW ---
+
         self._connect_actions_to_manager_slots()
         self._connect_ai_chatbot_signals()
 
@@ -420,18 +442,17 @@ class AIChatUIManager(QObject):
         logger.info("AIChatUIManager._connect_actions_to_manager_slots CALLED.")
 
         settings_action = getattr(self.mw, 'openai_settings_action', None)
-        
         if settings_action is not None and isinstance(settings_action, QAction):
             logger.info("AIChatUIManager: SUCCESS - Found 'openai_settings_action' of type QAction. Connecting...")
             try:
-                settings_action.triggered.disconnect()
+                settings_action.triggered.disconnect(self.on_gemini_settings)
             except TypeError:
                 pass
             try:
-                settings_action.triggered.connect(self.on_ai_settings)
-                logger.info("AIChatUIManager: Connection to on_ai_settings SUCCEEDED.")
+                settings_action.triggered.connect(self.on_gemini_settings)
+                logger.info("AIChatUIManager: Connection to on_gemini_settings SUCCEEDED.")
             except Exception as e:
-                logger.error(f"AIChatUIManager: FAILED to connect 'openai_settings_action.triggered' to 'on_ai_settings': {e}", exc_info=True)
+                logger.error(f"AIChatUIManager: FAILED to connect 'openai_settings_action.triggered' to 'on_gemini_settings': {e}", exc_info=True)
         elif settings_action is not None:
             logger.error(f"AIChatUIManager: Found 'openai_settings_action' but it's not a QAction. Type: {type(settings_action)}")
         else:
@@ -443,10 +464,9 @@ class AIChatUIManager(QObject):
             try: ask_fsm_action.triggered.disconnect(self.on_ask_ai_to_generate_fsm)
             except TypeError: pass
             ask_fsm_action.triggered.connect(self.on_ask_ai_to_generate_fsm)
-            
         else:
             logger.error("AIChatUIManager: Could not find 'ask_ai_to_generate_fsm_action' or it's not a QAction on MainWindow to connect.")
-        
+
         clear_chat_action = getattr(self.mw, 'clear_ai_chat_action', None)
         if clear_chat_action and isinstance(clear_chat_action, QAction):
             logger.debug("AIChatUI: Found 'clear_ai_chat_action', connecting to on_clear_ai_chat_history.")
@@ -464,7 +484,6 @@ class AIChatUIManager(QObject):
             self.mw.ai_chatbot_manager.fsmDataReceived.connect(self.handle_fsm_data_from_ai)
             self.mw.ai_chatbot_manager.plainResponseReady.connect(self.handle_plain_ai_response)
 
-    # --- (create_dock_widget_contents and other UI methods remain the same) ---
     def create_dock_widget_contents(self) -> QWidget:
         ai_chat_widget = QWidget()
         ai_chat_layout = QVBoxLayout(ai_chat_widget)
@@ -522,7 +541,7 @@ class AIChatUIManager(QObject):
         can_send_message = False
         is_thinking_ui = False
 
-        if status_enum in [AIStatus.API_KEY_REQUIRED, AIStatus.API_KEY_ERROR, AIStatus.INACTIVE, AIStatus.AUTHENTICATION_ERROR, AIStatus.PROVIDER_NOT_SET]:
+        if status_enum in [AIStatus.API_KEY_REQUIRED, AIStatus.API_KEY_ERROR, AIStatus.INACTIVE, AIStatus.AUTHENTICATION_ERROR]:
             self.ai_chat_status_label.setStyleSheet(f"{base_style} color: white; background-color: {COLOR_ACCENT_ERROR}; font-weight: bold;")
         elif status_enum == AIStatus.OFFLINE or status_enum == AIStatus.CONNECTION_ERROR:
             self.ai_chat_status_label.setStyleSheet(f"{base_style} color: {COLOR_TEXT_PRIMARY}; background-color: {COLOR_ACCENT_WARNING};")
@@ -660,25 +679,6 @@ class AIChatUIManager(QObject):
         self.ai_chat_display.append(html_to_append)
         self.ai_chat_display.ensureCursorVisible()
 
-    @pyqtSlot()
-    def on_ai_settings(self):
-        logger.info("AIChatUI: SLOT on_ai_settings CALLED!")
-        if not self.mw.ai_chatbot_manager or not hasattr(self.mw, 'settings_manager'):
-            QMessageBox.warning(self.mw, "AI Error", "AI or Settings Manager is not initialized.")
-            return
-
-        dialog = AiSettingsDialog(self.mw.settings_manager, self.mw)
-        if dialog.exec_():
-            provider, api_key = dialog.get_selection()
-            logger.info(f"AIChatUI: AI Settings dialog accepted. Provider: '{provider}', Key: {'SET' if api_key else 'EMPTY'}")
-            
-            # Persist choices
-            self.mw.settings_manager.set("ai_provider_name", provider)
-            self.mw.settings_manager.set(f"ai_api_key_{provider}", api_key)
-            
-            # Reconfigure the manager
-            self.mw.ai_chatbot_manager.set_provider_and_key(provider, api_key)
-
     @pyqtSlot(QUrl)
     def on_chat_anchor_clicked(self, url: QUrl):
         if url.scheme() == 'copycode':
@@ -792,6 +792,29 @@ class AIChatUIManager(QObject):
         elif ok: QMessageBox.warning(self.mw, "Empty Description", "Please provide a description for the FSM.")
 
     @pyqtSlot()
+    def on_gemini_settings(self):
+        logger.info("AIChatUI: SLOT on_gemini_settings CALLED!")
+        if not self.mw.ai_chatbot_manager:
+            logger.warning("AIChatUI: AI Chatbot Manager not available for settings within on_gemini_settings.")
+            QMessageBox.warning(self.mw, "AI Error", "AI Chatbot Manager is not initialized. Cannot open settings.")
+            return
+
+        current_key = self.mw.ai_chatbot_manager.api_key or ""
+        key, ok = QInputDialog.getText(
+            self.mw,
+            "Google AI API Key (Gemini)",
+            "Enter your Google AI API Key for Gemini (leave blank to clear):",
+            QLineEdit.PasswordEchoOnEdit,
+            current_key
+        )
+        if ok:
+            new_key_value = key.strip()
+            logger.info(f"AIChatUI: Google AI API Key dialog returned. OK: {ok}, Key: {'SET' if new_key_value else 'EMPTY'}")
+            self.mw.ai_chatbot_manager.set_api_key(new_key_value if new_key_value else None)
+        else:
+            logger.debug("AIChatUI: Google AI API Key dialog cancelled by user.")
+
+    @pyqtSlot()
     def on_clear_ai_chat_history(self):
         logger.info("AIChatUI: on_clear_ai_chat_history CALLED!")
         if self.mw.ai_chatbot_manager:
@@ -818,32 +841,14 @@ class AIChatbotManager(QObject):
     plainResponseReady = pyqtSignal(str)
 
     def __init__(self, parent=None):
-        
         super().__init__(parent)
         self.parent_window = parent
-        self.settings_manager = self.parent_window.settings_manager if hasattr(self.parent_window, 'settings_manager') else None
-        
+        self.api_key: str | None = None
         self.chatbot_worker: ChatbotWorker | None = None
         self.chatbot_thread: QThread | None = None
         self.last_fsm_request_description: str | None = None
-        
-        self._current_ai_status = AIStatus.INACTIVE
-        self._setup_worker() # Setup worker immediately
-        
-        if self.settings_manager:
-            QTimer.singleShot(100, self._load_settings_and_configure)
-            
-    def _load_settings_and_configure(self):
-        """Load the last used provider and key from settings and configure the AI."""
-        if not self.settings_manager: return
-        
-        provider_name = self.settings_manager.get("ai_provider_name")
-        if not provider_name:
-            self._update_current_ai_status(AIStatus.PROVIDER_NOT_SET, "Status: No AI provider selected.")
-            return
-
-        api_key = self.settings_manager.get(f"ai_api_key_{provider_name}", "")
-        self.set_provider_and_key(provider_name, api_key)
+        logger.info("AIChatbotManager initialized.")
+        self._current_ai_status = AIStatus.INITIALIZING
 
     def _update_current_ai_status(self, new_status_enum: AIStatus, status_text: str):
         self._current_ai_status = new_status_enum
@@ -888,12 +893,42 @@ class AIChatbotManager(QObject):
         self.chatbot_worker = None
         logger.debug("MGR_CLEANUP: Finished. Worker and thread are None.")
 
+
+    def set_api_key(self, api_key: str | None):
+        old_key_status = 'SET' if self.api_key else 'NONE'
+        new_key_status = 'SET' if api_key else 'NONE'
+        logger.info(f"MGR_SET_API_KEY (Gemini): New key: '{new_key_status}', Old key: '{old_key_status}'")
+
+        old_api_key_val = self.api_key
+        self.api_key = api_key
+
+        if old_api_key_val != self.api_key or \
+           (self.api_key and (not self.chatbot_worker or not self.chatbot_thread or not self.chatbot_thread.isRunning())):
+            self._cleanup_existing_worker_and_thread()
+            if self.api_key:
+                self._setup_worker()
+            else:
+                self._update_current_ai_status(AIStatus.API_KEY_REQUIRED, "Status: Gemini API Key cleared. AI Assistant inactive.")
+        elif self.chatbot_worker and self.api_key and self.chatbot_thread and self.chatbot_thread.isRunning():
+             QMetaObject.invokeMethod(self.chatbot_worker, "set_api_key_slot", Qt.QueuedConnection,
+                                      Q_ARG(str, self.api_key))
+        elif not self.api_key:
+            self._update_current_ai_status(AIStatus.API_KEY_REQUIRED, "Status: Gemini API Key required.")
+
+
     def _setup_worker(self):
-        self._cleanup_existing_worker_and_thread()
+        if not self.api_key:
+            logger.warning("MGR_SETUP_WORKER: Cannot setup - API key is not set.")
+            self._update_current_ai_status(AIStatus.API_KEY_REQUIRED, "Status: API Key required.")
+            return
+
+        if self.chatbot_worker or (self.chatbot_thread and self.chatbot_thread.isRunning()):
+            logger.info("MGR_SETUP_WORKER: Worker/thread exists or is running. Cleaning up first.")
+            self._cleanup_existing_worker_and_thread()
 
         logger.info("MGR_SETUP_WORKER: Setting up new worker and thread.")
         self.chatbot_thread = QThread(self)
-        self.chatbot_worker = ChatbotWorker(parent=None)
+        self.chatbot_worker = ChatbotWorker(self.api_key, parent=None) # Workers in threads should not have a QObject parent on another thread
         self.chatbot_worker.moveToThread(self.chatbot_thread)
 
         self.chatbot_worker.responseReady.connect(self._handle_worker_response)
@@ -902,22 +937,11 @@ class AIChatbotManager(QObject):
 
         self.chatbot_thread.start()
         logger.info("MGR_SETUP_WORKER: New AI Chatbot worker thread started.")
-        self._update_current_ai_status(AIStatus.INITIALIZING, "Status: AI Initializing...")
+        self._update_current_ai_status(AIStatus.INITIALIZING, "Status: AI Assistant Initializing...")
+        QMetaObject.invokeMethod(self.chatbot_worker, "set_api_key_slot", Qt.QueuedConnection,
+                                      Q_ARG(str, self.api_key))
 
-    def set_provider_and_key(self, provider_name: str | None, api_key: str | None):
-        """Reconfigures the AI worker with a new provider and/or API key."""
-        logger.info(f"MGR_SET_PROVIDER_AND_KEY: Provider '{provider_name}', Key {'SET' if api_key else 'NONE'}")
 
-        if not self.chatbot_worker or not self.chatbot_thread or not self.chatbot_thread.isRunning():
-            logger.info("MGR_SET_PROVIDER: Worker/thread not ready. Setting up first.")
-            self._setup_worker()
-            QTimer.singleShot(50, lambda: self.set_provider_and_key(provider_name, api_key))
-            return
-            
-        QMetaObject.invokeMethod(self.chatbot_worker, "set_provider_and_key_slot", Qt.QueuedConnection,
-                                  Q_ARG(str, provider_name or ""),
-                                  Q_ARG(str, api_key or ""))
-        
     @pyqtSlot(str, bool)
     def _handle_worker_response(self, ai_response_content: str, was_fsm_generation_attempt: bool):
         logger.info(f"MGR_HANDLE_WORKER_RESPONSE: Received from worker. Was FSM attempt: {was_fsm_generation_attempt}")
@@ -960,25 +984,21 @@ class AIChatbotManager(QObject):
     def _prepare_and_send_to_worker(self, user_message_text: str, is_fsm_gen_specific: bool = False):
         logger.info(f"MGR_PREP_SEND: For: '{user_message_text[:30]}...', FSM_specific_req: {is_fsm_gen_specific}")
 
-        # --- MODIFIED: The check is now for a configured provider, not a specific key ---
-        if not self.chatbot_worker or not self.chatbot_worker.provider or not self.chatbot_worker.provider.is_configured():
-            err_msg = "AI Assistant not configured. Please set a provider and API Key in Settings."
-            logger.warning("MGR_PREP_SEND: Provider not configured.")
+        if not self.api_key:
+            err_msg = "Gemini API Key not set. Configure in Settings."
+            logger.warning("MGR_PREP_SEND: API Key not set.")
             self.errorOccurred.emit(AIStatus.API_KEY_REQUIRED, err_msg)
-            if self.parent_window and hasattr(self.parent_window, 'ai_chat_ui_manager'):
+            self._update_current_ai_status(AIStatus.API_KEY_REQUIRED, "Status: API Key required.")
+            if self.parent_window and hasattr(self.parent_window, 'ai_chat_ui_manager') and self.parent_window.ai_chat_ui_manager:
                 self.parent_window.ai_chat_ui_manager._append_to_chat_display("System Error", err_msg)
             return
 
         if not self.chatbot_worker or not self.chatbot_thread or not self.chatbot_thread.isRunning():
             logger.warning("MGR_PREP_SEND: Worker/Thread not ready.")
-            if self.chatbot_worker and self.chatbot_worker.provider: # Check if we have a provider to setup with
+            if self.api_key and (not self.chatbot_thread or not self.chatbot_thread.isRunning()):
                  logger.info("MGR_PREP_SEND: Attempting to re-setup worker because it's not running.")
                  self._setup_worker()
-                 # After setting up worker, we need to re-configure it.
-                 # Best to re-trigger the configuration flow.
-                 QTimer.singleShot(50, self._load_settings_and_configure)
 
-            # Check again after trying to set up
             if not self.chatbot_worker or not self.chatbot_thread or not self.chatbot_thread.isRunning():
                 err_msg = "AI Assistant is not ready. Please wait or check settings."
                 self.errorOccurred.emit(AIStatus.ERROR, err_msg)
@@ -1039,7 +1059,7 @@ class AIChatbotManager(QObject):
             if self.parent_window and hasattr(self.parent_window, 'ai_chat_ui_manager'):
                 self.parent_window.ai_chat_ui_manager._code_snippet_cache.clear()
         else:
-            if not self.chatbot_worker or not self.chatbot_worker.provider or not self.chatbot_worker.provider.is_configured():
+            if not self.api_key:
                 self._update_current_ai_status(AIStatus.API_KEY_REQUIRED, "Status: API Key required. Chat inactive.")
             else:
                 self._update_current_ai_status(AIStatus.INACTIVE, "Status: Chatbot not active.")
@@ -1053,19 +1073,24 @@ class AIChatbotManager(QObject):
         logger.info("MGR_STOP: Chatbot stopped and cleaned up.")
 
     def set_online_status(self, is_online: bool):
-        logger.info(f"MGR_NET_STATUS: Online status changed to: {is_online}")
-
-        current_status = self.get_current_ai_status()
-
-        if not is_online:
-            self._update_current_ai_status(AIStatus.OFFLINE, "Status: Offline. AI features unavailable.")
+        logger.info(f"MGR_NET_STATUS: Online status: {is_online}")
+        if not self.api_key:
+            if is_online:
+                self._update_current_ai_status(AIStatus.API_KEY_REQUIRED, "Status: Online, Gemini API Key required.")
+            else:
+                self._update_current_ai_status(AIStatus.OFFLINE, "Status: Offline, Gemini API Key required.")
             return
 
-        # If we are now online, and the previous state was offline, we should try to re-establish the connection.
-        if current_status == AIStatus.OFFLINE:
-            logger.info("MGR_NET_STATUS: Internet connection restored. Re-checking AI configuration.")
-            # This will trigger the whole chain: get settings -> set_provider_and_key -> setup worker -> configure provider.
-            self._load_settings_and_configure()
+        if is_online:
+            if not self.chatbot_thread or not self.chatbot_thread.isRunning():
+                logger.info("MGR_NET_STATUS: Network online, API key present, attempting worker setup.")
+                self._setup_worker()
+            else:
+                if self.chatbot_worker and self.chatbot_worker.client:
+                    self._update_current_ai_status(AIStatus.READY, "Status: Online and Ready.")
+                elif self.chatbot_worker and not self.chatbot_worker.client:
+                    self._update_current_ai_status(AIStatus.API_KEY_ERROR, "Status: Online, API Key Error.")
+                else:
+                    self._update_current_ai_status(AIStatus.INITIALIZING, "Status: Online, Initializing...")
         else:
-            # If we were already online, no need to do anything. The status is what it is (e.g., READY, API_KEY_REQUIRED).
-            logger.debug("MGR_NET_STATUS: Internet status is online, no AI status change required from network check.")
+            self._update_current_ai_status(AIStatus.OFFLINE, "Status: Offline. Gemini AI features unavailable.")

@@ -40,8 +40,6 @@ from .theme_manager import ThemeManager
 
 import logging
 logger = logging.getLogger(__name__)
-
-
 try:
     from .graphics_scene import DiagramScene, ZoomableView
     IMPORTS_SUCCESSFUL = True

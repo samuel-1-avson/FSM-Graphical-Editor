@@ -354,9 +354,7 @@ class AiSettingsDialog(QDialog):
         self.description_label.setWordWrap(True)
         self.description_label.setTextFormat(Qt.RichText)
         self.description_label.setOpenExternalLinks(True)
-        self.description_label.setStyleSheet(
-            f"background-color: {QColor(COLOR_BACKGROUND_DIALOG).lighter(102).name()}; padding: 8px; border-radius: 4px;"
-        )
+        self.description_label.setStyleSheet(f"background-color: {QColor(COLOR_BACKGROUND_LIGHT).lighter(102).name()}; padding: 8px; border-radius: 4px;")
         desc_layout.addWidget(self.description_label)
         main_layout.addWidget(desc_group)
         # --- END NEW ---
