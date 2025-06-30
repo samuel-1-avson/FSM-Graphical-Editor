@@ -324,88 +324,113 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        
-        # --- CORRECTED INITIALIZATION ORDER ---
-
-        # 1. Core non-UI managers and settings
+        # Ensure SettingsManager is available globally for other components
         if not hasattr(QApplication.instance(), 'settings_manager'):
              QApplication.instance().settings_manager = SettingsManager(app_name=APP_NAME)
         self.settings_manager = QApplication.instance().settings_manager
-        self.theme_manager = ThemeManager()
-        self.custom_snippet_manager = CustomSnippetManager(app_name=APP_NAME)
-        self.resource_estimator = ResourceEstimator()
-        self.matlab_connection = MatlabConnection()
-        self.git_manager = GitManager(self)
-        self.action_handler = ActionHandler(self) # Creates QActions, but doesn't connect them yet
+
+        # --- INITIALIZATION ORDER ---
         
-        # 2. Central UI setup
+        # 1. Initialize core attributes
+        self.current_perspective_name = self.settings_manager.get("last_used_perspective", self.PERSPECTIVE_DESIGN_FOCUS)
+        self.py_fsm_engine: FSMSimulator | None = None
+        self.py_sim_active = False
+        self._find_dialogs = {}
+        self._current_edited_item_in_dock = None
+        self._current_edited_item_original_props_in_dock = {} 
+        self._dock_property_editors = {}
+        
+        # 2. Setup the central tabbed widget
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.setMovable(True)
         self.tab_widget.setDocumentMode(True)
         self.setCentralWidget(self.tab_widget)
         
+        # 3. Instantiate all manager classes BEFORE using their methods
+        self.theme_manager = ThemeManager()
+        self.custom_snippet_manager = CustomSnippetManager(app_name=APP_NAME)
+        self.resource_estimator = ResourceEstimator()
         self.ui_manager = UIManager(self)
-        self.ui_manager.setup_ui() # CRITICAL: This creates all menus, docks, and toolbars
-
-        # 3. Managers that depend on the UI being created
-        self.perspective_manager = PerspectiveManager(self, self.settings_manager)
+        self.action_handler = ActionHandler(self)
         self.resource_monitor_manager = ResourceMonitorManager(self, settings_manager=self.settings_manager)
-        self.py_sim_ui_manager = PySimulationUIManager(self)
+        self.matlab_connection = MatlabConnection()
         self.ai_chatbot_manager = AIChatbotManager(self)
+        self.py_sim_ui_manager = PySimulationUIManager(self)
+        self.git_manager = GitManager(self)
+        self.perspective_manager = PerspectiveManager(self, self.settings_manager)
+        
+        # 4. Now, call setup_ui which creates the dock widgets etc.
+        self.ui_manager.setup_ui() 
+
+        # 5. Now that UI elements (docks) exist, managers that need them can be fully initialized.
         self.ai_chat_ui_manager = AIChatUIManager(self)
         self.ide_manager = IDEManager(self)
-
-        # 4. Finalize UI and connect signals
-        if not hasattr(self, 'log_output') or not self.log_output: 
-            self.log_output = QTextEdit() 
-        setup_global_logging(self.log_output)
         
+        # 6. Final setup
+        try:
+            if not hasattr(self, 'log_output') or not self.log_output: 
+                self.log_output = QTextEdit() 
+            setup_global_logging(self.log_output)
+            logger.info("Main window initialized.")
+        except Exception as e:
+            print(f"ERROR: Failed to run setup_global_logging: {e}.")
+            if not logging.getLogger().hasHandlers():
+                 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+        
+        # 7. Finalize UI and connect signals
         self.ui_manager.populate_dynamic_docks()
-        self._connect_application_signals() 
+        self._connect_application_signals()
         self._apply_initial_settings()
+        self.perspective_manager.populate_menu()
         self.restore_geometry_and_state()
 
-        # 5. Start background services and initial actions
+        # 8. Start background services
         self._internet_connected: bool | None = None
         self.internet_check_timer = QTimer(self)
         self._init_internet_status_check()
         if self.settings_manager.get("resource_monitor_enabled"):
             self.resource_monitor_manager.setup_and_start_monitor()
 
+        # 9. Initial Actions & UI State
         self._set_status_label_object_names() 
         QTimer.singleShot(0, lambda: self.action_handler.on_new_file(silent=True)) 
-        QTimer.singleShot(100, lambda: self.perspective_manager.apply_perspective(self.perspective_manager.current_perspective_name))
         QTimer.singleShot(250, lambda: self.ai_chatbot_manager.set_online_status(self._internet_connected if self._internet_connected is not None else False))
-        
-        logger.info("Main window initialization complete.")
+        QTimer.singleShot(50, lambda: self.perspective_manager.apply_perspective(
+            self.perspective_manager.current_perspective_name
+        ))
     
     def _connect_application_signals(self):
         """Central hub for all application-level signal connections."""
         logger.debug("Connecting application-level signals...")
         
+        # --- UI Manager Actions ---
         self.action_handler.connect_actions()
-        
         if hasattr(self, 'preferences_action'):
             self.preferences_action.triggered.connect(self.on_show_preferences_dialog)
             
+        # --- Tab Widget ---
         self.tab_widget.currentChanged.connect(self._on_current_tab_changed)
         self.tab_widget.tabCloseRequested.connect(self._on_close_tab_requested)
         
+        # --- Dock Widgets & Properties ---
         if hasattr(self, 'properties_apply_button'): self.properties_apply_button.clicked.connect(self._on_apply_dock_properties)
         if hasattr(self, 'properties_revert_button'): self.properties_revert_button.clicked.connect(self._on_revert_dock_properties)
         if hasattr(self, 'properties_edit_dialog_button'): self.properties_edit_dialog_button.clicked.connect(lambda: self.current_editor().scene.edit_item_properties(self._current_edited_item_in_dock) if self.current_editor() and self._current_edited_item_in_dock else None)
         
-        self.perspective_manager.populate_menu() # Populate now that menu exists
+        # --- Perspectives ---
+        self.theme_manager.themesChanged.connect(self.perspective_manager.populate_menu)
         if hasattr(self, 'save_perspective_action'): self.save_perspective_action.triggered.connect(self.perspective_manager.save_current_as)
         if hasattr(self, 'reset_perspectives_action'): self.reset_perspectives_action.triggered.connect(self.perspective_manager.reset_all)
         
+        # --- Background/Service Managers ---
         self.settings_manager.settingChanged.connect(self._handle_setting_changed)
         self.matlab_connection.connectionStatusChanged.connect(self._update_matlab_status_display)
         self.matlab_connection.simulationFinished.connect(self._handle_matlab_modelgen_or_sim_finished)
         self.matlab_connection.codeGenerationFinished.connect(self._handle_matlab_codegen_finished)
         self.git_manager.git_status_updated.connect(self._on_git_status_updated)
         
+        # --- Component UI Managers ---
         if self.py_sim_ui_manager:
             self.py_sim_ui_manager.simulationStateChanged.connect(self._handle_py_sim_state_changed_by_manager)
             self.py_sim_ui_manager.requestGlobalUIEnable.connect(self._handle_py_sim_global_ui_enable_by_manager)
@@ -476,6 +501,7 @@ class MainWindow(QMainWindow):
     def _clear_recent_files_list(self):
         self.settings_manager.set("recent_files", [])
         self.log_message("INFO", "Recent files list cleared.")
+        
      
      
      
@@ -598,6 +624,7 @@ class MainWindow(QMainWindow):
             
             
     def _connect_editor_signals(self, editor: EditorWidget):
+        """Connects signals from a newly created editor tab to main window handlers."""
         editor.scene.selectionChanged.connect(self._update_all_ui_element_states)
         editor.scene.scene_content_changed_for_find.connect(self._refresh_find_dialog_if_visible)
         editor.scene.modifiedStatusChanged.connect(self._update_window_title) 
@@ -608,7 +635,7 @@ class MainWindow(QMainWindow):
         if hasattr(editor.scene, 'itemsBoundingRectChanged'):
              editor.scene.itemsBoundingRectChanged.connect(self.update_resource_estimation)
         if hasattr(editor.scene, 'sceneRectChanged'):
-             editor.scene.sceneRectChanged.connect(self.update_resource_estimation)  
+             editor.scene.sceneRectChanged.connect(self.update_resource_estimation) 
              
              
     def add_new_editor_tab(self) -> EditorWidget:
@@ -627,6 +654,7 @@ class MainWindow(QMainWindow):
         self._update_window_title()
         QTimer.singleShot(10, self._update_git_menu_actions_state)
         return new_editor
+
 
 
     # --- Git Integration ---
@@ -670,7 +698,6 @@ class MainWindow(QMainWindow):
         self.set_ui_for_git_op(True, op_name)
         self.git_manager.run_command_in_repo(command, editor.file_path, self._on_git_command_finished)
 
-
     def _on_git_command_finished(self, success: bool, stdout: str, stderr: str):
         self.set_ui_for_git_op(False, "Git operation finished.")
         if success:
@@ -686,8 +713,6 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'main_op_status_label'): self.main_op_status_label.setText(f"Git: {op_name}...")
         if hasattr(self, 'progress_bar'): self.progress_bar.setVisible(is_running)
         self.setEnabled(not is_running)        
-
-         
 
     # Placeholder for property dock methods, now handled by UI Manager logic
     _update_properties_dock = lambda self, *args: None
@@ -729,6 +754,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(int)
     def _on_current_tab_changed(self, index: int):
+        """Update global UI state and undo/redo actions when the active tab changes."""
         if hasattr(self, 'undo_action'): 
             try: self.undo_action.triggered.disconnect()
             except TypeError: pass
@@ -752,8 +778,8 @@ class MainWindow(QMainWindow):
         self._update_all_ui_element_states()
 
 
-
     def _prompt_save_on_close(self, editor: EditorWidget) -> bool:
+        """Prompts to save a single editor tab if it is dirty. Returns False if user cancels."""
         if not editor.is_dirty(): return True
         self.tab_widget.setCurrentWidget(editor)
         file_desc = os.path.basename(editor.file_path) if editor.file_path else "Untitled"
@@ -763,7 +789,6 @@ class MainWindow(QMainWindow):
                                      QMessageBox.Save)
         if reply == QMessageBox.Save: return self.action_handler.on_save_file() 
         return reply != QMessageBox.Cancel
-    
     
     
     def _load_into_editor(self, editor: EditorWidget, file_path: str) -> bool:
@@ -806,7 +831,7 @@ class MainWindow(QMainWindow):
                 if index != -1: self.tab_widget.setTabText(index, editor.get_tab_title())
                 self.log_message("INFO", f"Saved to {file_path}")
                 self._update_window_title()
-                if self.git_manager:
+                if self.git_manager: # NEW
                     self.git_manager.check_file_status(file_path)
                 return True
             else:
@@ -830,6 +855,7 @@ class MainWindow(QMainWindow):
         
         editor = self.current_editor()
         if editor and editor.view: self.update_zoom_status_display(editor.view.transform().m11())
+
         
         
         
@@ -839,22 +865,36 @@ class MainWindow(QMainWindow):
         initial_theme = self.settings_manager.get("appearance_theme")
         self._apply_theme(initial_theme)
 
-        if hasattr(self, 'show_grid_action'): self.show_grid_action.setChecked(self.settings_manager.get("view_show_grid"))
-        if hasattr(self, 'snap_to_grid_action'): self.snap_to_grid_action.setChecked(self.settings_manager.get("view_snap_to_grid"))
-        if hasattr(self, 'snap_to_objects_action'): self.snap_to_objects_action.setChecked(self.settings_manager.get("view_snap_to_objects"))
-        if hasattr(self, 'show_snap_guidelines_action'): self.show_snap_guidelines_action.setChecked(self.settings_manager.get("view_show_snap_guidelines"))
+        show_grid = self.settings_manager.get("view_show_grid")
+        if hasattr(self, 'show_grid_action'):
+            self.show_grid_action.setChecked(show_grid)
+
+        snap_to_grid = self.settings_manager.get("view_snap_to_grid")
+        if hasattr(self, 'snap_to_grid_action'):
+            self.snap_to_grid_action.setChecked(snap_to_grid)
         
-        if self.resource_monitor_manager and self.resource_monitor_manager.worker:
-            self.resource_monitor_manager.worker.data_collection_interval_ms = self.settings_manager.get("resource_monitor_interval_ms")
+        snap_to_objects = self.settings_manager.get("view_snap_to_objects")
+        if hasattr(self, 'snap_to_objects_action'):
+            self.snap_to_objects_action.setChecked(snap_to_objects)
+
+        show_snap_guidelines = self.settings_manager.get("view_show_snap_guidelines")
+        if hasattr(self, 'show_snap_guidelines_action'):
+            self.show_snap_guidelines_action.setChecked(show_snap_guidelines)
+        
+        if self.resource_monitor_manager:
+            if self.settings_manager.get("resource_monitor_enabled"):
+                if self.resource_monitor_manager.worker: 
+                    interval = self.settings_manager.get("resource_monitor_interval_ms")
+                    self.resource_monitor_manager.worker.data_collection_interval_ms = interval
         
         self._update_window_title()
+        self.current_perspective_name = self.settings_manager.get("last_used_perspective", self.PERSPECTIVE_DESIGN_FOCUS)
 
     # ... New helper slot for property dock update on move ...
     @pyqtSlot(QGraphicsItem)
-    def _update_item_properties_from_move(self, moved_item): 
-        if hasattr(self, '_current_edited_item_in_dock') and self._current_edited_item_in_dock == moved_item:
+    def _update_item_properties_from_move(self, moved_item):
+        if self._current_edited_item_in_dock and self._current_edited_item_in_dock == moved_item:
              self._on_revert_dock_properties()
-
     @pyqtSlot(str, object)
     def _handle_setting_changed(self, key: str, value: object):
         logger.info(f"Setting '{key}' changed to '{value}'. Updating UI.")
@@ -927,15 +967,16 @@ class MainWindow(QMainWindow):
     
     @pyqtSlot()
     def on_show_preferences_dialog(self):
+        """Creates and shows the preferences dialog."""
         if hasattr(self, 'preferences_dialog') and self.preferences_dialog.isVisible():
             self.preferences_dialog.raise_()
             self.preferences_dialog.activateWindow()
             return
         
+        # Pass the theme manager to the settings dialog
         self.preferences_dialog = SettingsDialog(self.settings_manager, self.theme_manager, self)
         self.preferences_dialog.exec_()
         logger.info("Preferences dialog closed.")
-
 
     @pyqtSlot(float, float, float, str)
     def _update_resource_display(self, cpu_usage, ram_usage, gpu_util, gpu_name):
@@ -971,8 +1012,9 @@ class MainWindow(QMainWindow):
                  self.update_zoom_status_display(editor.view.transform().m11())
 
     def _update_save_actions_enable_state(self):
+        editor = self.current_editor()
         if hasattr(self, 'save_action'):
-            self.save_action.setEnabled(self.current_editor() and self.current_editor().is_dirty())
+            self.save_action.setEnabled(editor and editor.is_dirty())
 
     def _update_ide_save_actions_enable_state(self):
         if self.ide_manager:
@@ -982,8 +1024,6 @@ class MainWindow(QMainWindow):
         editor = self.current_editor()
         can_undo = editor and editor.undo_stack.canUndo()
         can_redo = editor and editor.undo_stack.canRedo()
-        if hasattr(self, 'undo_action'): self.undo_action.setEnabled(can_undo)
-        if hasattr(self, 'redo_action'): self.redo_action.setEnabled(can_redo)
         
         self.undo_action.setEnabled(can_undo)
         self.redo_action.setEnabled(can_redo)
@@ -1141,28 +1181,29 @@ class MainWindow(QMainWindow):
         dialog.exec_()
         logger.info("MATLAB settings dialog closed.")
 
-    # The closeEvent and other essential methods from the original file are assumed to be here.
     def closeEvent(self, event: QCloseEvent):
         """Overrides QMainWindow.closeEvent to check for unsaved changes and stop threads."""
         logger.info("MW_CLOSE: closeEvent received.")
         
-        if self.py_sim_ui_manager and self.current_editor() and self.current_editor().py_sim_active: 
+        if self.py_sim_ui_manager and self.py_sim_active: 
              self.py_sim_ui_manager.on_stop_py_simulation(silent=True)
              
         if hasattr(self.ide_manager, 'prompt_ide_save_if_dirty') and not self.ide_manager.prompt_ide_save_if_dirty():
             event.ignore()
             return
         
-        for i in range(self.tab_widget.count()):
+        for i in range(self.tab_widget.count() - 1, -1, -1):
             if not self._prompt_save_on_close(self.tab_widget.widget(i)):
                 event.ignore()
                 return
 
+        # Stop background services
         self.internet_check_timer.stop()
         if self.ai_chatbot_manager: self.ai_chatbot_manager.stop_chatbot()
         if self.resource_monitor_manager: self.resource_monitor_manager.stop_monitoring_system()
-        if self.git_manager: self.git_manager.stop()
+        if self.git_manager: self.git_manager.stop() # NEW
 
+        # Save settings and state
         self.settings_manager.set("last_used_perspective", self.perspective_manager.current_perspective_name)
         self.settings_manager.set("window_geometry", self.saveGeometry().toHex().data().decode('ascii'))
         self.settings_manager.set("window_state", self.saveState().toHex().data().decode('ascii'))
@@ -1170,17 +1211,18 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def restore_geometry_and_state(self):
+        """Restores window geometry and perspective from settings."""
         try:
             geom_hex = self.settings_manager.get("window_geometry")
             if geom_hex and isinstance(geom_hex, str): self.restoreGeometry(bytes.fromhex(geom_hex))
 
             state_hex = self.settings_manager.get("window_state")
             if state_hex and isinstance(state_hex, str): self.restoreState(bytes.fromhex(state_hex))
-            else: self.perspective_manager.apply_perspective(self.current_perspective_name)
+            else: self.apply_perspective(self.current_perspective_name) # Fallback to default layout if no saved state
             
         except Exception as e:
             logger.warning(f"Could not restore window geometry/state: {e}. Applying default layout.")
-            self.perspective_manager.apply_perspective(self.current_perspective_name)
+            self.apply_perspective(self.current_perspective_name)
 
 
 
@@ -1499,13 +1541,6 @@ class MainWindow(QMainWindow):
     def log_message(self, level_str: str, message: str): 
         level = getattr(logging, level_str.upper(), logging.INFO)
         logger.log(level, message)
-
-
-
-    
-
-
-
 
     @pyqtSlot()
     def on_show_find_item_dialog(self): pass
@@ -1848,41 +1883,6 @@ class MainWindow(QMainWindow):
         if editor and editor.view and hasattr(editor.view, '_restore_cursor_to_scene_mode'):
             editor.view._restore_cursor_to_scene_mode()
 
-    # --- Stubs for methods that are defined elsewhere but called here ---
-    _get_property_schema_for_item = lambda self, *args: []
-    _update_properties_dock = lambda self, *args: None
-    _on_revert_dock_properties = lambda self, *args: None
-    _on_apply_dock_properties = lambda self, *args: None
-    update_resource_estimation = lambda self, *args: None
-    _update_py_simulation_actions_enabled_state = lambda self, *args: None
-    _update_zoom_to_selection_action_enable_state = lambda self, *args: None
-    _update_align_distribute_actions_enable_state = lambda self, *args: None
-    _on_interaction_mode_changed_by_scene = lambda self, *args: None
-    on_problem_item_double_clicked = lambda self, *args: None
-    update_problems_dock = lambda self, *args: None
-    _on_ide_dirty_state_changed_by_manager = lambda self, *args: None
-    _on_ide_language_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_state_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_global_ui_enable_by_manager = lambda self, *args: None
-    on_toggle_state_breakpoint = lambda self, *args: None
-    focus_on_item = lambda self, *args: None
-    _refresh_find_dialog_if_visible = lambda self, *args: None
-    _handle_matlab_modelgen_or_sim_finished = lambda self, *args: None
-    _handle_matlab_codegen_finished = lambda self, *args: None
-    _start_matlab_operation = lambda self, *args: None
-    _finish_matlab_operation = lambda self, *args: None
-    _update_matlab_status_display = lambda self, *args: None
-    _update_matlab_actions_enabled_state = lambda self, *args: None
-    update_zoom_status_display = lambda self, *args: None
-    _init_internet_status_check = lambda self, *args: None
-    _run_internet_check_job = lambda self, *args: None
-    _update_internet_status_display = lambda self, *args: None
-    _update_py_sim_status_display = lambda self, *args: None
-    _handle_state_renamed_inline = lambda self, *args: None
-    connect_state_item_signals = lambda self, *args: None
-    on_target_device_changed = lambda self, *args: None
-    _add_fsm_data_to_scene = lambda self, *args: None
-
 
 def main_entry_point():
     if hasattr(Qt, 'AA_EnableHighDpiScaling'): QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -1892,6 +1892,7 @@ def main_entry_point():
     app.setApplicationName(config.APP_NAME)
     app.setApplicationVersion(config.APP_VERSION)
     
+    # SettingsManager is now created inside MainWindow, so we just start the window.
     main_win = MainWindow()
     main_win.show()
     sys.exit(app.exec_())

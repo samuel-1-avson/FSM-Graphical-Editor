@@ -927,15 +927,16 @@ class MainWindow(QMainWindow):
     
     @pyqtSlot()
     def on_show_preferences_dialog(self):
+        """Creates and shows the preferences dialog."""
         if hasattr(self, 'preferences_dialog') and self.preferences_dialog.isVisible():
             self.preferences_dialog.raise_()
             self.preferences_dialog.activateWindow()
             return
         
+        # Pass the theme manager to the settings dialog
         self.preferences_dialog = SettingsDialog(self.settings_manager, self.theme_manager, self)
         self.preferences_dialog.exec_()
         logger.info("Preferences dialog closed.")
-
 
     @pyqtSlot(float, float, float, str)
     def _update_resource_display(self, cpu_usage, ram_usage, gpu_util, gpu_name):
@@ -971,8 +972,9 @@ class MainWindow(QMainWindow):
                  self.update_zoom_status_display(editor.view.transform().m11())
 
     def _update_save_actions_enable_state(self):
+        editor = self.current_editor()
         if hasattr(self, 'save_action'):
-            self.save_action.setEnabled(self.current_editor() and self.current_editor().is_dirty())
+            self.save_action.setEnabled(editor and editor.is_dirty())
 
     def _update_ide_save_actions_enable_state(self):
         if self.ide_manager:
@@ -982,8 +984,6 @@ class MainWindow(QMainWindow):
         editor = self.current_editor()
         can_undo = editor and editor.undo_stack.canUndo()
         can_redo = editor and editor.undo_stack.canRedo()
-        if hasattr(self, 'undo_action'): self.undo_action.setEnabled(can_undo)
-        if hasattr(self, 'redo_action'): self.redo_action.setEnabled(can_redo)
         
         self.undo_action.setEnabled(can_undo)
         self.redo_action.setEnabled(can_redo)
@@ -1146,14 +1146,14 @@ class MainWindow(QMainWindow):
         """Overrides QMainWindow.closeEvent to check for unsaved changes and stop threads."""
         logger.info("MW_CLOSE: closeEvent received.")
         
-        if self.py_sim_ui_manager and self.current_editor() and self.current_editor().py_sim_active: 
+        if self.py_sim_ui_manager and self.py_sim_active: 
              self.py_sim_ui_manager.on_stop_py_simulation(silent=True)
              
         if hasattr(self.ide_manager, 'prompt_ide_save_if_dirty') and not self.ide_manager.prompt_ide_save_if_dirty():
             event.ignore()
             return
         
-        for i in range(self.tab_widget.count()):
+        for i in range(self.tab_widget.count() - 1, -1, -1):
             if not self._prompt_save_on_close(self.tab_widget.widget(i)):
                 event.ignore()
                 return
@@ -1170,6 +1170,7 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def restore_geometry_and_state(self):
+        """Restores window geometry and perspective from settings."""
         try:
             geom_hex = self.settings_manager.get("window_geometry")
             if geom_hex and isinstance(geom_hex, str): self.restoreGeometry(bytes.fromhex(geom_hex))
@@ -1499,13 +1500,6 @@ class MainWindow(QMainWindow):
     def log_message(self, level_str: str, message: str): 
         level = getattr(logging, level_str.upper(), logging.INFO)
         logger.log(level, message)
-
-
-
-    
-
-
-
 
     @pyqtSlot()
     def on_show_find_item_dialog(self): pass
@@ -1847,41 +1841,6 @@ class MainWindow(QMainWindow):
         editor = self.current_editor()
         if editor and editor.view and hasattr(editor.view, '_restore_cursor_to_scene_mode'):
             editor.view._restore_cursor_to_scene_mode()
-
-    # --- Stubs for methods that are defined elsewhere but called here ---
-    _get_property_schema_for_item = lambda self, *args: []
-    _update_properties_dock = lambda self, *args: None
-    _on_revert_dock_properties = lambda self, *args: None
-    _on_apply_dock_properties = lambda self, *args: None
-    update_resource_estimation = lambda self, *args: None
-    _update_py_simulation_actions_enabled_state = lambda self, *args: None
-    _update_zoom_to_selection_action_enable_state = lambda self, *args: None
-    _update_align_distribute_actions_enable_state = lambda self, *args: None
-    _on_interaction_mode_changed_by_scene = lambda self, *args: None
-    on_problem_item_double_clicked = lambda self, *args: None
-    update_problems_dock = lambda self, *args: None
-    _on_ide_dirty_state_changed_by_manager = lambda self, *args: None
-    _on_ide_language_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_state_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_global_ui_enable_by_manager = lambda self, *args: None
-    on_toggle_state_breakpoint = lambda self, *args: None
-    focus_on_item = lambda self, *args: None
-    _refresh_find_dialog_if_visible = lambda self, *args: None
-    _handle_matlab_modelgen_or_sim_finished = lambda self, *args: None
-    _handle_matlab_codegen_finished = lambda self, *args: None
-    _start_matlab_operation = lambda self, *args: None
-    _finish_matlab_operation = lambda self, *args: None
-    _update_matlab_status_display = lambda self, *args: None
-    _update_matlab_actions_enabled_state = lambda self, *args: None
-    update_zoom_status_display = lambda self, *args: None
-    _init_internet_status_check = lambda self, *args: None
-    _run_internet_check_job = lambda self, *args: None
-    _update_internet_status_display = lambda self, *args: None
-    _update_py_sim_status_display = lambda self, *args: None
-    _handle_state_renamed_inline = lambda self, *args: None
-    connect_state_item_signals = lambda self, *args: None
-    on_target_device_changed = lambda self, *args: None
-    _add_fsm_data_to_scene = lambda self, *args: None
 
 
 def main_entry_point():

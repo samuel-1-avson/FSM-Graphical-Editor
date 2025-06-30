@@ -118,6 +118,7 @@ class ActionHandler(QObject):
 
         commit_message, ok = QInputDialog.getMultiLineText(self.mw, "Git Commit", "Enter commit message for this file:")
         if ok and commit_message.strip():
+            # --- FIX for BUG-01: Stage file first, then commit in callback ---
             self.last_commit_message = commit_message.strip()
             self.mw.main_op_status_label.setText(f"Staging {os.path.basename(file_path)}...")
             # Use '--' for safety with weird filenames
@@ -136,7 +137,7 @@ class ActionHandler(QObject):
             self.mw.main_op_status_label.setText("Ready.")
             return
             
-        # Now that the file is staged, proceed with the commit.
+        # Now that the file is staged, proceed with the commit
         # The -m flag will now commit ONLY what was just staged (the current file).
         command = ['git', 'commit', '-m', self.last_commit_message]
         self.mw.run_git_command(command, "Commit")
@@ -402,7 +403,9 @@ class ActionHandler(QObject):
         if not self.mw.matlab_connection.connected:
             QMessageBox.warning(self.mw, "MATLAB Not Connected", "Please configure MATLAB path in Settings first.")
             return
-        if self.mw.py_sim_active:
+
+        is_sim_active = editor.py_sim_active if editor else False
+        if is_sim_active:
             QMessageBox.warning(self.mw, "Python Simulation Active", "Please stop the Python simulation before exporting to Simulink.")
             return
 

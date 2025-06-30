@@ -1,4 +1,3 @@
-
 # fsm_designer_project/main.py
 
 import sys
@@ -704,539 +703,18 @@ class MainWindow(QMainWindow):
     @pyqtSlot(float)
     def update_zoom_status_display(self, scale_factor): pass
     def update_problems_dock(self, issues): pass
-    @pyqtSlot(bool)
-    def _handle_py_sim_state_changed_by_manager(self, is_running): pass
-    @pyqtSlot(bool)
-    def _handle_py_sim_global_ui_enable_by_manager(self, enable): pass
-
-
-
-    @pyqtSlot(int)
-    def _on_close_tab_requested(self, index: int):
-        editor = self.tab_widget.widget(index)
-        if not isinstance(editor, EditorWidget) or not self._prompt_save_on_close(editor):
-            return
-        
-        if editor in self._find_dialogs:
-            self._find_dialogs[editor].close()
-            del self._find_dialogs[editor]
-
-        self.tab_widget.removeTab(index)
-        editor.deleteLater()
-        
-        if self.tab_widget.count() == 0:
-            self.action_handler.on_new_file(silent=True)
-
-    @pyqtSlot(int)
-    def _on_current_tab_changed(self, index: int):
-        if hasattr(self, 'undo_action'): 
-            try: self.undo_action.triggered.disconnect()
-            except TypeError: pass
-        if hasattr(self, 'redo_action'): 
-            try: self.redo_action.triggered.disconnect()
-            except TypeError: pass
-        
-        editor = self.current_editor()
-        if editor:
-            if hasattr(self, 'undo_action'): self.undo_action.triggered.connect(editor.undo_stack.undo)
-            if hasattr(self, 'redo_action'): self.redo_action.triggered.connect(editor.undo_stack.redo)
-            editor.undo_stack.canUndoChanged.connect(self.undo_action.setEnabled)
-            editor.undo_stack.canRedoChanged.connect(self.redo_action.setEnabled)
-            editor.undo_stack.undoTextChanged.connect(lambda text: self.undo_action.setText(f"&Undo {text}"))
-            editor.undo_stack.redoTextChanged.connect(lambda text: self.redo_action.setText(f"&Redo {text}"))
-
-        if editor and editor.file_path and self.git_manager:
-            self.git_manager.check_file_status(editor.file_path)
-
-        self._update_git_menu_actions_state()
-        self._update_all_ui_element_states()
-
-
-
-    def _prompt_save_on_close(self, editor: EditorWidget) -> bool:
-        if not editor.is_dirty(): return True
-        self.tab_widget.setCurrentWidget(editor)
-        file_desc = os.path.basename(editor.file_path) if editor.file_path else "Untitled"
-        reply = QMessageBox.question(self, f"Save '{file_desc}'?",
-                                     f"The diagram '{file_desc}' has unsaved changes. Do you want to save them?",
-                                     QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-                                     QMessageBox.Save)
-        if reply == QMessageBox.Save: return self.action_handler.on_save_file() 
-        return reply != QMessageBox.Cancel
-    
-    
-    
-    def _load_into_editor(self, editor: EditorWidget, file_path: str) -> bool:
-        try:
-            data = None
-            if file_path.startswith(":/"):
-                qfile = QFile(file_path)
-                if qfile.open(QIODevice.ReadOnly | QIODevice.Text):
-                    content = qfile.readAll().data().decode('utf-8')
-                    data = json.loads(content)
-                    qfile.close()
-            else:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-
-            if data and isinstance(data, dict) and 'states' in data and 'transitions' in data:
-                editor.scene.load_diagram_data(data)
-                self.log_message("INFO", f"Loaded '{os.path.basename(file_path)}' into new tab.")
-                return True
-            else:
-                logger.error("Invalid BSM file format: %s.", file_path)
-                return False
-        except Exception as e:
-            logger.error("Failed to load file %s: %s", file_path, e, exc_info=True)
-            return False
-
-    def _save_editor_to_path(self, editor: EditorWidget, file_path: str) -> bool:
-        save_file = QSaveFile(file_path)
-        if not save_file.open(QIODevice.WriteOnly | QIODevice.Text):
-            QMessageBox.critical(self, "Save Error", f"Could not open file for saving:\n{save_file.errorString()}")
-            return False
-        try:
-            diagram_data = editor.scene.get_diagram_data()
-            json_data = json.dumps(diagram_data, indent=4, ensure_ascii=False)
-            save_file.write(json_data.encode('utf-8'))
-            if save_file.commit():
-                editor.set_dirty(False)
-                editor.file_path = file_path
-                index = self.tab_widget.indexOf(editor)
-                if index != -1: self.tab_widget.setTabText(index, editor.get_tab_title())
-                self.log_message("INFO", f"Saved to {file_path}")
-                self._update_window_title()
-                if self.git_manager:
-                    self.git_manager.check_file_status(file_path)
-                return True
-            else:
-                QMessageBox.critical(self, "Save Error", f"Could not finalize saving:\n{save_file.errorString()}")
-                return False
-        except Exception as e:
-            QMessageBox.critical(self, "Save Error", f"An unexpected error occurred during saving:\n{e}")
-            save_file.cancelWriting()
-            return False
-
-
-    def _update_all_ui_element_states(self):
-        self._update_window_title()
-        self._update_undo_redo_actions_enable_state()
-        self._update_save_actions_enable_state()
-        self._update_properties_dock()
-        self._update_py_simulation_actions_enabled_state()
-        self._update_zoom_to_selection_action_enable_state()
-        self._update_align_distribute_actions_enable_state()
-        self.update_resource_estimation()
-        
-        editor = self.current_editor()
-        if editor and editor.view: self.update_zoom_status_display(editor.view.transform().m11())
-        
-        
-        
-            
-    def _apply_initial_settings(self):
-        logger.debug("Applying initial settings from SettingsManager.")
-        initial_theme = self.settings_manager.get("appearance_theme")
-        self._apply_theme(initial_theme)
-
-        if hasattr(self, 'show_grid_action'): self.show_grid_action.setChecked(self.settings_manager.get("view_show_grid"))
-        if hasattr(self, 'snap_to_grid_action'): self.snap_to_grid_action.setChecked(self.settings_manager.get("view_snap_to_grid"))
-        if hasattr(self, 'snap_to_objects_action'): self.snap_to_objects_action.setChecked(self.settings_manager.get("view_snap_to_objects"))
-        if hasattr(self, 'show_snap_guidelines_action'): self.show_snap_guidelines_action.setChecked(self.settings_manager.get("view_show_snap_guidelines"))
-        
-        if self.resource_monitor_manager and self.resource_monitor_manager.worker:
-            self.resource_monitor_manager.worker.data_collection_interval_ms = self.settings_manager.get("resource_monitor_interval_ms")
-        
-        self._update_window_title()
-
-    # ... New helper slot for property dock update on move ...
-    @pyqtSlot(QGraphicsItem)
-    def _update_item_properties_from_move(self, moved_item): 
-        if hasattr(self, '_current_edited_item_in_dock') and self._current_edited_item_in_dock == moved_item:
-             self._on_revert_dock_properties()
-
-    @pyqtSlot(str, object)
-    def _handle_setting_changed(self, key: str, value: object):
-        logger.info(f"Setting '{key}' changed to '{value}'. Updating UI.")
-        
-        theme_related_change = False
-        if key == "appearance_theme":
-            self._apply_theme(str(value))
-            theme_related_change = True 
-            QTimer.singleShot(100, lambda: QMessageBox.information(self, "Theme Changed", "Application restart may be required for the theme to apply to all elements fully."))
-        elif key in ["canvas_grid_minor_color", "canvas_grid_major_color", "canvas_snap_guideline_color"]:
-            current_theme = self.settings_manager.get("appearance_theme") 
-            DYNAMIC_UPDATE_COLORS_FROM_THEME(current_theme) 
-            theme_related_change = True 
-            for i in range(self.tab_widget.count()):
-                if editor := self.tab_widget.widget(i): editor.scene.update()
-
-        if theme_related_change:
-            if key != "appearance_theme": 
-                new_stylesheet = GET_CURRENT_STYLE_SHEET() 
-                app_instance = QApplication.instance()
-                if app_instance: app_instance.setStyleSheet(new_stylesheet)
-                self.update()
-                self.repaint()
-                for child_widget in self.findChildren(QWidget):
-                    if child_widget:
-                        child_widget.style().unpolish(child_widget)
-                        child_widget.style().polish(child_widget)
-                        child_widget.update()
-                if app_instance: app_instance.processEvents()
-
-        if key == "view_show_grid":
-            if hasattr(self, 'show_grid_action'): self.show_grid_action.setChecked(bool(value))
-            for i in range(self.tab_widget.count()):
-                if editor := self.tab_widget.widget(i): editor.scene.update() 
-        elif key == "view_snap_to_grid":
-            if hasattr(self, 'snap_to_grid_action'): self.snap_to_grid_action.setChecked(bool(value))
-            for i in range(self.tab_widget.count()):
-                if editor := self.tab_widget.widget(i): editor.scene.snap_to_grid_enabled = bool(value)
-        elif key == "view_snap_to_objects":
-            if hasattr(self, 'snap_to_objects_action'): self.snap_to_objects_action.setChecked(bool(value))
-            for i in range(self.tab_widget.count()):
-                if editor := self.tab_widget.widget(i): editor.scene.snap_to_objects_enabled = bool(value)
-        elif key == "view_show_snap_guidelines":
-            if hasattr(self, 'show_snap_guidelines_action'): self.show_snap_guidelines_action.setChecked(bool(value))
-            for i in range(self.tab_widget.count()):
-                if editor := self.tab_widget.widget(i):
-                    editor.scene._show_dynamic_snap_guidelines = bool(value)
-                    if not bool(value): editor.scene._clear_dynamic_guidelines()
-                    editor.scene.update()
-        
-        elif key == "resource_monitor_enabled":
-            is_enabled = bool(value)
-            if hasattr(self, 'resource_monitor_widget'): self.resource_monitor_widget.setVisible(is_enabled)
-
-            if self.resource_monitor_manager:
-                if is_enabled and (not self.resource_monitor_manager.thread or not self.resource_monitor_manager.thread.isRunning()):
-                    self.resource_monitor_manager.setup_and_start_monitor() 
-                    if self.resource_monitor_manager.worker:
-                        try: self.resource_monitor_manager.worker.resourceUpdate.disconnect(self._update_resource_display)
-                        except TypeError: pass
-                        self.resource_monitor_manager.worker.resourceUpdate.connect(self._update_resource_display)
-                elif not is_enabled and self.resource_monitor_manager.thread and self.resource_monitor_manager.thread.isRunning():
-                    self.resource_monitor_manager.stop_monitoring_system()
-        elif key == "resource_monitor_interval_ms":
-            if self.resource_monitor_manager and self.resource_monitor_manager.worker:
-                self.resource_monitor_manager.worker.data_collection_interval_ms = int(value)
-                logger.info(f"Resource monitor interval set to {value} ms.")
-        
-        self._update_window_title()
-    
-    @pyqtSlot()
-    def on_show_preferences_dialog(self):
-        if hasattr(self, 'preferences_dialog') and self.preferences_dialog.isVisible():
-            self.preferences_dialog.raise_()
-            self.preferences_dialog.activateWindow()
-            return
-        
-        self.preferences_dialog = SettingsDialog(self.settings_manager, self.theme_manager, self)
-        self.preferences_dialog.exec_()
-        logger.info("Preferences dialog closed.")
-
-
-    @pyqtSlot(float, float, float, str)
-    def _update_resource_display(self, cpu_usage, ram_usage, gpu_util, gpu_name):
-        if not self.settings_manager.get("resource_monitor_enabled"):
-            if hasattr(self, 'resource_monitor_widget'): self.resource_monitor_widget.setVisible(False)
-            return
-        if hasattr(self, 'resource_monitor_widget') and not self.resource_monitor_widget.isVisible():
-            self.resource_monitor_widget.setVisible(True)
-
-        if hasattr(self, 'cpu_status_label'): self.cpu_status_label.setText(f"CPU: {cpu_usage:.0f}%")
-        if hasattr(self, 'ram_status_label'): self.ram_status_label.setText(f"RAM: {ram_usage:.0f}%")
-        if hasattr(self, 'gpu_status_label'):
-            if gpu_util == -1.0: self.gpu_status_label.setText(f"GPU: {gpu_name}") 
-            elif gpu_util == -2.0: self.gpu_status_label.setText(f"GPU: NVML Err") 
-            elif gpu_util == -3.0: self.gpu_status_label.setText(f"GPU: Mon Err") 
-            elif self.resource_monitor_manager and self.resource_monitor_manager.worker and self.resource_monitor_manager.worker._nvml_initialized and self.resource_monitor_manager.worker._gpu_handle:
-                self.gpu_status_label.setText(f"GPU: {gpu_util:.0f}%")
-                self.gpu_status_label.setToolTip(f"GPU: {gpu_util:.0f}% ({gpu_name})")
-            else: 
-                 self.gpu_status_label.setText(f"GPU: N/A"); self.gpu_status_label.setToolTip(gpu_name)
-    def _set_status_label_object_names(self):
-        if hasattr(self, 'main_op_status_label'): self.main_op_status_label.setObjectName("MainOpStatusLabel")
-        if hasattr(self, 'mode_status_label'): self.mode_status_label.setObjectName("InteractionModeStatusLabel") 
-
-
-    def _update_ui_element_states(self):
-        self._update_properties_dock()
-        self._update_py_simulation_actions_enabled_state()
-        self._update_zoom_to_selection_action_enable_state()
-        self._update_align_distribute_actions_enable_state()
-        if editor := self.current_editor():
-            if editor.view:
-                 self.update_zoom_status_display(editor.view.transform().m11())
-
-    def _update_save_actions_enable_state(self):
-        if hasattr(self, 'save_action'):
-            self.save_action.setEnabled(self.current_editor() and self.current_editor().is_dirty())
-
-    def _update_ide_save_actions_enable_state(self):
-        if self.ide_manager:
-            self.ide_manager.update_ide_save_actions_enable_state()
-
-    def _update_undo_redo_actions_enable_state(self):
-        editor = self.current_editor()
-        can_undo = editor and editor.undo_stack.canUndo()
-        can_redo = editor and editor.undo_stack.canRedo()
-        if hasattr(self, 'undo_action'): self.undo_action.setEnabled(can_undo)
-        if hasattr(self, 'redo_action'): self.redo_action.setEnabled(can_redo)
-        
-        self.undo_action.setEnabled(can_undo)
-        self.redo_action.setEnabled(can_redo)
-        
-        undo_text = editor.undo_stack.undoText() if editor else ""
-        redo_text = editor.undo_stack.redoText() if editor else ""
-        
-        self.undo_action.setText(f"&Undo{(' ' + undo_text) if undo_text else ''}")
-        self.redo_action.setText(f"&Redo{(' ' + redo_text) if redo_text else ''}")
-        self.undo_action.setToolTip(f"Undo: {undo_text}" if undo_text else "Undo")
-        self.redo_action.setToolTip(f"Redo: {redo_text}" if redo_text else "Redo")
-
-    def _update_matlab_status_display(self, connected, message):
-        status_text = f"MATLAB: {'Connected' if connected else 'Not Conn.'}" # Shorter
-        tooltip_text = f"MATLAB Status: {message}"
-        if hasattr(self, 'matlab_status_label') and self.matlab_status_label:
-            self.matlab_status_label.setText(status_text)
-            self.matlab_status_label.parentWidget().setToolTip(tooltip_text) # Set on parent widget too
-            if hasattr(self, 'matlab_icon_label') and self.matlab_icon_label:
-                self.matlab_icon_label.setPixmap(get_standard_icon(QStyle.SP_ComputerIcon if connected else QStyle.SP_MessageBoxWarning, "MATLAB").pixmap(QSize(12,12)))
-        if "Initializing" not in message or (connected and "Initializing" in message):
-            logging.info("MATLAB Connection Status: %s", message)
-        self._update_matlab_actions_enabled_state()
-
-    def _update_matlab_actions_enabled_state(self):
-        can_run_matlab_ops = self.matlab_connection.connected and not self.py_sim_active
-        if hasattr(self, 'export_simulink_action'): self.export_simulink_action.setEnabled(can_run_matlab_ops)
-        if hasattr(self, 'run_simulation_action'): self.run_simulation_action.setEnabled(can_run_matlab_ops)
-        if hasattr(self, 'generate_matlab_code_action'): self.generate_matlab_code_action.setEnabled(can_run_matlab_ops)
-        if hasattr(self, 'matlab_settings_action'): self.matlab_settings_action.setEnabled(not self.py_sim_active)
-
-    def _start_matlab_operation(self, operation_name):
-        logging.info("MATLAB Operation: '%s' starting...", operation_name)
-        if hasattr(self, 'main_op_status_label'): self.main_op_status_label.setText(f"MATLAB: {operation_name}...")
-        if hasattr(self, 'progress_bar'): self.progress_bar.setVisible(True)
-        self.set_ui_enabled_for_matlab_op(False)
-
-    def _finish_matlab_operation(self):
-        if hasattr(self, 'progress_bar'): self.progress_bar.setVisible(False)
-        self._update_window_title() 
-        self.set_ui_enabled_for_matlab_op(True)
-        logging.info("MATLAB Operation: Finished processing.")
-
-    def set_ui_enabled_for_matlab_op(self, enabled: bool):
-        if hasattr(self, 'menuBar'): self.menuBar().setEnabled(enabled)
-        if hasattr(self, 'main_toolbar'): self.main_toolbar.setEnabled(enabled)
-
-        if self.centralWidget(): self.centralWidget().setEnabled(enabled)
-        for dock_name in ["ElementsPaletteDock", "PropertiesDock", "LogDock", "PySimDock", "AIChatbotDock", "ProblemsDock"]: 
-            dock = self.findChild(QDockWidget, dock_name)
-            if dock: dock.setEnabled(enabled)
-        self._update_py_simulation_actions_enabled_state()
-
-
-    def _handle_matlab_modelgen_or_sim_finished(self, success, message, data):
-        self._finish_matlab_operation()
-        logging.log(logging.INFO if success else logging.ERROR, "MATLAB Result (ModelGen/Sim): %s", message)
-        if success:
-            if "Model generation" in message and data:
-                self.last_generated_model_path = data
-                QMessageBox.information(self, "Simulink Model Generation", f"Model generated successfully:\n{data}")
-            elif "Simulation" in message:
-                QMessageBox.information(self, "Simulation Complete", f"MATLAB simulation finished.\n{message}")
-        else:
-            QMessageBox.warning(self, "MATLAB Operation Failed", message)
-
-    def _handle_matlab_codegen_finished(self, success, message, output_dir):
-        self._finish_matlab_operation()
-        logging.log(logging.INFO if success else logging.ERROR, "MATLAB Code Gen Result: %s", message)
-        if success and output_dir:
-            msg_box = QMessageBox(self); msg_box.setIcon(QMessageBox.Information); msg_box.setWindowTitle("Code Generation Successful")
-            msg_box.setTextFormat(Qt.RichText); abs_dir = os.path.abspath(output_dir)
-            msg_box.setText(f"Code generation completed successfully.<br>Generated files are in: <a href='file:///{abs_dir}'>{abs_dir}</a>")
-            msg_box.setTextInteractionFlags(Qt.TextBrowserInteraction)
-            open_btn = msg_box.addButton("Open Directory", QMessageBox.ActionRole); msg_box.addButton(QMessageBox.Ok)
-            msg_box.exec()
-            if msg_box.clickedButton() == open_btn:
-                if not QDesktopServices.openUrl(QUrl.fromLocalFile(abs_dir)):
-                    logging.error("Error opening directory: %s", abs_dir)
-                    QMessageBox.warning(self, "Error Opening Directory", f"Could not automatically open the directory:\n{abs_dir}")
-        elif not success:
-            QMessageBox.warning(self, "Code Generation Failed", message)
-
-    def _prompt_save_if_dirty(self) -> bool:
-        editor = self.current_editor()
-        if not editor or not editor.is_dirty(): return True
-
-        if self.py_sim_active:
-            QMessageBox.warning(self, "Simulation Active", "Please stop the Python simulation before saving or opening a new file.")
-            return False
-        file_desc = os.path.basename(editor.file_path) if editor.file_path else "Untitled Diagram"
-        reply = QMessageBox.question(self, "Save Diagram Changes?",
-                                     f"The diagram '{file_desc}' has unsaved changes. Do you want to save them?",
-                                     QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-                                     QMessageBox.Save)
-        if reply == QMessageBox.Save: return self.action_handler.on_save_file() 
-        elif reply == QMessageBox.Cancel: return False
-        return True
-        
-    def _prompt_ide_save_if_dirty(self) -> bool:
-        if self.ide_manager:
-            return self.ide_manager.prompt_ide_save_if_dirty()
-        return True
-
-    def _load_from_path(self, file_path): pass
-    def _save_to_path(self, file_path) -> bool: pass
-
-    @pyqtSlot(QGraphicsItem)
-    def focus_on_item(self, item_to_focus: QGraphicsItem):
-        editor = self.current_editor()
-        if not editor or not item_to_focus or item_to_focus.scene() != editor.scene:
-            self.log_message("WARNING", f"Could not find or focus on the provided item: {item_to_focus}")
-            return
-        
-        editor.scene.clearSelection()
-        item_to_focus.setSelected(True)
-        item_rect = item_to_focus.sceneBoundingRect()
-        padding = 50
-        view_rect_with_padding = item_rect.adjusted(-padding, -padding, padding, padding)
-        if editor.view: editor.view.fitInView(view_rect_with_padding, Qt.KeepAspectRatio)
-        
-        display_name = "Item"
-        if isinstance(item_to_focus, GraphicsStateItem): display_name = f"State: {item_to_focus.text_label}"
-        elif isinstance(item_to_focus, GraphicsTransitionItem): display_name = f"Transition: {item_to_focus._compose_label_string()}"
-        elif isinstance(item_to_focus, GraphicsCommentItem): display_name = f"Comment: {item_to_focus.toPlainText()[:30]}..."
-        self.log_message("INFO", f"Focused on {display_name}")
-        
-        editor_find_dialog = self._find_dialogs.get(editor)
-        if editor_find_dialog and not editor_find_dialog.isHidden():
-            pass
-
-    def show_find_item_dialog_for_editor(self, editor: EditorWidget):
-        if editor not in self._find_dialogs:
-            dialog = FindItemDialog(parent=self, scene_ref=editor.scene)
-            dialog.item_selected_for_focus.connect(self.focus_on_item)
-            editor.scene.scene_content_changed_for_find.connect(dialog.refresh_list)
-            self._find_dialogs[editor] = dialog
-        
-        dialog = self._find_dialogs[editor]
-        if dialog.isHidden():
-            dialog.refresh_list() 
-            dialog.show()
-            dialog.raise_()
-            dialog.activateWindow()
-        else:
-            dialog.activateWindow()
-        
-        if hasattr(dialog, 'search_input'):
-            dialog.search_input.selectAll()
-            dialog.search_input.setFocus()
-            
-    @pyqtSlot(bool) 
-    def on_matlab_settings(self, checked=False): 
-        dialog = MatlabSettingsDialog(matlab_connection=self.matlab_connection, parent=self)
-        dialog.exec_()
-        logger.info("MATLAB settings dialog closed.")
-
-    # The closeEvent and other essential methods from the original file are assumed to be here.
-    def closeEvent(self, event: QCloseEvent):
-        """Overrides QMainWindow.closeEvent to check for unsaved changes and stop threads."""
-        logger.info("MW_CLOSE: closeEvent received.")
-        
-        if self.py_sim_ui_manager and self.current_editor() and self.current_editor().py_sim_active: 
-             self.py_sim_ui_manager.on_stop_py_simulation(silent=True)
-             
-        if hasattr(self.ide_manager, 'prompt_ide_save_if_dirty') and not self.ide_manager.prompt_ide_save_if_dirty():
-            event.ignore()
-            return
-        
-        for i in range(self.tab_widget.count()):
-            if not self._prompt_save_on_close(self.tab_widget.widget(i)):
-                event.ignore()
-                return
-
-        self.internet_check_timer.stop()
-        if self.ai_chatbot_manager: self.ai_chatbot_manager.stop_chatbot()
-        if self.resource_monitor_manager: self.resource_monitor_manager.stop_monitoring_system()
-        if self.git_manager: self.git_manager.stop()
-
-        self.settings_manager.set("last_used_perspective", self.perspective_manager.current_perspective_name)
-        self.settings_manager.set("window_geometry", self.saveGeometry().toHex().data().decode('ascii'))
-        self.settings_manager.set("window_state", self.saveState().toHex().data().decode('ascii'))
-        logger.info("MW_CLOSE: Application closeEvent accepted.")
-        event.accept()
-
-    def restore_geometry_and_state(self):
-        try:
-            geom_hex = self.settings_manager.get("window_geometry")
-            if geom_hex and isinstance(geom_hex, str): self.restoreGeometry(bytes.fromhex(geom_hex))
-
-            state_hex = self.settings_manager.get("window_state")
-            if state_hex and isinstance(state_hex, str): self.restoreState(bytes.fromhex(state_hex))
-            else: self.perspective_manager.apply_perspective(self.current_perspective_name)
-            
-        except Exception as e:
-            logger.warning(f"Could not restore window geometry/state: {e}. Applying default layout.")
-            self.perspective_manager.apply_perspective(self.current_perspective_name)
-
-
-
-    # --- NEW / MODIFIED METHODS for Resource Estimation ---
-
-    @pyqtSlot('QRectF')
-    def update_resource_estimation(self, region=None):
-        editor = self.current_editor()
-        if not editor or not hasattr(self, 'resource_estimation_dock') or not self.resource_estimation_dock.isVisible():
-            return
-
-        diagram_data = editor.scene.get_diagram_data()
-        estimation = self.resource_estimator.estimate(diagram_data)
-        
-        sram_b = estimation.get('sram_b', 0)
-        flash_b = estimation.get('flash_b', 0)
-
-        total_sram_b = self.resource_estimator.target_profile.get("sram_b", 1)
-        total_flash_b = self.resource_estimator.target_profile.get("flash_kb", 1) * 1024
-        
-        sram_percent = min(100, int((sram_b / total_sram_b) * 100)) if total_sram_b > 0 else 0
-        flash_percent = min(100, int((flash_b / total_flash_b) * 100)) if total_flash_b > 0 else 0
-        
-        if hasattr(self, 'sram_usage_bar'):
-            self.sram_usage_bar.setRange(0, 100)
-            self.sram_usage_bar.setValue(sram_percent)
-            self.sram_usage_bar.setFormat(f"~ {sram_b} / {total_sram_b} B ({sram_percent}%)")
-
-        if hasattr(self, 'flash_usage_bar'):
-            self.flash_usage_bar.setRange(0, 100)
-            self.flash_usage_bar.setValue(flash_percent)
-            self.flash_usage_bar.setFormat(f"~ {flash_b / 1024:.1f} / {total_flash_b / 1024:.0f} KB ({flash_percent}%)")
-    @pyqtSlot(str)
-    def on_target_device_changed(self, profile_name: str):
-        if self.resource_estimator:
-            self.resource_estimator.set_target(profile_name)
-            self.update_resource_estimation()
-        else:
-            logger.warning("Target device changed, but resource_estimator is not available.")
-
-
-
-    @pyqtSlot(float)
-    def update_zoom_status_display(self, scale_factor: float):
-        if hasattr(self, 'zoom_status_label') and self.zoom_status_label:
-            zoom_percentage = int(scale_factor * 100)
-            self.zoom_status_label.setText(f"{zoom_percentage}%")
 
     @pyqtSlot(bool)
     def _handle_py_sim_state_changed_by_manager(self, is_running: bool):
         logger.debug(f"MW: PySim state changed by manager to: {is_running}")
-        self.py_sim_active = is_running
+        editor = self.current_editor()
+        if editor:
+            editor.py_sim_active = is_running
         self._update_window_title()
         self._update_py_sim_status_display() 
         self._update_matlab_actions_enabled_state()
         self._update_py_simulation_actions_enabled_state()
+
     @pyqtSlot(bool)
     def _handle_py_sim_global_ui_enable_by_manager(self, enable: bool):
         logger.debug(f"MW: Global UI enable requested by PySim manager: {enable}")
@@ -1389,25 +867,36 @@ class MainWindow(QMainWindow):
             status_text = "Idle"; tooltip = "Internal Python FSM Simulation is Idle."
             icon_enum = QStyle.SP_MediaStop
             
-            if self.py_sim_active and self.py_fsm_engine:
-                current_state_name = self.py_fsm_engine.get_current_state_name(); 
+            editor = self.current_editor()
+            sim_engine = editor.py_fsm_engine if editor else None
+            sim_active = editor.py_sim_active if editor else False
+
+            if sim_active and sim_engine:
+                current_state_name = sim_engine.get_current_state_name() 
                 display_state_name = (current_state_name[:20] + '...') if len(current_state_name) > 23 else current_state_name
-                status_text = f"Active ({html.escape(display_state_name)})"; 
+                status_text = f"Active ({html.escape(display_state_name)})"
                 tooltip = f"Python FSM Simulation Active: {current_state_name}"
                 icon_enum = QStyle.SP_MediaPlay
-                if self.py_fsm_engine.paused_on_breakpoint: 
-                    status_text += " (Paused)"; tooltip += " (Paused at Breakpoint)"
-                    icon_enum = QStyle.SP_MediaPause # Change icon for paused state
+                if sim_engine.paused_on_breakpoint: 
+                    status_text += " (Paused)"
+                    tooltip += " (Paused at Breakpoint)"
+                    icon_enum = QStyle.SP_MediaPause 
             
             self.py_sim_status_label.setText(status_text)
-            self.py_sim_status_label.parentWidget().setToolTip(tooltip) # Set tooltip on parent widget
+            self.py_sim_status_label.parentWidget().setToolTip(tooltip) 
             if hasattr(self, 'pysim_icon_label') and self.pysim_icon_label:
                 self.pysim_icon_label.setPixmap(get_standard_icon(icon_enum, "PySim").pixmap(QSize(12,12)))
 
     def _update_py_simulation_actions_enabled_state(self):
         is_matlab_op_running = False
         if hasattr(self, 'progress_bar') and self.progress_bar: is_matlab_op_running = self.progress_bar.isVisible()
-        sim_can_start = not self.py_sim_active and not is_matlab_op_running; sim_can_be_controlled = self.py_sim_active and not is_matlab_op_running
+        
+        editor = self.current_editor()
+        py_sim_is_active_here = editor.py_sim_active if editor else False
+        
+        sim_can_start = not py_sim_is_active_here and not is_matlab_op_running
+        sim_can_be_controlled = py_sim_is_active_here and not is_matlab_op_running
+
         if hasattr(self, 'start_py_sim_action'): self.start_py_sim_action.setEnabled(sim_can_start)
         if hasattr(self, 'stop_py_sim_action'): self.stop_py_sim_action.setEnabled(sim_can_be_controlled)
         if hasattr(self, 'reset_py_sim_action'): self.reset_py_sim_action.setEnabled(sim_can_be_controlled)
@@ -1471,7 +960,8 @@ class MainWindow(QMainWindow):
     
     @pyqtSlot(GraphicsStateItem, bool)
     def on_toggle_state_breakpoint(self, state_item: GraphicsStateItem, set_bp: bool):
-        if not self.py_fsm_engine or not self.py_sim_active:
+        editor = self.current_editor()
+        if not editor or not editor.py_fsm_engine or not editor.py_sim_active:
             QMessageBox.information(self, "Simulation Not Active", "Breakpoints can only be managed during an active Python simulation.")
             if self.sender() and isinstance(self.sender(), QAction):
                 self.sender().setChecked(not set_bp) 
@@ -1480,13 +970,13 @@ class MainWindow(QMainWindow):
         state_name = state_item.text_label
         action_text = ""
         if set_bp:
-            self.py_fsm_engine.add_state_breakpoint(state_name)
+            editor.py_fsm_engine.add_state_breakpoint(state_name)
             current_tooltip = state_item.toolTip()
             if "[BP]" not in current_tooltip:
                 state_item.setToolTip(f"{current_tooltip}\n[Breakpoint Set]" if current_tooltip else f"State: {state_name}\n[Breakpoint Set]")
             action_text = f"Breakpoint SET for state: {state_name}"
         else:
-            self.py_fsm_engine.remove_state_breakpoint(state_name)
+            editor.py_fsm_engine.remove_state_breakpoint(state_name)
             state_item.setToolTip(state_item.toolTip().replace("\n[Breakpoint Set]", ""))
             action_text = f"Breakpoint CLEARED for state: {state_name}"
         
@@ -1862,8 +1352,6 @@ class MainWindow(QMainWindow):
     update_problems_dock = lambda self, *args: None
     _on_ide_dirty_state_changed_by_manager = lambda self, *args: None
     _on_ide_language_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_state_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_global_ui_enable_by_manager = lambda self, *args: None
     on_toggle_state_breakpoint = lambda self, *args: None
     focus_on_item = lambda self, *args: None
     _refresh_find_dialog_if_visible = lambda self, *args: None
@@ -1877,7 +1365,6 @@ class MainWindow(QMainWindow):
     _init_internet_status_check = lambda self, *args: None
     _run_internet_check_job = lambda self, *args: None
     _update_internet_status_display = lambda self, *args: None
-    _update_py_sim_status_display = lambda self, *args: None
     _handle_state_renamed_inline = lambda self, *args: None
     connect_state_item_signals = lambda self, *args: None
     on_target_device_changed = lambda self, *args: None
