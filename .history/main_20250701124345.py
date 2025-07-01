@@ -131,7 +131,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def _update_properties_dock(self):
+    ddef _update_properties_dock(self):
         editor = self.current_editor()
         selected_items = editor.scene.selectedItems() if editor else []
         

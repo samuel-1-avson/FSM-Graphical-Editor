@@ -17,7 +17,8 @@ from .ai_providers.base import AIProvider
 
 from PyQt5.QtGui import QMovie, QIcon, QColor, QDesktopServices
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTextBrowser, QHBoxLayout, QLineEdit,
-                             QPushButton, QLabel, QStyle, QMessageBox, QInputDialog, QAction, QApplication)
+                             QPushButton, QLabel, QStyle, QMessageBox, QInputDialog, QAction, QApplication,
+                             QDialog, QFormLayout, QDialogButtonBox,QGroupBox, QComboBox)
 
 from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
@@ -271,6 +272,127 @@ class ChatbotWorker(QObject):
         logger.info("WORKER: stop_processing_slot called.")
         self._is_stopped = True
 
+
+class AiSettingsDialog(QDialog):
+    """New dialog to select AI provider and enter API key, with descriptions."""
+
+    MODEL_DESCRIPTIONS = {
+        "Groq (Llama3)": {
+            "best_for": "The fastest, most responsive general-purpose experience.",
+            "points": [
+                "Extremely fast chat and code generation.",
+                "Excellent at following instructions for FSM JSON creation.",
+                "Strong coding and reasoning abilities."
+            ],
+            "note": "A great default choice for most tasks."
+        },
+        "OpenAI (GPT)": {
+            "best_for": "The highest quality and most reliable results, especially for complex tasks.",
+            "points": [
+                "Industry-leading performance in coding and logical reasoning.",
+                "Highly reliable JSON generation for FSM design.",
+                "Excellent for debugging and complex problem-solving."
+            ],
+            "note": "May have higher API costs."
+        },
+        "DeepSeek": {
+            "best_for": "Pure code generation and technical code analysis.",
+            "points": [
+                "Specialized model trained specifically on code.",
+                "Produces highly accurate and idiomatic code snippets (C++, Python).",
+                "Great for optimizing or fixing code in your actions and conditions."
+            ],
+            "note": "Less conversational than other models."
+        },
+        "Anthropic (Claude)": {
+            "best_for": "In-depth explanations, learning, and analyzing large projects.",
+            "points": [
+                "Produces very clean, well-documented, and 'safe' code.",
+                "Excellent for detailed explanations of FSM concepts or simulation logic.",
+                "Huge context window can analyze an entire FSM diagram at once."
+            ],
+            "note": "A fantastic choice for research and educational use."
+        },
+        "Gemini (Google AI)": {
+            "best_for": "Fast, balanced performance and analyzing very large diagrams.",
+            "points": [
+                "Provides a good balance of speed and quality.",
+                "Massive context window allows it to analyze your entire project.",
+                "Strong general chat and brainstorming capabilities."
+            ],
+            "note": "Google AI API key is required."
+        }
+    }
+
+    def __init__(self, settings_manager, parent=None):
+        super().__init__(parent)
+        self.settings_manager = settings_manager
+        self.setWindowTitle("AI Assistant Settings")
+        self.setMinimumWidth(550)
+        
+        main_layout = QVBoxLayout(self)
+        form_widget = QWidget()
+        layout = QFormLayout(form_widget)
+        main_layout.addWidget(form_widget)
+
+        self.provider_combo = QComboBox()
+        self.provider_combo.addItems(sorted(list(get_available_providers().keys())))
+        current_provider = self.settings_manager.get("ai_provider_name")
+        if current_provider:
+            self.provider_combo.setCurrentText(current_provider)
+        layout.addRow("AI Provider:", self.provider_combo)
+
+        self.api_key_edit = QLineEdit()
+        self.api_key_edit.setEchoMode(QLineEdit.Password)
+        self.api_key_edit.setPlaceholderText("Enter API Key for selected provider")
+        layout.addRow("API Key:", self.api_key_edit)
+
+        # --- NEW: Description Area ---
+        desc_group = QGroupBox("Model Information")
+        desc_layout = QVBoxLayout(desc_group)
+        self.description_label = QLabel()
+        self.description_label.setWordWrap(True)
+        self.description_label.setTextFormat(Qt.RichText)
+        self.description_label.setOpenExternalLinks(True)
+        self.description_label.setStyleSheet(
+            f"background-color: {QColor(COLOR_BACKGROUND_DIALOG).lighter(102).name()}; padding: 8px; border-radius: 4px;"
+        )
+        desc_layout.addWidget(self.description_label)
+        main_layout.addWidget(desc_group)
+        # --- END NEW ---
+
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        main_layout.addWidget(button_box)
+        
+        self.provider_combo.currentTextChanged.connect(self.on_provider_changed)
+        self.on_provider_changed(self.provider_combo.currentText()) # Load initial key and description
+
+    def on_provider_changed(self, provider_name):
+        # Update API key field
+        last_key = self.settings_manager.get(f"ai_api_key_{provider_name}", "")
+        self.api_key_edit.setText(last_key)
+        
+        # Update description label
+        desc_data = self.MODEL_DESCRIPTIONS.get(provider_name, {
+            "best_for": "General purpose model.",
+            "points": ["No specific information available for this provider."],
+            "note": ""
+        })
+        
+        points_html = "".join([f"<li>{point}</li>" for point in desc_data['points']])
+        
+        html = f"""
+        <p><b>Best For:</b> {desc_data['best_for']}</p>
+        <ul>{points_html}</ul>
+        <p><i><b>Note:</b> {desc_data['note']}</i></p>
+        """
+        self.description_label.setText(html)
+
+
+    def get_selection(self) -> tuple[str, str]:
+        return self.provider_combo.currentText(), self.api_key_edit.text().strip()
 
 class AIChatUIManager(QObject):
     # --- NEW SIGNAL for inline AI responses ---
@@ -545,9 +667,6 @@ class AIChatUIManager(QObject):
 
     @pyqtSlot()
     def on_ai_settings(self):
-        # --- MODIFIED: Import AiSettingsDialog from its new home ---
-        from .dialogs import AiSettingsDialog 
-        
         logger.info("AIChatUI: SLOT on_ai_settings CALLED!")
         if not self.mw.ai_chatbot_manager or not hasattr(self.mw, 'settings_manager'):
             QMessageBox.warning(self.mw, "AI Error", "AI or Settings Manager is not initialized.")

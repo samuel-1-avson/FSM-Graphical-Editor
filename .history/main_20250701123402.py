@@ -131,7 +131,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def _update_properties_dock(self):
+    ddef _update_properties_dock(self):
         editor = self.current_editor()
         selected_items = editor.scene.selectedItems() if editor else []
         
@@ -888,7 +888,6 @@ class MainWindow(QMainWindow):
 
 
 
-
     def _prompt_save_on_close(self, editor: EditorWidget) -> bool:
         if not editor.is_dirty(): return True
         self.tab_widget.setCurrentWidget(editor)
@@ -953,6 +952,7 @@ class MainWindow(QMainWindow):
             save_file.cancelWriting()
             return False
 
+
     def _update_all_ui_element_states(self):
         self._update_window_title()
         self._update_undo_redo_actions_enable_state()
@@ -984,7 +984,6 @@ class MainWindow(QMainWindow):
         
         self._update_window_title()
     
-    # ... New helper slot for property dock update on move ...
     # ... New helper slot for property dock update on move ...
     @pyqtSlot(QGraphicsItem)
     def _update_item_properties_from_move(self, moved_item): 
@@ -1265,6 +1264,8 @@ class MainWindow(QMainWindow):
             dialog.refresh_list() 
             dialog.show()
             dialog.raise_()
+            dialog.activateWindow()
+        else:
             dialog.activateWindow()
         
         if hasattr(dialog, 'search_input'):
@@ -2022,70 +2023,79 @@ Please explain what this means in the context of an FSM and suggest how I might 
         if editor and editor.view and hasattr(editor.view, '_restore_cursor_to_scene_mode'):
             editor.view._restore_cursor_to_scene_mode()
 
-     # --- Stubs for methods that are defined elsewhere but called here ---
+    # --- Stubs for methods that are defined elsewhere but called here ---
+    # _get_property_schema_for_item = lambda self, *args: [] # NO LONGER A STUB
+    # _update_properties_dock = lambda self, *args: None # NO LONGER A STUB
+    # _on_revert_dock_properties = lambda self, *args: None # NO LONGER A STUB
+    # _on_apply_dock_properties = lambda self, *args: None # NO LONGER A STUB
     update_resource_estimation = lambda self, *args: None
     _update_py_simulation_actions_enabled_state = lambda self, *args: None
     _update_zoom_to_selection_action_enable_state = lambda self, *args: None
     _update_align_distribute_actions_enable_state = lambda self, *args: None
+    # _on_interaction_mode_changed_by_scene = lambda self, *args: None # NO LONGER A STUB
     on_problem_item_double_clicked = lambda self, *args: None
+    # update_problems_dock = lambda self, *args: None # NO LONGER A STUB
     _on_ide_dirty_state_changed_by_manager = lambda self, *args: None
     _on_ide_language_changed_by_manager = lambda self, *args: None
     _handle_py_sim_state_changed_by_manager = lambda self, *args: None
     _handle_py_sim_global_ui_enable_by_manager = lambda self, *args: None
     on_toggle_state_breakpoint = lambda self, *args: None
+    focus_on_item = lambda self, *args: None
     _refresh_find_dialog_if_visible = lambda self, *args: None
     _handle_matlab_modelgen_or_sim_finished = lambda self, *args: None
     _handle_matlab_codegen_finished = lambda self, *args: None
     _start_matlab_operation = lambda self, *args: None
     _finish_matlab_operation = lambda self, *args: None
     _update_matlab_status_display = lambda self, *args: None
+    _update_matlab_actions_enabled_state = lambda self, *args: None
+    update_zoom_status_display = lambda self, *args: None
+    _init_internet_status_check = lambda self, *args: None
+    _run_internet_check_job = lambda self, *args: None
+    _update_internet_status_display = lambda self, *args: None
     _update_py_sim_status_display = lambda self, *args: None
     _handle_state_renamed_inline = lambda self, *args: None
+    connect_state_item_signals = lambda self, *args: None
     on_target_device_changed = lambda self, *args: None
     _add_fsm_data_to_scene = lambda self, *args: None
-    _on_interaction_mode_changed_by_scene = lambda self, *args: None
-    on_ask_ai_about_validation_issue = lambda self, *args: None
-    _update_save_actions_enable_state = lambda self, *args: None
 
 
-
-# # --- Stubs for methods that are defined elsewhere but are part of MainWindow ---
-#     def _update_properties_dock(self, *args, **kwargs): self.ui_manager._update_properties_dock() if hasattr(self, 'ui_manager') else None
-#     def _get_property_schema_for_item(self, *args, **kwargs): return self.ui_manager._get_property_schema_for_item(*args, **kwargs) if hasattr(self, 'ui_manager') else []
-#     def _update_dock_color_button_style(self, *args, **kwargs): self.ui_manager._update_dock_color_button_style(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_dock_color_button_clicked(self, *args, **kwargs): self.ui_manager._on_dock_color_button_clicked(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_dock_property_changed_mw(self, *args, **kwargs): self.ui_manager._on_dock_property_changed_mw(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_apply_dock_properties(self, *args, **kwargs): self.ui_manager._on_apply_dock_properties(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_revert_dock_properties(self, *args, **kwargs): self.ui_manager._on_revert_dock_properties(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def on_show_preferences_dialog(self, *args, **kwargs): self.action_handler.on_show_preferences_dialog(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _update_matlab_actions_enabled_state(self, *args, **kwargs): self.ui_manager._update_matlab_actions_enabled_state() if hasattr(self, 'ui_manager') else None
-#     def _update_py_simulation_actions_enabled_state(self, *args, **kwargs): self.py_sim_ui_manager._update_internal_controls_enabled_state() if hasattr(self, 'py_sim_ui_manager') else None
-#     def _update_zoom_to_selection_action_enable_state(self, *args, **kwargs): self.action_handler.update_zoom_to_selection_action_enable_state() if hasattr(self, 'action_handler') else None
-#     def _update_align_distribute_actions_enable_state(self, *args, **kwargs): self.action_handler.update_align_distribute_actions_enable_state() if hasattr(self, 'action_handler') else None
-#     def update_resource_estimation(self, *args, **kwargs): self.ui_manager.update_resource_estimation(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def update_zoom_status_display(self, *args, **kwargs): self.ui_manager.update_zoom_status_display(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def update_problems_dock(self, *args, **kwargs): self.ui_manager.update_problems_dock(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _handle_py_sim_state_changed_by_manager(self, *args, **kwargs): self.py_sim_ui_manager.handle_sim_state_change(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
-#     def _handle_py_sim_global_ui_enable_by_manager(self, *args, **kwargs): self.ui_manager.set_global_ui_enabled(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def on_toggle_state_breakpoint(self, *args, **kwargs): self.py_sim_ui_manager.on_toggle_breakpoint(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
-#     def focus_on_item(self, *args, **kwargs): self.action_handler.focus_on_item(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _refresh_find_dialog_if_visible(self, *args, **kwargs): self.action_handler.refresh_find_dialog_if_visible(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _handle_matlab_modelgen_or_sim_finished(self, *args, **kwargs): self.matlab_connection.handle_finished(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _handle_matlab_codegen_finished(self, *args, **kwargs): self.matlab_connection.handle_finished(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _start_matlab_operation(self, *args, **kwargs): self.matlab_connection.start_operation(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _finish_matlab_operation(self, *args, **kwargs): self.matlab_connection.finish_operation(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _update_matlab_status_display(self, *args, **kwargs): self.ui_manager.update_matlab_status_display(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _update_py_sim_status_display(self, *args, **kwargs): self.py_sim_ui_manager.update_status_display(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
-#     def _handle_state_renamed_inline(self, *args, **kwargs): self.action_handler.handle_state_renamed(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def connect_state_item_signals(self, *args, **kwargs): self.action_handler.connect_state_signals(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def on_target_device_changed(self, *args, **kwargs): self.ui_manager.on_target_device_changed(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _add_fsm_data_to_scene(self, *args, **kwargs): self.action_handler.add_fsm_data_to_scene(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _on_interaction_mode_changed_by_scene(self, *args, **kwargs): self.ui_manager.on_mode_changed(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def on_problem_item_double_clicked(self, *args, **kwargs): self.action_handler.on_problem_item_double_clicked(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _on_ide_dirty_state_changed_by_manager(self, *args, **kwargs): self.ide_manager.handle_dirty_state_change(*args, **kwargs) if hasattr(self, 'ide_manager') else None
-#     def _on_ide_language_changed_by_manager(self, *args, **kwargs): self.ide_manager.handle_language_change(*args, **kwargs) if hasattr(self, 'ide_manager') else None
-#     def on_ask_ai_about_validation_issue(self, *args, **kwargs): self.ai_chat_ui_manager.ask_about_validation_issue(*args, **kwargs) if hasattr(self, 'ai_chat_ui_manager') else None
-#     def _update_save_actions_enable_state(self, *args, **kwargs): self.ui_manager.update_save_actions_state() if hasattr(self, 'ui_manager') else None
+# --- Stubs for methods that are defined elsewhere but are part of MainWindow ---
+    def _update_properties_dock(self, *args, **kwargs): self.ui_manager._update_properties_dock() if hasattr(self, 'ui_manager') else None
+    def _get_property_schema_for_item(self, *args, **kwargs): return self.ui_manager._get_property_schema_for_item(*args, **kwargs) if hasattr(self, 'ui_manager') else []
+    def _update_dock_color_button_style(self, *args, **kwargs): self.ui_manager._update_dock_color_button_style(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def _on_dock_color_button_clicked(self, *args, **kwargs): self.ui_manager._on_dock_color_button_clicked(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def _on_dock_property_changed_mw(self, *args, **kwargs): self.ui_manager._on_dock_property_changed_mw(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def _on_apply_dock_properties(self, *args, **kwargs): self.ui_manager._on_apply_dock_properties(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def _on_revert_dock_properties(self, *args, **kwargs): self.ui_manager._on_revert_dock_properties(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def on_show_preferences_dialog(self, *args, **kwargs): self.action_handler.on_show_preferences_dialog(*args, **kwargs) if hasattr(self, 'action_handler') else None
+    def _update_matlab_actions_enabled_state(self, *args, **kwargs): self.ui_manager._update_matlab_actions_enabled_state() if hasattr(self, 'ui_manager') else None
+    def _update_py_simulation_actions_enabled_state(self, *args, **kwargs): self.py_sim_ui_manager._update_internal_controls_enabled_state() if hasattr(self, 'py_sim_ui_manager') else None
+    def _update_zoom_to_selection_action_enable_state(self, *args, **kwargs): self.action_handler.update_zoom_to_selection_action_enable_state() if hasattr(self, 'action_handler') else None
+    def _update_align_distribute_actions_enable_state(self, *args, **kwargs): self.action_handler.update_align_distribute_actions_enable_state() if hasattr(self, 'action_handler') else None
+    def update_resource_estimation(self, *args, **kwargs): self.ui_manager.update_resource_estimation(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def update_zoom_status_display(self, *args, **kwargs): self.ui_manager.update_zoom_status_display(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def update_problems_dock(self, *args, **kwargs): self.ui_manager.update_problems_dock(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def _handle_py_sim_state_changed_by_manager(self, *args, **kwargs): self.py_sim_ui_manager.handle_sim_state_change(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
+    def _handle_py_sim_global_ui_enable_by_manager(self, *args, **kwargs): self.ui_manager.set_global_ui_enabled(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def on_toggle_state_breakpoint(self, *args, **kwargs): self.py_sim_ui_manager.on_toggle_breakpoint(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
+    def focus_on_item(self, *args, **kwargs): self.action_handler.focus_on_item(*args, **kwargs) if hasattr(self, 'action_handler') else None
+    def _refresh_find_dialog_if_visible(self, *args, **kwargs): self.action_handler.refresh_find_dialog_if_visible(*args, **kwargs) if hasattr(self, 'action_handler') else None
+    def _handle_matlab_modelgen_or_sim_finished(self, *args, **kwargs): self.matlab_connection.handle_finished(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
+    def _handle_matlab_codegen_finished(self, *args, **kwargs): self.matlab_connection.handle_finished(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
+    def _start_matlab_operation(self, *args, **kwargs): self.matlab_connection.start_operation(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
+    def _finish_matlab_operation(self, *args, **kwargs): self.matlab_connection.finish_operation(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
+    def _update_matlab_status_display(self, *args, **kwargs): self.ui_manager.update_matlab_status_display(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def _update_py_sim_status_display(self, *args, **kwargs): self.py_sim_ui_manager.update_status_display(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
+    def _handle_state_renamed_inline(self, *args, **kwargs): self.action_handler.handle_state_renamed(*args, **kwargs) if hasattr(self, 'action_handler') else None
+    def connect_state_item_signals(self, *args, **kwargs): self.action_handler.connect_state_signals(*args, **kwargs) if hasattr(self, 'action_handler') else None
+    def on_target_device_changed(self, *args, **kwargs): self.ui_manager.on_target_device_changed(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def _add_fsm_data_to_scene(self, *args, **kwargs): self.action_handler.add_fsm_data_to_scene(*args, **kwargs) if hasattr(self, 'action_handler') else None
+    def _on_interaction_mode_changed_by_scene(self, *args, **kwargs): self.ui_manager.on_mode_changed(*args, **kwargs) if hasattr(self, 'ui_manager') else None
+    def on_problem_item_double_clicked(self, *args, **kwargs): self.action_handler.on_problem_item_double_clicked(*args, **kwargs) if hasattr(self, 'action_handler') else None
+    def _on_ide_dirty_state_changed_by_manager(self, *args, **kwargs): self.ide_manager.handle_dirty_state_change(*args, **kwargs) if hasattr(self, 'ide_manager') else None
+    def _on_ide_language_changed_by_manager(self, *args, **kwargs): self.ide_manager.handle_language_change(*args, **kwargs) if hasattr(self, 'ide_manager') else None
+    def on_ask_ai_about_validation_issue(self, *args, **kwargs): self.ai_chat_ui_manager.ask_about_validation_issue(*args, **kwargs) if hasattr(self, 'ai_chat_ui_manager') else None
+    def _update_save_actions_enable_state(self, *args, **kwargs): self.ui_manager.update_save_actions_state() if hasattr(self, 'ui_manager') else None
 
 
 
@@ -2100,7 +2110,6 @@ def main_entry_point():
     main_win = MainWindow()
     main_win.show()
     sys.exit(app.exec_())
-
 
 
 if __name__ == '__main__':

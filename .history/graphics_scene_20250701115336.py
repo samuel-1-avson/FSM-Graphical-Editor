@@ -32,8 +32,6 @@ from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsC
 from .undo_commands import AddItemCommand, MoveItemsCommand, RemoveItemsCommand, EditItemPropertiesCommand
 from .snippet_manager import CustomSnippetManager
 from .settings_manager import SettingsManager
-# --- BUG-01 FIX: Import AIChatUIManager for dependency injection ---
-from .ai_chatbot import AIChatUIManager
 
 
 logger = logging.getLogger(__name__)
@@ -724,13 +722,10 @@ class DiagramScene(QGraphicsScene):
         if not (self.parent_window and isinstance(self.parent_window, (QMainWindow, QDialog))):
             dialog_parent = self.views()[0] if self.views() else None
 
-        # --- BUG-01 FIX: Pass the ai_manager instance to dialog constructors ---
-        ai_manager = self.parent_window.ai_chat_ui_manager if hasattr(self.parent_window, 'ai_chat_ui_manager') and isinstance(self.parent_window.ai_chat_ui_manager, AIChatUIManager) else None
-
         if DialogType == StatePropertiesDialog:
-            dialog = DialogType(self.settings_manager, self.custom_snippet_manager, ai_manager, parent=dialog_parent, current_properties=old_props, is_new_state=False, scene_ref=self)
+            dialog = DialogType(self.settings_manager, self.custom_snippet_manager, parent=dialog_parent, current_properties=old_props, is_new_state=False, scene_ref=self)
         elif DialogType == TransitionPropertiesDialog:
-            dialog = TransitionPropertiesDialog(self.custom_snippet_manager, ai_manager, parent=dialog_parent, current_properties=old_props)
+            dialog = TransitionPropertiesDialog(self.custom_snippet_manager, parent=dialog_parent, current_properties=old_props)
         else: 
             dialog = DialogType(parent=dialog_parent, current_properties=old_props)
 
@@ -793,9 +788,7 @@ class DiagramScene(QGraphicsScene):
                 'border_width': initial_data.get('border_width', self.settings_manager.get("state_default_border_width")),
                 'icon_path': initial_data.get('icon_path', None)
             }
-            # --- BUG-01 FIX: Pass the AI manager when creating the dialog ---
-            ai_manager = self.parent_window.ai_chat_ui_manager if hasattr(self.parent_window, 'ai_chat_ui_manager') and isinstance(self.parent_window.ai_chat_ui_manager, AIChatUIManager) else None
-            props_dialog = StatePropertiesDialog(self.settings_manager, self.custom_snippet_manager, ai_manager, parent=dialog_parent, current_properties=initial_dialog_props, is_new_state=True, scene_ref=self)
+            props_dialog = StatePropertiesDialog(self.settings_manager, self.custom_snippet_manager, parent=dialog_parent, current_properties=initial_dialog_props, is_new_state=True, scene_ref=self)
 
 
             if props_dialog.exec() == QDialog.Accepted:
@@ -906,9 +899,7 @@ class DiagramScene(QGraphicsScene):
                 'label_font_family': self.settings_manager.get("transition_default_font_family"),
                 'label_font_size': self.settings_manager.get("transition_default_font_size")
             }
-            # --- BUG-01 FIX: Pass the AI manager when creating the dialog ---
-            ai_manager = self.parent_window.ai_chat_ui_manager if hasattr(self.parent_window, 'ai_chat_ui_manager') and isinstance(self.parent_window.ai_chat_ui_manager, AIChatUIManager) else None
-            dialog = TransitionPropertiesDialog(self.custom_snippet_manager, ai_manager, parent=dialog_parent, current_properties=initial_props, is_new_transition=True)
+            dialog = TransitionPropertiesDialog(self.custom_snippet_manager, parent=dialog_parent, current_properties=initial_props, is_new_transition=True)
 
             if dialog.exec() == QDialog.Accepted:
                 props = dialog.get_properties()
@@ -1345,8 +1336,7 @@ class DiagramScene(QGraphicsScene):
             self._log_to_parent("ERROR", "Invalid template data format.")
             return
 
-        undo_stack = self.undo_stack
-        undo_stack.beginMacro(f"Add Template: {template_data.get('name', 'Unnamed Template')}")
+        self.undo_stack.beginMacro(f"Add Template: {template_data.get('name', 'Unnamed Template')}")
 
         newly_created_scene_items = []
         state_items_map = {} 
@@ -1402,7 +1392,7 @@ class DiagramScene(QGraphicsScene):
                 self.parent_window.connect_state_item_signals(state_item)
 
             cmd = AddItemCommand(self, state_item, f"Add State from Template: {unique_name}")
-            undo_stack.push(cmd) 
+            self.undo_stack.push(cmd) 
             newly_created_scene_items.append(state_item)
             state_items_map[original_name] = state_item 
 
@@ -1433,7 +1423,7 @@ class DiagramScene(QGraphicsScene):
                     trans_data.get('control_offset_y', 0)
                 ))
                 cmd = AddItemCommand(self, trans_item, f"Add Transition from Template")
-                undo_stack.push(cmd) 
+                self.undo_stack.push(cmd) 
                 newly_created_scene_items.append(trans_item)
             else:
                 self._log_to_parent("WARNING", f"Template: Could not link transition. Missing state for '{src_original_name}' or '{tgt_original_name}'.")
@@ -1453,10 +1443,10 @@ class DiagramScene(QGraphicsScene):
             )
             comment_item.setTextWidth(comment_data.get('width', 150))
             cmd = AddItemCommand(self, comment_item, "Add Comment from Template")
-            undo_stack.push(cmd) 
+            self.undo_stack.push(cmd) 
             newly_created_scene_items.append(comment_item)
 
-        undo_stack.endMacro()
+        self.undo_stack.endMacro()
 
         if newly_created_scene_items:
             self.clearSelection()

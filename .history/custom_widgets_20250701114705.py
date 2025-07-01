@@ -55,7 +55,7 @@ class DraggableToolButton(QToolButton):
         # QWidget.DrawChildren is a common flag for this purpose.
         # You can combine flags using the bitwise OR operator if needed, e.g.,
         # QWidget.DrawChildren | QWidget.IgnoreMask
-        self.render(pixmap, QPoint(), QRegion(), QWidget.DrawChildren)
+        self.render(pixmap, QPoint(), QRegion(), QWidget.RenderFlags(QWidget.DrawChildren))
 
 
         painter = QPainter(pixmap)

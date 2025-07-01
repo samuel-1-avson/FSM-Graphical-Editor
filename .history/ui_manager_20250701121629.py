@@ -479,24 +479,6 @@ class UIManager(QObject):
         
         # Connect search bar signal
         self.palette_search_bar.textChanged.connect(self._filter_palette_elements)
-      
-      
-    def update_save_actions_state(self):
-        """
-        Updates the enabled/disabled state of the Save and Save As actions
-        based on the current editor's dirty state.
-        """
-        mw = self.mw
-        editor = mw.current_editor() if hasattr(mw, "current_editor") else None
-
-        is_dirty = editor.is_dirty() if editor and hasattr(editor, "is_dirty") else False
-
-        if hasattr(mw, "save_action"):
-            mw.save_action.setEnabled(is_dirty)
-        if hasattr(mw, "save_as_action"):
-            mw.save_as_action.setEnabled(editor is not None)  
-      
-      
         
     def _filter_palette_elements(self, text):
         """Filters draggable buttons in the palette based on search text."""

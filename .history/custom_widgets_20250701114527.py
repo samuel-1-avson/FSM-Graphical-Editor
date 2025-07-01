@@ -7,10 +7,10 @@ import json
 from PyQt5.QtWidgets import QToolButton
 
 
-class DraggableToolButton(QToolButton): 
+class DraggableToolButton(QPushButton): 
     
     def __init__(self, text, mime_type, item_type_data_str, parent=None):
-        super().__init__(parent)
+        super().__init__(text, parent)
         self.setText(text)
         self.mime_type = mime_type
         self.setObjectName("DraggableToolButton") 
@@ -55,7 +55,7 @@ class DraggableToolButton(QToolButton):
         # QWidget.DrawChildren is a common flag for this purpose.
         # You can combine flags using the bitwise OR operator if needed, e.g.,
         # QWidget.DrawChildren | QWidget.IgnoreMask
-        self.render(pixmap, QPoint(), QRegion(), QWidget.DrawChildren)
+        self.render(pixmap, QPoint(), QRegion(), QWidget.RenderFlags(QWidget.DrawChildren))
 
 
         painter = QPainter(pixmap)

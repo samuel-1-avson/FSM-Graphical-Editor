@@ -1,3 +1,4 @@
+
 # fsm_designer_project/main.py
 
 import sys
@@ -99,7 +100,6 @@ class MainWindow(QMainWindow):
         PERSPECTIVE_AI_FOCUS
     ]
 
-
     # --- REFACTORED / NEW METHODS FOR PROPERTIES DOCK ---
 
     def _get_property_schema_for_item(self, item):
@@ -128,7 +128,6 @@ class MainWindow(QMainWindow):
                 {'key': 'text', 'label': 'Text:', 'widget': QTextEdit, 'config': {'setFixedHeight': 80}},
              ]
         return []
-
 
 
     def _update_properties_dock(self):
@@ -236,7 +235,6 @@ class MainWindow(QMainWindow):
         
         self.properties_apply_button.setEnabled(False)
         self.properties_revert_button.setEnabled(False)
-
 
     def _update_dock_color_button_style(self, button: QPushButton, color: QColor):
         luminance = color.lightnessF()
@@ -507,53 +505,10 @@ class MainWindow(QMainWindow):
             self.recent_files_menu.addSeparator()
             self.recent_files_menu.addAction("Clear List", self._clear_recent_files_list)
     
-    
-    _update_dock_color_button_style = lambda self, *args: None
-    _on_dock_color_button_clicked = lambda self, *args: None
-    _on_dock_property_changed_mw = lambda self, *args: None
-    _on_apply_dock_properties = lambda self, *args: None
-    _on_revert_dock_properties = lambda self, *args: None
-    _update_item_properties_from_move = lambda self, *args: None
-    _populate_perspectives_menu = lambda self, *args: None
-    _update_current_perspective_check = lambda self, *args: None
-    apply_perspective = lambda self, *args: None
-    _apply_default_perspective_layout = lambda self, *args: None
-    save_current_perspective_as = lambda self, *args: None
-    reset_all_custom_perspectives = lambda self, *args: None
-    _update_undo_redo_actions_enable_state = lambda self, *args: None
-    _update_save_actions_enable_state = lambda self, *args: None
-    _update_ide_save_actions_enable_state = lambda self, *args: None
-    _update_py_simulation_actions_enabled_state = lambda self, *args: None
-    _update_zoom_to_selection_action_enable_state = lambda self, *args: None
-    _update_align_distribute_actions_enable_state = lambda self, *args: None
-    connect_state_item_signals = lambda self, *args: None
-    _add_fsm_data_to_scene = lambda self, *args: None
-    on_show_preferences_dialog = lambda self, *args: None
-    _update_resource_display = lambda self, *args: None
-    _set_status_label_object_names = lambda self, *args: None
-    _update_matlab_status_display = lambda self, *args: None
-    _update_matlab_actions_enabled_state = lambda self, *args: None
-    _start_matlab_operation = lambda self, *args: None
-    _finish_matlab_operation = lambda self, *args: None
-    set_ui_enabled_for_matlab_op = lambda self, *args: None
-    _handle_matlab_modelgen_or_sim_finished = lambda self, *args: None
-    _handle_matlab_codegen_finished = lambda self, *args: None
-    focus_on_item = lambda self, *args: None
-    _refresh_find_dialog_if_visible = lambda self, *args: None
-    _update_py_sim_status_display = lambda self, *args: None
-    on_toggle_state_breakpoint = lambda self, *args: None
-    update_zoom_status_display = lambda self, *args: None
-    # update_problems_dock = lambda self, *args: None # NO LONGER A STUB
-    on_problem_item_double_clicked = lambda self, *args: None
-        
     def _clear_recent_files_list(self):
         self.settings_manager.set("recent_files", [])
         self.log_message("INFO", "Recent files list cleared.")
      
-     
-     
-     
-     # ...existing code...
     def _apply_theme(self, theme_name: str):
         logger.info(f"Applying theme: {theme_name}")
 
@@ -597,10 +552,7 @@ class MainWindow(QMainWindow):
     
         if app_instance: app_instance.processEvents()
         logger.info(f"Theme '{theme_name}' applied and UI refreshed.")
-# ...existing code...
 
-
-    
     def _connect_signals(self):
         if hasattr(self, 'preferences_action'):
             self.preferences_action.triggered.connect(self.on_show_preferences_dialog)
@@ -627,13 +579,6 @@ class MainWindow(QMainWindow):
             self.target_device_combo.currentTextChanged.connect(self.on_target_device_changed)
         if self.git_manager:
             self.git_manager.git_status_updated.connect(self._on_git_status_updated)
-
-
-
-
-    # --- Architecture Change: Tab Management Methods ---
-
-    # --- Tab Management ---
 
     def current_editor(self) -> EditorWidget | None:
         widget = self.tab_widget.currentWidget()
@@ -812,32 +757,8 @@ class MainWindow(QMainWindow):
     def set_ui_for_git_op(self, is_running: bool, op_name: str):
         if hasattr(self, 'main_op_status_label'): self.main_op_status_label.setText(f"Git: {op_name}...")
         if hasattr(self, 'progress_bar'): self.progress_bar.setVisible(is_running)
-        self.setEnabled(not is_running)         
-
-         
-
-    # Placeholder for property dock methods, now handled by UI Manager logic
-    # _update_properties_dock = lambda self, *args: None # NO LONGER A STUB
-    # _update_dock_color_button_style = lambda self, *args: None # NO LONGER A STUB
-    # _on_dock_color_button_clicked = lambda self, *args: None # NO LONGER A STUB
-    # _on_dock_property_changed_mw = lambda self, *args: None # NO LONGER A STUB
-    # _on_apply_dock_properties = lambda self, *args: None # NO LONGER A STUB
-    # _on_revert_dock_properties = lambda self, *args: None # NO LONGER A STUB
+        self.setEnabled(not is_running)        
             
-    @pyqtSlot(int)
-    def _update_resource_display(self, *args, **kwargs): pass
-    @pyqtSlot(str)
-    def on_target_device_changed(self, profile_name): pass
-    @pyqtSlot(float)
-    def update_zoom_status_display(self, scale_factor): pass
-    # update_problems_dock = lambda self, *args: None # NO LONGER A STUB
-    @pyqtSlot(bool)
-    def _handle_py_sim_state_changed_by_manager(self, is_running): pass
-    @pyqtSlot(bool)
-    def _handle_py_sim_global_ui_enable_by_manager(self, enable): pass
-
-
-
     @pyqtSlot(int)
     def _on_close_tab_requested(self, index: int):
         editor = self.tab_widget.widget(index)
@@ -885,7 +806,6 @@ class MainWindow(QMainWindow):
 
         self._update_git_menu_actions_state()
         self._update_all_ui_element_states()
-
 
 
 
@@ -953,6 +873,7 @@ class MainWindow(QMainWindow):
             save_file.cancelWriting()
             return False
 
+
     def _update_all_ui_element_states(self):
         self._update_window_title()
         self._update_undo_redo_actions_enable_state()
@@ -984,8 +905,6 @@ class MainWindow(QMainWindow):
         
         self._update_window_title()
     
-    # ... New helper slot for property dock update on move ...
-    # ... New helper slot for property dock update on move ...
     @pyqtSlot(QGraphicsItem)
     def _update_item_properties_from_move(self, moved_item): 
         if hasattr(self, '_current_edited_item_in_dock') and self._current_edited_item_in_dock == moved_item:
@@ -1098,15 +1017,6 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'main_op_status_label'): self.main_op_status_label.setObjectName("MainOpStatusLabel")
         if hasattr(self, 'mode_status_label'): self.mode_status_label.setObjectName("InteractionModeStatusLabel") 
 
-
-    def _update_ui_element_states(self):
-        self._update_properties_dock()
-        self._update_py_simulation_actions_enabled_state()
-        self._update_zoom_to_selection_action_enable_state()
-        self._update_align_distribute_actions_enable_state()
-        if editor := self.current_editor():
-            if editor.view:
-                 self.update_zoom_status_display(editor.view.transform().m11())
 
     def _update_save_actions_enable_state(self):
         if hasattr(self, 'save_action'):
@@ -1226,9 +1136,6 @@ class MainWindow(QMainWindow):
             return self.ide_manager.prompt_ide_save_if_dirty()
         return True
 
-    def _load_from_path(self, file_path): pass
-    def _save_to_path(self, file_path) -> bool: pass
-
     @pyqtSlot(QGraphicsItem)
     def focus_on_item(self, item_to_focus: QGraphicsItem):
         editor = self.current_editor()
@@ -1266,6 +1173,8 @@ class MainWindow(QMainWindow):
             dialog.show()
             dialog.raise_()
             dialog.activateWindow()
+        else:
+            dialog.activateWindow()
         
         if hasattr(dialog, 'search_input'):
             dialog.search_input.selectAll()
@@ -1277,7 +1186,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
         logger.info("MATLAB settings dialog closed.")
 
-    # The closeEvent and other essential methods from the original file are assumed to be here.
     def closeEvent(self, event: QCloseEvent):
         """Overrides QMainWindow.closeEvent to check for unsaved changes and stop threads."""
         logger.info("MW_CLOSE: closeEvent received.")
@@ -1323,174 +1231,31 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.warning(f"Could not restore window geometry/state: {e}. Applying default layout.")
             self.perspective_manager.apply_perspective(self.perspective_manager.current_perspective_name)
-            
 
-
-    # --- NEW / MODIFIED METHODS for Resource Estimation ---
-
-    @pyqtSlot('QRectF')
-    def update_resource_estimation(self, region=None):
-        editor = self.current_editor()
-        if not editor or not hasattr(self, 'resource_estimation_dock') or not self.resource_estimation_dock.isVisible():
+    @pyqtSlot(float, float, float, str)
+    def _update_resource_display(self, cpu_usage, ram_usage, gpu_util, gpu_name):
+        if not self.settings_manager.get("resource_monitor_enabled"):
+            if hasattr(self, 'resource_monitor_widget'): self.resource_monitor_widget.setVisible(False)
             return
+        if hasattr(self, 'resource_monitor_widget') and not self.resource_monitor_widget.isVisible():
+            self.resource_monitor_widget.setVisible(True)
 
-        diagram_data = editor.scene.get_diagram_data()
-        estimation = self.resource_estimator.estimate(diagram_data)
-        
-        sram_b = estimation.get('sram_b', 0)
-        flash_b = estimation.get('flash_b', 0)
-
-        total_sram_b = self.resource_estimator.target_profile.get("sram_b", 1)
-        total_flash_b = self.resource_estimator.target_profile.get("flash_kb", 1) * 1024
-        
-        sram_percent = min(100, int((sram_b / total_sram_b) * 100)) if total_sram_b > 0 else 0
-        flash_percent = min(100, int((flash_b / total_flash_b) * 100)) if total_flash_b > 0 else 0
-        
-        if hasattr(self, 'sram_usage_bar'):
-            self.sram_usage_bar.setRange(0, 100)
-            self.sram_usage_bar.setValue(sram_percent)
-            self.sram_usage_bar.setFormat(f"~ {sram_b} / {total_sram_b} B ({sram_percent}%)")
-
-        if hasattr(self, 'flash_usage_bar'):
-            self.flash_usage_bar.setRange(0, 100)
-            self.flash_usage_bar.setValue(flash_percent)
-            self.flash_usage_bar.setFormat(f"~ {flash_b / 1024:.1f} / {total_flash_b / 1024:.0f} KB ({flash_percent}%)")
-    @pyqtSlot(str)
-    def on_target_device_changed(self, profile_name: str):
-        if self.resource_estimator:
-            self.resource_estimator.set_target(profile_name)
-            self.update_resource_estimation()
-        else:
-            logger.warning("Target device changed, but resource_estimator is not available.")
-
-
-
-    @pyqtSlot(float)
-    def update_zoom_status_display(self, scale_factor: float):
-        if hasattr(self, 'zoom_status_label') and self.zoom_status_label:
-            zoom_percentage = int(scale_factor * 100)
-            self.zoom_status_label.setText(f"{zoom_percentage}%")
-
-    @pyqtSlot(bool)
-    def _handle_py_sim_state_changed_by_manager(self, is_running: bool):
-        logger.debug(f"MW: PySim state changed by manager to: {is_running}")
-        editor = self.current_editor()
-        if editor:
-            editor.py_sim_active = is_running
-        self._update_window_title()
-        self._update_py_sim_status_display() 
-        self._update_matlab_actions_enabled_state()
-        self._update_py_simulation_actions_enabled_state()
-    @pyqtSlot(bool)
-    def _handle_py_sim_global_ui_enable_by_manager(self, enable: bool):
-        logger.debug(f"MW: Global UI enable requested by PySim manager: {enable}")
-        editor = self.current_editor()
-        is_editable = enable
-        diagram_editing_actions = [
-            self.new_action, self.open_action, self.save_action, self.save_as_action,
-            self.undo_action, self.redo_action, self.delete_action, self.select_all_action,
-            self.add_state_mode_action, self.add_transition_mode_action, self.add_comment_mode_action
-        ]
-        for action in diagram_editing_actions:
-            if hasattr(action, 'setEnabled'): action.setEnabled(is_editable)
-        if hasattr(self, 'elements_palette_dock'): self.elements_palette_dock.setEnabled(is_editable)
-        
-        if hasattr(self, 'properties_edit_dialog_button'): self.properties_edit_dialog_button.setEnabled(is_editable and editor and len(editor.scene.selectedItems())==1)
-        if hasattr(self, 'properties_apply_button'): self.properties_apply_button.setEnabled(False) 
-        if hasattr(self, 'properties_revert_button'): self.properties_revert_button.setEnabled(False) 
-        if editor:
-            for item in editor.scene.items():
-                if isinstance(item, (GraphicsStateItem, GraphicsCommentItem)):
-                    item.setFlag(QGraphicsItem.ItemIsMovable, is_editable and editor.scene.current_mode == "select")
-            if not is_editable and editor.scene.current_mode != "select": editor.scene.set_mode("select")
-        self._update_matlab_actions_enabled_state()
-        self._update_py_simulation_actions_enabled_state()
-
-    @pyqtSlot(list)
-    def update_problems_dock(self, issues_with_items: list):
-        editor = self.current_editor()
-        if not editor or not hasattr(self, 'problems_list_widget') or self.problems_list_widget is None:
-            logger.warning("MainWindow.update_problems_dock: self.problems_list_widget is not yet initialized. Update deferred.")
-            return
-        self.problems_list_widget.clear()
-        if issues_with_items:
-            for issue_msg, item_ref in issues_with_items:
-                list_item_widget = QListWidgetItem(str(issue_msg))
-                if item_ref: list_item_widget.setData(Qt.UserRole, item_ref)
-                self.problems_list_widget.addItem(list_item_widget)
-            self.problems_dock.setWindowTitle(f"Validation Issues ({len(issues_with_items)})")
-            if hasattr(self, 'problems_ask_ai_btn'): self.problems_ask_ai_btn.setEnabled(False)
-            if self.problems_dock.isHidden():
-                 self.problems_dock.show()
-                 self.problems_dock.raise_()
-        else: 
-            self.problems_list_widget.addItem("No validation issues found."); 
-            self.problems_dock.setWindowTitle("Validation Issues")
-            if hasattr(self, 'problems_ask_ai_btn'): self.problems_ask_ai_btn.setEnabled(False)
-
-    # --- NEW: AI Validation Helper Slot ---
-    @pyqtSlot()
-    def on_ask_ai_about_validation_issue(self):
-        selected_items = self.problems_list_widget.selectedItems()
-        if not selected_items:
-            QMessageBox.information(self, "No Issue Selected", "Please select an issue from the list to ask the AI about it.")
-            return
-
-        issue_text = selected_items[0].text()
-        prompt = f"""I am designing a Finite State Machine. The validation tool gave me the following error or warning: "{issue_text}"
-
-Please explain what this means in the context of an FSM and suggest how I might fix it. Be concise."""
-        
-        self.ai_chat_ui_manager._append_to_chat_display("Validation Helper", f"Asking AI about: '{issue_text}'")
-        self.ai_chatbot_manager.send_message(prompt)
-
-
-    @pyqtSlot(QListWidgetItem)
-    def on_problem_item_double_clicked(self, list_item: QListWidgetItem):
-        item_ref = list_item.data(Qt.UserRole)
-        editor = self.current_editor()
-        if not editor: return
-        
-        if item_ref and isinstance(item_ref, QGraphicsItem) and item_ref.scene() == editor.scene:
-            self.focus_on_item(item_ref)
-            logger.info(f"Focused on problematic item from Validation Issues list: {getattr(item_ref, 'text_label', type(item_ref).__name__)}")
-        else: logger.debug(f"No valid QGraphicsItem reference found for clicked validation issue: '{list_item.text()}'")
-
-    @pyqtSlot(bool)
-    def _on_ide_dirty_state_changed_by_manager(self, is_dirty: bool):
-        self._update_ide_save_actions_enable_state()
-        self._update_window_title()
-
-    @pyqtSlot(str)
-    def _on_ide_language_changed_by_manager(self, language_param: str):
-        ai_ready = self.ai_chatbot_manager is not None and \
-                   self.ai_chatbot_manager.is_configured() and \
-                   self._internet_connected is True
-        
-        if hasattr(self, 'ide_analyze_action'):
-            can_analyze = (language_param == "Python" or language_param.startswith("C/C++")) and ai_ready
-            self.ide_analyze_action.setEnabled(can_analyze)
-            tooltip = "Analyze the current code with AI"
-            if not ai_ready: tooltip += " (Requires Internet & valid API Key)"
-            elif not (language_param == "Python" or language_param.startswith("C/C++")):
-                 tooltip += " (Best for Python or C/C++)"
-            self.ide_analyze_action.setToolTip(tooltip)
-        self._update_window_title()
-
-    def _update_window_title(self):
-        editor = self.current_editor()
-        if not editor:
-            self.setWindowTitle(APP_NAME)
-            return
-            
-        dirty_char = "[*]" # Let Qt handle the star
-        file_name = os.path.basename(editor.file_path) if editor.file_path else "Untitled"
-        py_sim_active = any(isinstance(self.tab_widget.widget(i), EditorWidget) and self.tab_widget.widget(i).py_sim_active for i in range(self.tab_widget.count()))
-        pysim_suffix = f" [PySim Active]" if py_sim_active else ""
-        
-        self.setWindowModified(editor.is_dirty())
-        self.setWindowTitle(f"{file_name}{dirty_char} - {APP_NAME}{pysim_suffix}")
-
+        if hasattr(self, 'cpu_status_label'): self.cpu_status_label.setText(f"CPU: {cpu_usage:.0f}%")
+        if hasattr(self, 'ram_status_label'): self.ram_status_label.setText(f"RAM: {ram_usage:.0f}%")
+        if hasattr(self, 'gpu_status_label'):
+            if gpu_util == -1.0: self.gpu_status_label.setText(f"GPU: {gpu_name}") 
+            elif gpu_util == -2.0: self.gpu_status_label.setText(f"GPU: NVML Err") 
+            elif gpu_util == -3.0: self.gpu_status_label.setText(f"GPU: Mon Err") 
+            elif self.resource_monitor_manager and self.resource_monitor_manager.worker and self.resource_monitor_manager.worker._nvml_initialized and self.resource_monitor_manager.worker._gpu_handle:
+                self.gpu_status_label.setText(f"GPU: {gpu_util:.0f}%")
+                self.gpu_status_label.setToolTip(f"GPU: {gpu_util:.0f}% ({gpu_name})")
+            else: 
+                 self.gpu_status_label.setText(f"GPU: N/A"); self.gpu_status_label.setToolTip(gpu_name)
+                 
+                 
+    def _set_status_label_object_names(self):
+        if hasattr(self, 'main_op_status_label'): self.main_op_status_label.setObjectName("MainOpStatusLabel")
+        if hasattr(self, 'mode_status_label'): self.mode_status_label.setObjectName("InteractionModeStatusLabel") 
 
     def _init_internet_status_check(self):
         self.internet_check_timer.timeout.connect(self._run_internet_check_job)
@@ -1585,21 +1350,7 @@ Please explain what this means in the context of an FSM and suggest how I might 
         if hasattr(self, 'stop_py_sim_action'): self.stop_py_sim_action.setEnabled(sim_can_be_controlled)
         if hasattr(self, 'reset_py_sim_action'): self.reset_py_sim_action.setEnabled(sim_can_be_controlled)
         if hasattr(self, 'py_sim_ui_manager') and self.py_sim_ui_manager: self.py_sim_ui_manager._update_internal_controls_enabled_state()
-
-    @pyqtSlot()
-    def _update_zoom_to_selection_action_enable_state(self):
-        editor = self.current_editor()
-        if hasattr(self, 'zoom_to_selection_action'): self.zoom_to_selection_action.setEnabled(editor and bool(editor.scene.selectedItems()))
-
-    @pyqtSlot()
-    def _update_align_distribute_actions_enable_state(self):
-        editor = self.current_editor()
-        selected_count = len(editor.scene.selectedItems()) if editor else 0
-        if hasattr(self, 'align_actions'):
-            for action in self.align_actions: action.setEnabled(selected_count >= 2)
-        if hasattr(self, 'distribute_actions'):
-            for action in self.distribute_actions: action.setEnabled(selected_count >= 3)
-
+    
     @pyqtSlot(str, str)
     def _handle_state_renamed_inline(self, old_name: str, new_name: str):
         logger.debug(f"MainWindow: State renamed inline from '{old_name}' to '{new_name}'.")
@@ -1623,26 +1374,31 @@ Please explain what this means in the context of an FSM and suggest how I might 
         except Exception as e:
             logger.error(f"Failed to connect state item signals: {e}")
             
-    # Other methods like _populate_recent_files_menu, on_show_preferences_dialog, _apply_theme, etc.
-    # would be implemented here, delegating logic as needed.
-    # A full implementation would refactor methods from the original main file into here
-    # and adapt them for the TDI architecture. For brevity, I'll include the essential stubs.
-
     @pyqtSlot()
     def _refresh_find_dialog_if_visible(self):
         editor = self.current_editor()
         if editor and editor in self._find_dialogs:
             self._find_dialogs[editor].refresh_list()
+
     @pyqtSlot(str)
-    def _on_interaction_mode_changed_by_scene(self, mode_name): pass
-    @pyqtSlot(str, str)
-    def _handle_state_renamed_inline(self, old_name, new_name): pass
-    def _init_internet_status_check(self): pass
-    def _run_internet_check_job(self): pass
-    def _update_ai_features_enabled_state(self, is_ready): pass
-    def _update_internet_status_display(self, is_conn, msg): pass
-    
-    @pyqtSlot(GraphicsStateItem, bool)
+    def _on_interaction_mode_changed_by_scene(self, mode_name):
+        if hasattr(self, 'mode_status_label') and self.mode_status_label:
+            self.mode_status_label.setText(f"Mode: {mode_name.capitalize()}")
+            # Set icon for the mode status label (Optional, if you have a mode_icon_label)
+            if hasattr(self, 'mode_icon_label'):
+                icon = QIcon()
+                if mode_name == "select": icon = get_standard_icon(QStyle.SP_ArrowRight, "Sel")
+                elif mode_name == "state": icon = get_standard_icon(QStyle.SP_FileDialogNewFolder, "St")
+                elif mode_name == "transition": icon = get_standard_icon(QStyle.SP_ArrowForward, "Tr")
+                elif mode_name == "comment": icon = get_standard_icon(QStyle.SP_MessageBoxInformation, "Cm")
+                self.mode_icon_label.setPixmap(icon.pixmap(QSize(12,12)))
+            logger.debug(f"MainWin: Mode status label updated to '{mode_name.capitalize()}'.")
+        
+        editor = self.current_editor()
+        if editor and editor.view and hasattr(editor.view, '_restore_cursor_to_scene_mode'):
+            editor.view._restore_cursor_to_scene_mode()
+
+    @pyqtSlot(QGraphicsItem, bool)
     def on_toggle_state_breakpoint(self, state_item: GraphicsStateItem, set_bp: bool):
         editor = self.current_editor()
         if not editor or not editor.py_fsm_engine or not editor.py_sim_active:
@@ -1673,16 +1429,6 @@ Please explain what this means in the context of an FSM and suggest how I might 
     def log_message(self, level_str: str, message: str): 
         level = getattr(logging, level_str.upper(), logging.INFO)
         logger.log(level, message)
-
-
-
-    
-
-
-
-
-    @pyqtSlot()
-    def on_show_find_item_dialog(self): pass
             
     def _add_fsm_data_to_scene(self, fsm_data: dict, clear_current_diagram: bool = False, original_user_prompt: str | None = None):
         if not isinstance(fsm_data, dict):
@@ -2003,91 +1749,131 @@ Please explain what this means in the context of an FSM and suggest how I might 
             self.apply_perspective(self.PERSPECTIVE_DESIGN_FOCUS) 
             QMessageBox.information(self, "Layouts Reset", "All perspectives have been reset to their default layouts.")
 
-    # --- NEW Slot ---
-    @pyqtSlot(str)
-    def _on_interaction_mode_changed_by_scene(self, mode_name):
-        if hasattr(self, 'mode_status_label') and self.mode_status_label:
-            self.mode_status_label.setText(f"Mode: {mode_name.capitalize()}")
-            # Set icon for the mode status label (Optional, if you have a mode_icon_label)
-            if hasattr(self, 'mode_icon_label'):
-                icon = QIcon()
-                if mode_name == "select": icon = get_standard_icon(QStyle.SP_ArrowRight, "Sel")
-                elif mode_name == "state": icon = get_standard_icon(QStyle.SP_FileDialogNewFolder, "St")
-                elif mode_name == "transition": icon = get_standard_icon(QStyle.SP_ArrowForward, "Tr")
-                elif mode_name == "comment": icon = get_standard_icon(QStyle.SP_MessageBoxInformation, "Cm")
-                self.mode_icon_label.setPixmap(icon.pixmap(QSize(12,12)))
-            logger.debug(f"MainWin: Mode status label updated to '{mode_name.capitalize()}'.")
-        
+    @pyqtSlot(float)
+    def update_zoom_status_display(self, scale_factor: float):
+        if hasattr(self, 'zoom_status_label') and self.zoom_status_label:
+            zoom_percentage = int(scale_factor * 100)
+            self.zoom_status_label.setText(f"{zoom_percentage}%")
+
+    @pyqtSlot(bool)
+    def _handle_py_sim_state_changed_by_manager(self, is_running: bool):
+        logger.debug(f"MW: PySim state changed by manager to: {is_running}")
         editor = self.current_editor()
-        if editor and editor.view and hasattr(editor.view, '_restore_cursor_to_scene_mode'):
-            editor.view._restore_cursor_to_scene_mode()
+        if editor:
+            editor.py_sim_active = is_running
+        self._update_window_title()
+        self._update_py_sim_status_display() 
+        self._update_matlab_actions_enabled_state()
+        self._update_py_simulation_actions_enabled_state()
+        
+    @pyqtSlot(bool)
+    def _handle_py_sim_global_ui_enable_by_manager(self, enable: bool):
+        logger.debug(f"MW: Global UI enable requested by PySim manager: {enable}")
+        editor = self.current_editor()
+        is_editable = enable
+        diagram_editing_actions = [
+            self.new_action, self.open_action, self.save_action, self.save_as_action,
+            self.undo_action, self.redo_action, self.delete_action, self.select_all_action,
+            self.add_state_mode_action, self.add_transition_mode_action, self.add_comment_mode_action
+        ]
+        for action in diagram_editing_actions:
+            if hasattr(action, 'setEnabled'): action.setEnabled(is_editable)
+        if hasattr(self, 'elements_palette_dock'): self.elements_palette_dock.setEnabled(is_editable)
+        
+        if hasattr(self, 'properties_edit_dialog_button'): self.properties_edit_dialog_button.setEnabled(is_editable and editor and len(editor.scene.selectedItems())==1)
+        if hasattr(self, 'properties_apply_button'): self.properties_apply_button.setEnabled(False) 
+        if hasattr(self, 'properties_revert_button'): self.properties_revert_button.setEnabled(False) 
+        if editor:
+            for item in editor.scene.items():
+                if isinstance(item, (GraphicsStateItem, GraphicsCommentItem)):
+                    item.setFlag(QGraphicsItem.ItemIsMovable, is_editable and editor.scene.current_mode == "select")
+            if not is_editable and editor.scene.current_mode != "select": editor.scene.set_mode("select")
+        self._update_matlab_actions_enabled_state()
+        self._update_py_simulation_actions_enabled_state()
 
-     # --- Stubs for methods that are defined elsewhere but called here ---
-    update_resource_estimation = lambda self, *args: None
-    _update_py_simulation_actions_enabled_state = lambda self, *args: None
-    _update_zoom_to_selection_action_enable_state = lambda self, *args: None
-    _update_align_distribute_actions_enable_state = lambda self, *args: None
-    on_problem_item_double_clicked = lambda self, *args: None
-    _on_ide_dirty_state_changed_by_manager = lambda self, *args: None
-    _on_ide_language_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_state_changed_by_manager = lambda self, *args: None
-    _handle_py_sim_global_ui_enable_by_manager = lambda self, *args: None
-    on_toggle_state_breakpoint = lambda self, *args: None
-    _refresh_find_dialog_if_visible = lambda self, *args: None
-    _handle_matlab_modelgen_or_sim_finished = lambda self, *args: None
-    _handle_matlab_codegen_finished = lambda self, *args: None
-    _start_matlab_operation = lambda self, *args: None
-    _finish_matlab_operation = lambda self, *args: None
-    _update_matlab_status_display = lambda self, *args: None
-    _update_py_sim_status_display = lambda self, *args: None
-    _handle_state_renamed_inline = lambda self, *args: None
-    on_target_device_changed = lambda self, *args: None
-    _add_fsm_data_to_scene = lambda self, *args: None
-    _on_interaction_mode_changed_by_scene = lambda self, *args: None
-    on_ask_ai_about_validation_issue = lambda self, *args: None
-    _update_save_actions_enable_state = lambda self, *args: None
+    @pyqtSlot(list)
+    def update_problems_dock(self, issues_with_items: list):
+        editor = self.current_editor()
+        if not editor or not hasattr(self, 'problems_list_widget') or self.problems_list_widget is None:
+            logger.warning("MainWindow.update_problems_dock: self.problems_list_widget is not yet initialized. Update deferred.")
+            return
+        self.problems_list_widget.clear()
+        if issues_with_items:
+            for issue_msg, item_ref in issues_with_items:
+                list_item_widget = QListWidgetItem(str(issue_msg))
+                if item_ref: list_item_widget.setData(Qt.UserRole, item_ref)
+                self.problems_list_widget.addItem(list_item_widget)
+            self.problems_dock.setWindowTitle(f"Validation Issues ({len(issues_with_items)})")
+            if hasattr(self, 'problems_ask_ai_btn'): self.problems_ask_ai_btn.setEnabled(False)
+            if self.problems_dock.isHidden():
+                 self.problems_dock.show()
+                 self.problems_dock.raise_()
+        else: 
+            self.problems_list_widget.addItem("No validation issues found."); 
+            self.problems_dock.setWindowTitle("Validation Issues")
+            if hasattr(self, 'problems_ask_ai_btn'): self.problems_ask_ai_btn.setEnabled(False)
+
+    @pyqtSlot()
+    def on_ask_ai_about_validation_issue(self):
+        selected_items = self.problems_list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "No Issue Selected", "Please select an issue from the list to ask the AI about it.")
+            return
+
+        issue_text = selected_items[0].text()
+        prompt = f"""I am designing a Finite State Machine. The validation tool gave me the following error or warning: "{issue_text}"
+
+Please explain what this means in the context of an FSM and suggest how I might fix it. Be concise."""
+        
+        self.ai_chat_ui_manager._append_to_chat_display("Validation Helper", f"Asking AI about: '{issue_text}'")
+        self.ai_chatbot_manager.send_message(prompt)
 
 
+    @pyqtSlot(QListWidgetItem)
+    def on_problem_item_double_clicked(self, list_item: QListWidgetItem):
+        item_ref = list_item.data(Qt.UserRole)
+        editor = self.current_editor()
+        if not editor: return
+        
+        if item_ref and isinstance(item_ref, QGraphicsItem) and item_ref.scene() == editor.scene:
+            self.focus_on_item(item_ref)
+            logger.info(f"Focused on problematic item from Validation Issues list: {getattr(item_ref, 'text_label', type(item_ref).__name__)}")
+        else: logger.debug(f"No valid QGraphicsItem reference found for clicked validation issue: '{list_item.text()}'")
 
-# # --- Stubs for methods that are defined elsewhere but are part of MainWindow ---
-#     def _update_properties_dock(self, *args, **kwargs): self.ui_manager._update_properties_dock() if hasattr(self, 'ui_manager') else None
-#     def _get_property_schema_for_item(self, *args, **kwargs): return self.ui_manager._get_property_schema_for_item(*args, **kwargs) if hasattr(self, 'ui_manager') else []
-#     def _update_dock_color_button_style(self, *args, **kwargs): self.ui_manager._update_dock_color_button_style(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_dock_color_button_clicked(self, *args, **kwargs): self.ui_manager._on_dock_color_button_clicked(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_dock_property_changed_mw(self, *args, **kwargs): self.ui_manager._on_dock_property_changed_mw(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_apply_dock_properties(self, *args, **kwargs): self.ui_manager._on_apply_dock_properties(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _on_revert_dock_properties(self, *args, **kwargs): self.ui_manager._on_revert_dock_properties(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def on_show_preferences_dialog(self, *args, **kwargs): self.action_handler.on_show_preferences_dialog(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _update_matlab_actions_enabled_state(self, *args, **kwargs): self.ui_manager._update_matlab_actions_enabled_state() if hasattr(self, 'ui_manager') else None
-#     def _update_py_simulation_actions_enabled_state(self, *args, **kwargs): self.py_sim_ui_manager._update_internal_controls_enabled_state() if hasattr(self, 'py_sim_ui_manager') else None
-#     def _update_zoom_to_selection_action_enable_state(self, *args, **kwargs): self.action_handler.update_zoom_to_selection_action_enable_state() if hasattr(self, 'action_handler') else None
-#     def _update_align_distribute_actions_enable_state(self, *args, **kwargs): self.action_handler.update_align_distribute_actions_enable_state() if hasattr(self, 'action_handler') else None
-#     def update_resource_estimation(self, *args, **kwargs): self.ui_manager.update_resource_estimation(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def update_zoom_status_display(self, *args, **kwargs): self.ui_manager.update_zoom_status_display(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def update_problems_dock(self, *args, **kwargs): self.ui_manager.update_problems_dock(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _handle_py_sim_state_changed_by_manager(self, *args, **kwargs): self.py_sim_ui_manager.handle_sim_state_change(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
-#     def _handle_py_sim_global_ui_enable_by_manager(self, *args, **kwargs): self.ui_manager.set_global_ui_enabled(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def on_toggle_state_breakpoint(self, *args, **kwargs): self.py_sim_ui_manager.on_toggle_breakpoint(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
-#     def focus_on_item(self, *args, **kwargs): self.action_handler.focus_on_item(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _refresh_find_dialog_if_visible(self, *args, **kwargs): self.action_handler.refresh_find_dialog_if_visible(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _handle_matlab_modelgen_or_sim_finished(self, *args, **kwargs): self.matlab_connection.handle_finished(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _handle_matlab_codegen_finished(self, *args, **kwargs): self.matlab_connection.handle_finished(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _start_matlab_operation(self, *args, **kwargs): self.matlab_connection.start_operation(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _finish_matlab_operation(self, *args, **kwargs): self.matlab_connection.finish_operation(*args, **kwargs) if hasattr(self, 'matlab_connection') else None
-#     def _update_matlab_status_display(self, *args, **kwargs): self.ui_manager.update_matlab_status_display(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _update_py_sim_status_display(self, *args, **kwargs): self.py_sim_ui_manager.update_status_display(*args, **kwargs) if hasattr(self, 'py_sim_ui_manager') else None
-#     def _handle_state_renamed_inline(self, *args, **kwargs): self.action_handler.handle_state_renamed(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def connect_state_item_signals(self, *args, **kwargs): self.action_handler.connect_state_signals(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def on_target_device_changed(self, *args, **kwargs): self.ui_manager.on_target_device_changed(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def _add_fsm_data_to_scene(self, *args, **kwargs): self.action_handler.add_fsm_data_to_scene(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _on_interaction_mode_changed_by_scene(self, *args, **kwargs): self.ui_manager.on_mode_changed(*args, **kwargs) if hasattr(self, 'ui_manager') else None
-#     def on_problem_item_double_clicked(self, *args, **kwargs): self.action_handler.on_problem_item_double_clicked(*args, **kwargs) if hasattr(self, 'action_handler') else None
-#     def _on_ide_dirty_state_changed_by_manager(self, *args, **kwargs): self.ide_manager.handle_dirty_state_change(*args, **kwargs) if hasattr(self, 'ide_manager') else None
-#     def _on_ide_language_changed_by_manager(self, *args, **kwargs): self.ide_manager.handle_language_change(*args, **kwargs) if hasattr(self, 'ide_manager') else None
-#     def on_ask_ai_about_validation_issue(self, *args, **kwargs): self.ai_chat_ui_manager.ask_about_validation_issue(*args, **kwargs) if hasattr(self, 'ai_chat_ui_manager') else None
-#     def _update_save_actions_enable_state(self, *args, **kwargs): self.ui_manager.update_save_actions_state() if hasattr(self, 'ui_manager') else None
+    @pyqtSlot(bool)
+    def _on_ide_dirty_state_changed_by_manager(self, is_dirty: bool):
+        self._update_ide_save_actions_enable_state()
+        self._update_window_title()
 
+    @pyqtSlot(str)
+    def _on_ide_language_changed_by_manager(self, language_param: str):
+        ai_ready = self.ai_chatbot_manager is not None and \
+                   self.ai_chatbot_manager.is_configured() and \
+                   self._internet_connected is True
+        
+        if hasattr(self, 'ide_analyze_action'):
+            can_analyze = (language_param == "Python" or language_param.startswith("C/C++")) and ai_ready
+            self.ide_analyze_action.setEnabled(can_analyze)
+            tooltip = "Analyze the current code with AI"
+            if not ai_ready: tooltip += " (Requires Internet & valid API Key)"
+            elif not (language_param == "Python" or language_param.startswith("C/C++")):
+                 tooltip += " (Best for Python or C/C++)"
+            self.ide_analyze_action.setToolTip(tooltip)
+        self._update_window_title()
 
+    def _update_window_title(self):
+        editor = self.current_editor()
+        if not editor:
+            self.setWindowTitle(APP_NAME)
+            return
+            
+        dirty_char = "[*]" # Let Qt handle the star
+        file_name = os.path.basename(editor.file_path) if editor.file_path else "Untitled"
+        py_sim_active = any(isinstance(self.tab_widget.widget(i), EditorWidget) and self.tab_widget.widget(i).py_sim_active for i in range(self.tab_widget.count()))
+        pysim_suffix = f" [PySim Active]" if py_sim_active else ""
+        
+        self.setWindowModified(editor.is_dirty())
+        self.setWindowTitle(f"{file_name}{dirty_char} - {APP_NAME}{pysim_suffix}")
 
 def main_entry_point():
     if hasattr(Qt, 'AA_EnableHighDpiScaling'): QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -2102,10 +1888,5 @@ def main_entry_point():
     sys.exit(app.exec_())
 
 
-
 if __name__ == '__main__':
     main_entry_point()
-    # This part is now only executed if the script is run directly AND the sys.path modification
-    # at the top has already run and exited. Effectively, this part of the __main__ block
-    # should not be reached if the sys.path modification logic works as intended.
-    # The main_entry_point() call is now primarily handled by the sys.path modification block.
