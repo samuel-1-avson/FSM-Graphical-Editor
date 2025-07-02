@@ -1,4 +1,4 @@
-# fsm_designer_project/ai_providers/deepseek.py
+# bsm_designer_project/ai_providers/deepseek.py
 import logging
 from typing import List, Dict
 
@@ -36,7 +36,7 @@ class DeepSeekProvider(AIProvider):
             http_client = httpx.Client()
             self.client = openai.OpenAI(api_key=api_key, base_url=self.base_url, http_client=http_client)
             # --- FIX: Updated API call for connection test ---
-            self.client.models.list()
+            next(self.client.models.list())
             logger.info("DeepSeekProvider configured successfully.")
             return True
         except openai.AuthenticationError as e:

@@ -1,13 +1,13 @@
-# fsm_designer_project/ai_providers/deepseek.py
+# bsm_designer_project/ai_providers/deepseek.py
 import logging
 from typing import List, Dict
 
 try:
     import openai
-    import httpx 
+    import httpx # NEW: Import httpx
 except ImportError:
     openai = None
-    httpx = None 
+    httpx = None # NEW
 
 from .base import AIProvider
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class DeepSeekProvider(AIProvider):
     """AI Provider for DeepSeek models, using OpenAI-compatible API."""
     def __init__(self, model_name="deepseek-chat"):
-        if openai is None or httpx is None: 
+        if openai is None or httpx is None: # MODIFIED: Check for httpx too
             raise ImportError("The 'openai' and 'httpx' libraries are not installed. Please `pip install openai httpx`.")
         self.model_name = model_name
         self.client: openai.OpenAI | None = None
@@ -33,10 +33,10 @@ class DeepSeekProvider(AIProvider):
             self.client = None
             return False
         try:
+            # MODIFIED: Explicitly create and pass an http_client to avoid proxy issues.
             http_client = httpx.Client()
             self.client = openai.OpenAI(api_key=api_key, base_url=self.base_url, http_client=http_client)
-            # --- FIX: Updated API call for connection test ---
-            self.client.models.list()
+            self.client.models.list(limit=1)
             logger.info("DeepSeekProvider configured successfully.")
             return True
         except openai.AuthenticationError as e:

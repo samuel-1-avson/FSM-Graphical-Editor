@@ -1,13 +1,13 @@
-# fsm_designer_project/ai_providers/openai.py
+# bsm_designer_project/ai_providers/openai.py
 import logging
 from typing import List, Dict
 
 try:
     import openai
-    import httpx 
+    import httpx # NEW: Import httpx
 except ImportError:
     openai = None
-    httpx = None 
+    httpx = None # NEW
 
 from .base import AIProvider
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class OpenAIProvider(AIProvider):
     """AI Provider for OpenAI models (GPT-3.5, GPT-4)."""
     def __init__(self, model_name="gpt-4o"):
-        if openai is None or httpx is None: 
+        if openai is None or httpx is None: # MODIFIED: Check for httpx too
             raise ImportError("The 'openai' and 'httpx' libraries are not installed. Please `pip install openai httpx`.")
         self.model_name = model_name
         self.client: openai.OpenAI | None = None
@@ -32,12 +32,11 @@ class OpenAIProvider(AIProvider):
             self.client = None
             return False
         try:
+            # MODIFIED: Explicitly create and pass an http_client to avoid proxy issues.
             http_client = httpx.Client()
             self.client = openai.OpenAI(api_key=api_key, http_client=http_client)
-            # --- FIX: Updated API call for connection test ---
             # A lightweight check to see if the key is potentially valid
-            # Simply iterating to get the first item is a lightweight way to test.
-            self.client.models.list()
+            self.client.models.list(limit=1)
             logger.info("OpenAIProvider configured successfully.")
             return True
         except openai.AuthenticationError as e:
@@ -53,6 +52,9 @@ class OpenAIProvider(AIProvider):
         if not self.is_configured():
             raise PermissionError("OpenAI provider is not configured.")
 
+        # OpenAI uses a different message format ("user", "assistant", "system")
+        # We assume the incoming history is already in a compatible format.
+        
         request_params = {
             "model": self.model_name,
             "messages": conversation_history,
@@ -69,7 +71,7 @@ class OpenAIProvider(AIProvider):
         except openai.AuthenticationError as e:
             raise PermissionError(f"OpenAI Authentication Error: {e}")
         except openai.RateLimitError as e:
-            raise ConnectionAbortedError(f"DeepSeek Rate Limit Exceeded: {e}")
+            raise ConnectionAbortedError(f"OpenAI Rate Limit Exceeded: {e}")
         except Exception as e:
             logger.error(f"OpenAIProvider.generate_response error: {e}", exc_info=True)
             raise

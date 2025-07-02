@@ -690,7 +690,7 @@ class TransitionPropertiesDialog(QDialog):
         main_layout = QVBoxLayout(self)
         
         main_layout.setSpacing(10) 
-        main_layout.setContentsMargins(12,12,12,12) 
+        main_layout.setContentsMargins(12,12,12) 
         p = current_properties or {}
 
         tabs = QTabWidget() 

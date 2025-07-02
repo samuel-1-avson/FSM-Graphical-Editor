@@ -1,4 +1,6 @@
+Of course. Here is the complete, fully updated code for `fsm_designer_project/dialogs.py` with the fix applied and all previous enhancements included.
 
+```python
 # fsm_designer_project/dialogs.py
 
 import sys
@@ -690,7 +692,7 @@ class TransitionPropertiesDialog(QDialog):
         main_layout = QVBoxLayout(self)
         
         main_layout.setSpacing(10) 
-        main_layout.setContentsMargins(12,12,12,12) 
+        main_layout.setContentsMargins(12,12,12) 
         p = current_properties or {}
 
         tabs = QTabWidget() 
@@ -1970,3 +1972,4 @@ class AutoLayoutPreviewDialog(QDialog):
         button_box.rejected.connect(self.reject)
         
         layout.addWidget(button_box)
+```

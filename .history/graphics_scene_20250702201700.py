@@ -372,78 +372,65 @@ class DiagramScene(QGraphicsScene):
         else:
             logger.info(f"Validation passed with no issues (Trigger: {trigger_source}).")
 
-    def _get_state_at(self, pos: QPointF) -> GraphicsStateItem | None:
-        """Helper to find the topmost GraphicsStateItem at a scene position, ignoring other item types."""
-        items_under_cursor = self.items(pos)
-        for item in items_under_cursor:
-            if isinstance(item, GraphicsStateItem):
-                return item
-        return None
-
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         pos = event.scenePos()
+        items_at_pos = self.items(pos)
+        top_item_at_pos = next((item for item in items_at_pos if isinstance(item, (GraphicsStateItem, GraphicsCommentItem))), None)
+        if not top_item_at_pos:
+            top_item_at_pos = next((item for item in items_at_pos if isinstance(item, GraphicsTransitionItem)), None)
+        if not top_item_at_pos and items_at_pos:
+             top_item_at_pos = items_at_pos[0]
 
-        if event.button() != Qt.LeftButton:
-            super().mousePressEvent(event)
-            return
 
-        # --- Refactored Mode-specific handling ---
-        state_under_cursor = self._get_state_at(pos)
+        if event.button() == Qt.LeftButton:
+            # --- Alt+Drag to create transition ---
+            if event.modifiers() & Qt.AltModifier and isinstance(top_item_at_pos, GraphicsStateItem):
+                self._is_alt_dragging_transition = True
+                self._handle_transition_click(top_item_at_pos, pos)
+                event.accept()
+                return
 
-        # Transition creation (shortcut or dedicated mode)
-        if (self.current_mode == "transition") or (event.modifiers() & Qt.AltModifier and state_under_cursor):
-            if state_under_cursor:
-                if event.modifiers() & Qt.AltModifier:
-                    self._is_alt_dragging_transition = True
-                self._handle_transition_click(state_under_cursor, pos)
-            elif self.current_mode == "transition":
-                # Clicked on empty space in transition mode
-                self._cancel_transition_drawing()
-            event.accept()
-            return
-
-        # Add State mode
-        if self.current_mode == "state":
-            grid_x = round(pos.x() / self.grid_size) * self.grid_size - 60
-            grid_y = round(pos.y() / self.grid_size) * self.grid_size - 30
-            self._add_item_interactive(QPointF(grid_x, grid_y), item_type="State")
-            event.accept()
-            return
-
-        # Add Comment mode
-        if self.current_mode == "comment":
-            grid_x = round(pos.x() / self.grid_size) * self.grid_size
-            grid_y = round(pos.y() / self.grid_size) * self.grid_size
-            self._add_item_interactive(QPointF(grid_x, grid_y), item_type="Comment")
-            event.accept()
-            return
-
-        # Default (Select) mode
-        if self.current_mode == "select":
-            items_at_pos = self.items(pos)
-            top_item_at_pos = items_at_pos[0] if items_at_pos else None
-
-            self._mouse_press_items_positions.clear()
-            selected_items_list = self.selectedItems()
-
-            # Handle clicking on an item to select it (if not already selected)
-            if top_item_at_pos and top_item_at_pos.flags() & QGraphicsItem.ItemIsMovable and \
-               not top_item_at_pos.isSelected() and not (event.modifiers() & (Qt.ControlModifier | Qt.ShiftModifier)):
-                self.clearSelection()
-                top_item_at_pos.setSelected(True)
-                selected_items_list = [top_item_at_pos]
-
-            # Store positions of selected items for drag operation
-            if not (isinstance(top_item_at_pos, GraphicsTransitionItem) and hasattr(top_item_at_pos, '_dragging_control_point') and top_item_at_pos._dragging_control_point):
-                for item in selected_items_list:
-                    if item.flags() & QGraphicsItem.ItemIsMovable:
-                        self._mouse_press_items_positions[item] = item.pos()
+            if self.current_mode == "state":
+                grid_x = round(pos.x() / self.grid_size) * self.grid_size - 60
+                grid_y = round(pos.y() / self.grid_size) * self.grid_size - 30
+                self._add_item_interactive(QPointF(grid_x, grid_y), item_type="State")
+            elif self.current_mode == "comment":
+                grid_x = round(pos.x() / self.grid_size) * self.grid_size
+                grid_y = round(pos.y() / self.grid_size) * self.grid_size
+                self._add_item_interactive(QPointF(grid_x, grid_y), item_type="Comment")
             
-            super().mousePressEvent(event)
-            return
+            # --- FIX: Streamlined Transition Logic ---
+            elif self.current_mode == "transition":
+                if isinstance(top_item_at_pos, GraphicsStateItem):
+                    # This handles both the first click (to start) and the second click (to finish)
+                    self._handle_transition_click(top_item_at_pos, pos)
+                else:
+                    # Clicking on empty space cancels the drawing
+                    self._cancel_transition_drawing()
+            # --- END FIX ---
+            
+            else: # select mode
+                self._mouse_press_items_positions.clear()
+                selected_items_list = self.selectedItems()
+                if top_item_at_pos and isinstance(top_item_at_pos, (GraphicsStateItem, GraphicsCommentItem, GraphicsTransitionItem)) and \
+                   top_item_at_pos.flags() & QGraphicsItem.ItemIsMovable and \
+                   not top_item_at_pos.isSelected() and \
+                   not (event.modifiers() & (Qt.ControlModifier | Qt.ShiftModifier)):
+                    self.clearSelection()
+                    top_item_at_pos.setSelected(True)
+                    selected_items_list = [top_item_at_pos]
 
-        # Fallback
-        super().mousePressEvent(event)
+                if not (isinstance(top_item_at_pos, GraphicsTransitionItem) and hasattr(top_item_at_pos, '_dragging_control_point') and top_item_at_pos._dragging_control_point):
+                    for item_to_process in selected_items_list:
+                        if item_to_process.flags() & QGraphicsItem.ItemIsMovable:
+                             self._mouse_press_items_positions[item_to_process] = item_to_process.pos()
+
+                super().mousePressEvent(event) 
+
+        elif event.button() == Qt.RightButton:
+            pass 
+        else:
+            super().mousePressEvent(event)
 
     def contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent):
         item = self.itemAt(event.scenePos(), self.views()[0].transform() if self.views() else QTransform())
@@ -569,10 +556,12 @@ class DiagramScene(QGraphicsScene):
             if self._temp_transition_line:
                 center_start = self.transition_start_item.sceneBoundingRect().center()
                 self._temp_transition_line.setLine(QLineF(center_start, event.scenePos()))
-
-            new_hovered_target = self._get_state_at(event.scenePos())
-            if new_hovered_target == self.transition_start_item:
-                new_hovered_target = None  # Don't highlight self as target during drag
+            
+            item_under_mouse = self.itemAt(event.scenePos(), self.views()[0].transform() if self.views() else QTransform())
+            
+            new_hovered_target = None
+            if isinstance(item_under_mouse, GraphicsStateItem) and item_under_mouse != self.transition_start_item:
+                new_hovered_target = item_under_mouse
             
             if self.current_hovered_target_item != new_hovered_target:
                 if self.current_hovered_target_item:
@@ -641,8 +630,12 @@ class DiagramScene(QGraphicsScene):
 
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
+        # --- FIX: Handle release for Alt+Drag transition creation ---
         if self._is_alt_dragging_transition and self.transition_start_item and event.button() == Qt.LeftButton:
-            target_item = self._get_state_at(event.scenePos())
+            item_under_mouse = self.itemAt(event.scenePos(), self.views()[0].transform() if self.views() else QTransform())
+            target_item = None
+            if isinstance(item_under_mouse, GraphicsStateItem) and item_under_mouse != self.transition_start_item:
+                target_item = item_under_mouse
 
             if target_item:
                 # We have a valid start and end item, so finalize the transition
@@ -655,6 +648,7 @@ class DiagramScene(QGraphicsScene):
             self._is_alt_dragging_transition = False
             event.accept()
             return
+        # --- END FIX ---
         
         if self.current_hovered_target_item:
             self.current_hovered_target_item.set_potential_transition_target_style(False)
@@ -922,8 +916,8 @@ class DiagramScene(QGraphicsScene):
             self._log_to_parent("INFO", f"Transition started from: {clicked_state_item.text_label}. Click target state.")
             
             # Highlight potential target under mouse immediately
-            item_under_mouse = self._get_state_at(click_pos)
-            if item_under_mouse and item_under_mouse != self.transition_start_item:
+            item_under_mouse = self.itemAt(click_pos, self.views()[0].transform())
+            if isinstance(item_under_mouse, GraphicsStateItem) and item_under_mouse != self.transition_start_item:
                 self.current_hovered_target_item = item_under_mouse
                 self.current_hovered_target_item.set_potential_transition_target_style(True)
 
@@ -1791,3 +1785,85 @@ class MinimapView(QGraphicsView):
             if content_rect.isEmpty():
                 content_rect = self.scene().sceneRect()
             self.fitInView(content_rect, Qt.KeepAspectRatio)
+```
+
+#### 3. Fix the `openai.py` and `deepseek.py` API Call
+
+**File:** `fsm_designer_project/ai_providers/openai.py`
+
+```python
+# bsm_designer_project/ai_providers/openai.py
+import logging
+from typing import List, Dict
+
+try:
+    import openai
+    import httpx 
+except ImportError:
+    openai = None
+    httpx = None 
+
+from .base import AIProvider
+
+logger = logging.getLogger(__name__)
+
+class OpenAIProvider(AIProvider):
+    """AI Provider for OpenAI models (GPT-3.5, GPT-4)."""
+    def __init__(self, model_name="gpt-4o"):
+        if openai is None or httpx is None: 
+            raise ImportError("The 'openai' and 'httpx' libraries are not installed. Please `pip install openai httpx`.")
+        self.model_name = model_name
+        self.client: openai.OpenAI | None = None
+
+    def get_name(self) -> str:
+        return "OpenAI (GPT)"
+
+    def is_configured(self) -> bool:
+        return self.client is not None
+
+    def configure(self, api_key: str) -> bool:
+        if not api_key:
+            self.client = None
+            return False
+        try:
+            http_client = httpx.Client()
+            self.client = openai.OpenAI(api_key=api_key, http_client=http_client)
+            # --- FIX: Updated API call for connection test ---
+            # A lightweight check to see if the key is potentially valid
+            # Simply iterating to get the first item is a lightweight way to test.
+            next(self.client.models.list())
+            logger.info("OpenAIProvider configured successfully.")
+            return True
+        except openai.AuthenticationError as e:
+            self.client = None
+            logger.error(f"OpenAI Authentication Error: {e}")
+            raise PermissionError("Invalid OpenAI API key.")
+        except Exception as e:
+            self.client = None
+            logger.error(f"Failed to configure OpenAIProvider: {e}", exc_info=True)
+            raise ConnectionRefusedError(f"Failed to connect to OpenAI: {e}")
+
+    def generate_response(self, conversation_history: List[Dict], is_json_mode: bool) -> str:
+        if not self.is_configured():
+            raise PermissionError("OpenAI provider is not configured.")
+
+        request_params = {
+            "model": self.model_name,
+            "messages": conversation_history,
+            "temperature": 0.7,
+        }
+        if is_json_mode:
+            request_params["response_format"] = {"type": "json_object"}
+            logger.info("OpenAIProvider: Requesting JSON format.")
+
+        try:
+            completion = self.client.chat.completions.create(**request_params)
+            response_content = completion.choices[0].message.content
+            return response_content or ""
+        except openai.AuthenticationError as e:
+            raise PermissionError(f"OpenAI Authentication Error: {e}")
+        except openai.RateLimitError as e:
+            raise ConnectionAbortedError(f"OpenAI Rate Limit Exceeded: {e}")
+        except Exception as e:
+            logger.error(f"OpenAIProvider.generate_response error: {e}", exc_info=True)
+            raise

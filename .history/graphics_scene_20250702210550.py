@@ -372,78 +372,67 @@ class DiagramScene(QGraphicsScene):
         else:
             logger.info(f"Validation passed with no issues (Trigger: {trigger_source}).")
 
-    def _get_state_at(self, pos: QPointF) -> GraphicsStateItem | None:
-        """Helper to find the topmost GraphicsStateItem at a scene position, ignoring other item types."""
-        items_under_cursor = self.items(pos)
-        for item in items_under_cursor:
-            if isinstance(item, GraphicsStateItem):
-                return item
-        return None
-
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         pos = event.scenePos()
 
-        if event.button() != Qt.LeftButton:
-            super().mousePressEvent(event)
-            return
+        if event.button() == Qt.LeftButton:
+            # In 'transition' mode, we are ONLY interested in GraphicsStateItem
+            if self.current_mode == "transition":
+                # Find the topmost state item at the cursor, ignoring comments or other items
+                top_state_item = next((item for item in self.items(pos) if isinstance(item, GraphicsStateItem)), None)
+                if top_state_item:
+                    self._handle_transition_click(top_state_item, pos)
+                else:
+                    self._cancel_transition_drawing()
+                event.accept()
+                return
 
-        # --- Refactored Mode-specific handling ---
-        state_under_cursor = self._get_state_at(pos)
+            # Alt+Drag for transition creation (shortcut)
+            top_state_item_for_alt = next((item for item in self.items(pos) if isinstance(item, GraphicsStateItem)), None)
+            if event.modifiers() & Qt.AltModifier and top_state_item_for_alt:
+                self._is_alt_dragging_transition = True
+                self._handle_transition_click(top_state_item_for_alt, pos)
+                event.accept()
+                return
 
-        # Transition creation (shortcut or dedicated mode)
-        if (self.current_mode == "transition") or (event.modifiers() & Qt.AltModifier and state_under_cursor):
-            if state_under_cursor:
-                if event.modifiers() & Qt.AltModifier:
-                    self._is_alt_dragging_transition = True
-                self._handle_transition_click(state_under_cursor, pos)
-            elif self.current_mode == "transition":
-                # Clicked on empty space in transition mode
-                self._cancel_transition_drawing()
-            event.accept()
-            return
+            # Add State or Comment modes
+            if self.current_mode == "state":
+                grid_x = round(pos.x() / self.grid_size) * self.grid_size - 60
+                grid_y = round(pos.y() / self.grid_size) * self.grid_size - 30
+                self._add_item_interactive(QPointF(grid_x, grid_y), item_type="State")
+                event.accept()
+                return
+            elif self.current_mode == "comment":
+                grid_x = round(pos.x() / self.grid_size) * self.grid_size
+                grid_y = round(pos.y() / self.grid_size) * self.grid_size
+                self._add_item_interactive(QPointF(grid_x, grid_y), item_type="Comment")
+                event.accept()
+                return
 
-        # Add State mode
-        if self.current_mode == "state":
-            grid_x = round(pos.x() / self.grid_size) * self.grid_size - 60
-            grid_y = round(pos.y() / self.grid_size) * self.grid_size - 30
-            self._add_item_interactive(QPointF(grid_x, grid_y), item_type="State")
-            event.accept()
-            return
-
-        # Add Comment mode
-        if self.current_mode == "comment":
-            grid_x = round(pos.x() / self.grid_size) * self.grid_size
-            grid_y = round(pos.y() / self.grid_size) * self.grid_size
-            self._add_item_interactive(QPointF(grid_x, grid_y), item_type="Comment")
-            event.accept()
-            return
-
-        # Default (Select) mode
-        if self.current_mode == "select":
+            # --- Default/Select Mode Logic ---
             items_at_pos = self.items(pos)
             top_item_at_pos = items_at_pos[0] if items_at_pos else None
 
             self._mouse_press_items_positions.clear()
             selected_items_list = self.selectedItems()
-
-            # Handle clicking on an item to select it (if not already selected)
-            if top_item_at_pos and top_item_at_pos.flags() & QGraphicsItem.ItemIsMovable and \
-               not top_item_at_pos.isSelected() and not (event.modifiers() & (Qt.ControlModifier | Qt.ShiftModifier)):
+            if top_item_at_pos and isinstance(top_item_at_pos, (GraphicsStateItem, GraphicsCommentItem, GraphicsTransitionItem)) and \
+               top_item_at_pos.flags() & QGraphicsItem.ItemIsMovable and \
+               not top_item_at_pos.isSelected() and \
+               not (event.modifiers() & (Qt.ControlModifier | Qt.ShiftModifier)):
                 self.clearSelection()
                 top_item_at_pos.setSelected(True)
                 selected_items_list = [top_item_at_pos]
 
-            # Store positions of selected items for drag operation
             if not (isinstance(top_item_at_pos, GraphicsTransitionItem) and hasattr(top_item_at_pos, '_dragging_control_point') and top_item_at_pos._dragging_control_point):
-                for item in selected_items_list:
-                    if item.flags() & QGraphicsItem.ItemIsMovable:
-                        self._mouse_press_items_positions[item] = item.pos()
-            
+                for item_to_process in selected_items_list:
+                    if item_to_process.flags() & QGraphicsItem.ItemIsMovable:
+                         self._mouse_press_items_positions[item_to_process] = item_to_process.pos()
             super().mousePressEvent(event)
-            return
 
-        # Fallback
-        super().mousePressEvent(event)
+        elif event.button() == Qt.RightButton:
+            super().mousePressEvent(event)
+        else:
+            super().mousePressEvent(event)
 
     def contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent):
         item = self.itemAt(event.scenePos(), self.views()[0].transform() if self.views() else QTransform())
@@ -569,10 +558,12 @@ class DiagramScene(QGraphicsScene):
             if self._temp_transition_line:
                 center_start = self.transition_start_item.sceneBoundingRect().center()
                 self._temp_transition_line.setLine(QLineF(center_start, event.scenePos()))
-
-            new_hovered_target = self._get_state_at(event.scenePos())
-            if new_hovered_target == self.transition_start_item:
-                new_hovered_target = None  # Don't highlight self as target during drag
+            
+            item_under_mouse = self.itemAt(event.scenePos(), self.views()[0].transform() if self.views() else QTransform())
+            
+            new_hovered_target = None
+            if isinstance(item_under_mouse, GraphicsStateItem) and item_under_mouse != self.transition_start_item:
+                new_hovered_target = item_under_mouse
             
             if self.current_hovered_target_item != new_hovered_target:
                 if self.current_hovered_target_item:
@@ -641,8 +632,12 @@ class DiagramScene(QGraphicsScene):
 
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
+        # --- FIX: Handle release for Alt+Drag transition creation ---
         if self._is_alt_dragging_transition and self.transition_start_item and event.button() == Qt.LeftButton:
-            target_item = self._get_state_at(event.scenePos())
+            item_under_mouse = self.itemAt(event.scenePos(), self.views()[0].transform() if self.views() else QTransform())
+            target_item = None
+            if isinstance(item_under_mouse, GraphicsStateItem) and item_under_mouse != self.transition_start_item:
+                target_item = item_under_mouse
 
             if target_item:
                 # We have a valid start and end item, so finalize the transition
@@ -655,6 +650,7 @@ class DiagramScene(QGraphicsScene):
             self._is_alt_dragging_transition = False
             event.accept()
             return
+        # --- END FIX ---
         
         if self.current_hovered_target_item:
             self.current_hovered_target_item.set_potential_transition_target_style(False)
@@ -922,8 +918,8 @@ class DiagramScene(QGraphicsScene):
             self._log_to_parent("INFO", f"Transition started from: {clicked_state_item.text_label}. Click target state.")
             
             # Highlight potential target under mouse immediately
-            item_under_mouse = self._get_state_at(click_pos)
-            if item_under_mouse and item_under_mouse != self.transition_start_item:
+            item_under_mouse = self.itemAt(click_pos, self.views()[0].transform())
+            if isinstance(item_under_mouse, GraphicsStateItem) and item_under_mouse != self.transition_start_item:
                 self.current_hovered_target_item = item_under_mouse
                 self.current_hovered_target_item.set_potential_transition_target_style(True)
 
