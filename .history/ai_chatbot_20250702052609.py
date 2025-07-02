@@ -1085,11 +1085,10 @@ class AIChatbotManager(QObject):
         else:
             self.last_fsm_request_description = None
 
-        # MODIFIED: Set flags for inline request
+        # --- NEW: Set flag for inline request ---
         self._is_inline_request_pending = is_inline_code_request
         if is_inline_code_request:
             self._last_inline_prompt = user_message_text
-            self._last_inline_request_id = inline_request_id
 
         diagram_json_str: str | None = None
         current_editor = self.parent_window.current_editor()
@@ -1134,10 +1133,10 @@ class AIChatbotManager(QObject):
     def generate_fsm_from_description(self, description: str):
          self._prepare_and_send_to_worker(description, is_fsm_gen_specific=True)
          
-    # MODIFIED METHOD
-    def generate_inline_code_snippet(self, prompt: str, request_id: str):
+    # --- NEW METHOD ---
+    def generate_inline_code_snippet(self, prompt: str):
         """Sends a prompt specifically for generating an inline code snippet."""
-        self._prepare_and_send_to_worker(prompt, is_fsm_gen_specific=False, is_inline_code_request=True, inline_request_id=request_id)
+        self._prepare_and_send_to_worker(prompt, is_fsm_gen_specific=False, is_inline_code_request=True)
 
     def clear_conversation_history(self):
         logger.info("MGR: clear_conversation_history CALLED.")

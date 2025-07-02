@@ -33,7 +33,6 @@ from .config import (
     COLOR_GRID_MINOR, COLOR_GRID_MAJOR, COLOR_SNAP_GUIDELINE,
     THEME_KEYS, THEME_KEY_LABELS
 )
-
 # --- NEW: Import for AiSettingsDialog ---
 from .ai_providers import get_available_providers
 from .code_editor import CodeEditor
@@ -526,11 +525,12 @@ class StatePropertiesDialog(QDialog):
         button.clicked.connect(lambda ch, w=target_widget, t=code_type: self._on_ai_helper_clicked(w, t))
         return button
 
-    def _on_ai_helper_clicked(self, target_widget, code_type): # target_widget is now passed in
+    def _on_ai_helper_clicked(self, target_widget, code_type):
         description, ok = QInputDialog.getText(self, f"Generate {code_type.capitalize()} Code", f"Describe the {code_type} you want to create:")
         if not (ok and description):
             return
         
+        # Navigate up to the main window to find the AI manager
         main_win = self.parent_window_ref
         while main_win and not isinstance(main_win, QMainWindow):
             main_win = main_win.parent()
@@ -541,9 +541,8 @@ class StatePropertiesDialog(QDialog):
             
         language = self.action_language_combo.currentText()
         prompt = f"Generate a code snippet for this {code_type} in {language}: '{description}'. Respond with only the code, no explanations."
-        
-        # MODIFIED: Call the handler with the target_widget
-        main_win.ai_chat_ui_manager.handle_inline_ai_request(prompt, language, target_widget)
+        # Call the new handler method on the main window's AIChatUIManager
+        main_win.ai_chat_ui_manager.handle_inline_ai_request(prompt, language)
 
 
 
@@ -839,28 +838,8 @@ class TransitionPropertiesDialog(QDialog):
         button = QPushButton()
         button.setIcon(get_standard_icon(QStyle.SP_MessageBoxQuestion, "AI"))
         button.setToolTip(f"Generate {code_type} code with AI")
-        # Pass the target widget to the handler
         button.clicked.connect(lambda ch, w=target_widget, t=code_type: self._on_ai_helper_clicked(w, t))
         return button
-
-    def _on_ai_helper_clicked(self, target_widget, code_type): # target_widget is now passed in
-        description, ok = QInputDialog.getText(self, f"Generate {code_type.capitalize()} Code", f"Describe the {code_type} you want to create:")
-        if not (ok and description):
-            return
-
-        main_win = self.parent_window_ref
-        while main_win and not isinstance(main_win, QMainWindow):
-            main_win = main_win.parent()
-
-        if not main_win or not hasattr(main_win, 'ai_chat_ui_manager'):
-            QMessageBox.warning(self, "AI Not Available", "The AI assistant manager could not be found.")
-            return
-
-        language = self.action_language_combo.currentText()
-        prompt = f"Generate a code snippet for this {code_type} in {language}: '{description}'. Respond with only the code, no explanations."
-        
-        # MODIFIED: Call the handler with the target_widget
-        main_win.ai_chat_ui_manager.handle_inline_ai_request(prompt, language, target_widget)
 
     def _on_ai_helper_clicked(self, target_widget, code_type):
         description, ok = QInputDialog.getText(self, f"Generate {code_type.capitalize()} Code", f"Describe the {code_type} you want to create:")
@@ -1958,27 +1937,3 @@ class SnippetManagerDialog(QDialog):
                 self.on_selection_changed()
             else:
                  QMessageBox.critical(self, "Delete Error", "Failed to delete the snippet.")
-
-
-# --- ADD NEW DIALOG CLASS ---
-class AutoLayoutPreviewDialog(QDialog):
-    def __init__(self, preview_pixmap: QPixmap, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Auto-Layout Preview")
-        self.setMinimumSize(600, 400)
-
-        layout = QVBoxLayout(self)
-        
-        scene = QGraphicsScene(self)
-        scene.addPixmap(preview_pixmap)
-        
-        view = QGraphicsView(scene)
-        view.setRenderHint(QPainter.Antialiasing)
-        view.setDragMode(QGraphicsView.ScrollHandDrag)
-        
-        layout.addWidget(view)
-        
-        button_box = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)

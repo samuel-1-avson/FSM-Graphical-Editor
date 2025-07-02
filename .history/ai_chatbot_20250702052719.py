@@ -1134,10 +1134,10 @@ class AIChatbotManager(QObject):
     def generate_fsm_from_description(self, description: str):
          self._prepare_and_send_to_worker(description, is_fsm_gen_specific=True)
          
-    # MODIFIED METHOD
-    def generate_inline_code_snippet(self, prompt: str, request_id: str):
+    # --- NEW METHOD ---
+    def generate_inline_code_snippet(self, prompt: str):
         """Sends a prompt specifically for generating an inline code snippet."""
-        self._prepare_and_send_to_worker(prompt, is_fsm_gen_specific=False, is_inline_code_request=True, inline_request_id=request_id)
+        self._prepare_and_send_to_worker(prompt, is_fsm_gen_specific=False, is_inline_code_request=True)
 
     def clear_conversation_history(self):
         logger.info("MGR: clear_conversation_history CALLED.")

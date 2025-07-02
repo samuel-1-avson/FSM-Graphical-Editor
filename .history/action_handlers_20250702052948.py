@@ -4,11 +4,10 @@ import json
 import logging
 from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QPushButton, QHBoxLayout,
-    QStyle, QDialogButtonBox, QVBoxLayout, QTextEdit,
-    QGraphicsScene
+    QStyle, QDialogButtonBox, QVBoxLayout, QTextEdit
 )
 from PyQt5.QtCore import QObject, pyqtSlot, QDir, QUrl, QPointF, Qt, QRectF, QSizeF
-from PyQt5.QtGui import QDesktopServices, QImage, QPainter, QPixmap
+from PyQt5.QtGui import QDesktopServices, QImage, QPainter
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtCore import QTimer
 
@@ -27,7 +26,7 @@ from .c_code_generator import generate_c_code_files
 from .python_code_generator import generate_python_fsm_file
 from .export_utils import generate_plantuml_text, generate_mermaid_text
 from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
-
+from .dialogs import SnippetManagerDialog, AutoLayoutPreviewDialog # Add new import
 
 logger = logging.getLogger(__name__)
 
@@ -261,8 +260,7 @@ class ActionHandler(QObject):
 
         diagram_data = scene.get_diagram_data()
         states = diagram_data.get('states', [])
-        transitions = diagram_data.get('transitions', [])
-
+        
         if len(states) < 2:
             QMessageBox.information(self.mw, "Auto-Layout", "Auto-layout requires at least two states.")
             return
@@ -300,22 +298,24 @@ class ActionHandler(QObject):
                     logger.error(f"Error parsing position for node {node_name}: {e_pos}")
 
             # --- 2. Generate a preview image ---
-            from .dialogs import AutoLayoutPreviewDialog
+            # Create a temporary scene, add clones of items at new positions, and render it.
             preview_scene = QGraphicsScene()
             cloned_items = []
             for item, new_pos in new_positions.items():
+                # This is a simplified clone. A full clone would copy all properties.
                 clone = GraphicsStateItem(0, 0, item.rect().width(), item.rect().height(), item.text_label)
                 clone.set_properties(**item.get_data()) # Copy properties
                 clone.setPos(new_pos)
                 preview_scene.addItem(clone)
                 cloned_items.append(clone)
             
+            # This part is complex: re-creating transitions for the preview.
+            # A simpler preview might omit transitions, or we can do it properly.
             cloned_states_map = {clone.text_label: clone for clone in cloned_items}
             for t in diagram_data.get('transitions', []):
                 src_clone = cloned_states_map.get(t['source'])
                 tgt_clone = cloned_states_map.get(t['target'])
                 if src_clone and tgt_clone:
-                    # Create a temporary transition item for preview
                     trans_clone = GraphicsTransitionItem(src_clone, tgt_clone)
                     trans_clone.set_properties(**t) # Copy properties
                     preview_scene.addItem(trans_clone)

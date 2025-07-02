@@ -33,7 +33,6 @@ from .config import (
     COLOR_GRID_MINOR, COLOR_GRID_MAJOR, COLOR_SNAP_GUIDELINE,
     THEME_KEYS, THEME_KEY_LABELS
 )
-
 # --- NEW: Import for AiSettingsDialog ---
 from .ai_providers import get_available_providers
 from .code_editor import CodeEditor
@@ -1958,27 +1957,3 @@ class SnippetManagerDialog(QDialog):
                 self.on_selection_changed()
             else:
                  QMessageBox.critical(self, "Delete Error", "Failed to delete the snippet.")
-
-
-# --- ADD NEW DIALOG CLASS ---
-class AutoLayoutPreviewDialog(QDialog):
-    def __init__(self, preview_pixmap: QPixmap, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Auto-Layout Preview")
-        self.setMinimumSize(600, 400)
-
-        layout = QVBoxLayout(self)
-        
-        scene = QGraphicsScene(self)
-        scene.addPixmap(preview_pixmap)
-        
-        view = QGraphicsView(scene)
-        view.setRenderHint(QPainter.Antialiasing)
-        view.setDragMode(QGraphicsView.ScrollHandDrag)
-        
-        layout.addWidget(view)
-        
-        button_box = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)

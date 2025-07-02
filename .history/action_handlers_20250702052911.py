@@ -4,11 +4,10 @@ import json
 import logging
 from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QPushButton, QHBoxLayout,
-    QStyle, QDialogButtonBox, QVBoxLayout, QTextEdit,
-    QGraphicsScene
+    QStyle, QDialogButtonBox, QVBoxLayout, QTextEdit
 )
 from PyQt5.QtCore import QObject, pyqtSlot, QDir, QUrl, QPointF, Qt, QRectF, QSizeF
-from PyQt5.QtGui import QDesktopServices, QImage, QPainter, QPixmap
+from PyQt5.QtGui import QDesktopServices, QImage, QPainter
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtCore import QTimer
 
@@ -27,7 +26,7 @@ from .c_code_generator import generate_c_code_files
 from .python_code_generator import generate_python_fsm_file
 from .export_utils import generate_plantuml_text, generate_mermaid_text
 from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
-
+from .dialogs import SnippetManagerDialog, AutoLayoutPreviewDialog # Add new import
 
 logger = logging.getLogger(__name__)
 
@@ -268,22 +267,19 @@ class ActionHandler(QObject):
             return
 
         try:
-            # --- 1. Calculate new positions (without modifying the scene) ---
             G = pgv.AGraph(directed=True, strict=False, splines='spline')
             G.graph_attr.update(rankdir='TB', nodesep='0.8', ranksep='1.2')
             G.node_attr.update(shape='box', fixedsize='false', width='1.5', height='0.75')
-            
             state_item_map = {state['name']: scene.get_state_by_name(state['name']) for state in states}
             for state_name, item in state_item_map.items():
                 if item: G.add_node(state_name)
-            
-            for t in diagram_data.get('transitions', []):
+            for t in transitions:
                 if t['source'] in state_item_map and t['target'] in state_item_map:
                     G.add_edge(t['source'], t['target'])
             
             G.layout(prog='dot')
 
-            new_positions = {}
+            moved_items_data = []
             graph_bbox = [float(val) for val in G.graph_attr['bb'].split(',')]
             offset_x = -graph_bbox[0] - (graph_bbox[2] - graph_bbox[0]) / 2.0
             offset_y = graph_bbox[3] + (graph_bbox[3] - graph_bbox[1]) / 2.0
@@ -295,65 +291,25 @@ class ActionHandler(QObject):
                     pos_str = node_name.attr['pos']
                     gv_x, gv_y = [float(p) for p in pos_str.split(',')]
                     new_pos = QPointF((gv_x + offset_x) - item.rect().width()/2, (-gv_y + offset_y) - item.rect().height()/2)
-                    new_positions[item] = new_pos
+                    if (new_pos - item.pos()).manhattanLength() > 1:
+                        moved_items_data.append((item, item.pos(), new_pos))
                 except (ValueError, KeyError) as e_pos:
                     logger.error(f"Error parsing position for node {node_name}: {e_pos}")
 
-            # --- 2. Generate a preview image ---
-            from .dialogs import AutoLayoutPreviewDialog
-            preview_scene = QGraphicsScene()
-            cloned_items = []
-            for item, new_pos in new_positions.items():
-                clone = GraphicsStateItem(0, 0, item.rect().width(), item.rect().height(), item.text_label)
-                clone.set_properties(**item.get_data()) # Copy properties
-                clone.setPos(new_pos)
-                preview_scene.addItem(clone)
-                cloned_items.append(clone)
+            mean_delta = QPointF(0,0)
+            if moved_items_data:
+                mean_delta = QPointF(sum(d[2].x() - d[1].x() for d in moved_items_data) / len(moved_items_data), sum(d[2].y() - d[1].y() for d in moved_items_data) / len(moved_items_data))
             
-            cloned_states_map = {clone.text_label: clone for clone in cloned_items}
-            for t in diagram_data.get('transitions', []):
-                src_clone = cloned_states_map.get(t['source'])
-                tgt_clone = cloned_states_map.get(t['target'])
-                if src_clone and tgt_clone:
-                    # Create a temporary transition item for preview
-                    trans_clone = GraphicsTransitionItem(src_clone, tgt_clone)
-                    trans_clone.set_properties(**t) # Copy properties
-                    preview_scene.addItem(trans_clone)
+            comment_items = [item for item in scene.items() if isinstance(item, GraphicsCommentItem)]
+            for item in comment_items:
+                moved_items_data.append((item, item.pos(), item.pos() + mean_delta))
 
-            preview_rect = preview_scene.itemsBoundingRect().adjusted(-20, -20, 20, 20)
-            preview_pixmap = QPixmap(preview_rect.size().toSize())
-            preview_pixmap.fill(Qt.white)
-            painter = QPainter(preview_pixmap)
-            preview_scene.render(painter, source=preview_rect)
-            painter.end()
-
-            # --- 3. Show the preview dialog ---
-            preview_dialog = AutoLayoutPreviewDialog(preview_pixmap, self.mw)
-            if preview_dialog.exec() == QDialog.Accepted:
-                # --- 4. If accepted, apply the layout to the real scene ---
-                moved_items_data = []
-                for item, new_pos in new_positions.items():
-                     if (new_pos - item.pos()).manhattanLength() > 1:
-                        moved_items_data.append((item, item.pos(), new_pos))
-
-                mean_delta = QPointF(0,0)
-                if moved_items_data:
-                    mean_delta = QPointF(sum(d[2].x() - d[1].x() for d in moved_items_data) / len(moved_items_data),
-                                         sum(d[2].y() - d[1].y() for d in moved_items_data) / len(moved_items_data))
-
-                comment_items = [item for item in scene.items() if isinstance(item, GraphicsCommentItem)]
-                for item in comment_items:
-                    moved_items_data.append((item, item.pos(), item.pos() + mean_delta))
-
-                if moved_items_data:
-                    cmd = MoveItemsCommand(moved_items_data, "Auto-Layout Diagram")
-                    editor.undo_stack.push(cmd)
-                    editor.set_dirty(True)
-                    QTimer.singleShot(50, self.on_fit_diagram_in_view)
-                    logger.info("Auto-layout applied successfully after preview.")
-            else:
-                logger.info("Auto-layout cancelled by user from preview.")
-
+            if moved_items_data:
+                cmd = MoveItemsCommand(moved_items_data, "Auto-Layout Diagram")
+                editor.undo_stack.push(cmd)
+                editor.set_dirty(True)
+                QTimer.singleShot(50, self.on_fit_diagram_in_view)
+                logger.info("Auto-layout applied successfully.")
         except Exception as e:
             error_msg = str(e).strip()
             if 'dot' in error_msg.lower() and ('not found' in error_msg.lower() or 'no such file' in error_msg.lower()):

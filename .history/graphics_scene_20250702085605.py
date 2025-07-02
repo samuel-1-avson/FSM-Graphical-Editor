@@ -1337,8 +1337,7 @@ class DiagramScene(QGraphicsScene):
             self._log_to_parent("ERROR", "Invalid template data format.")
             return
 
-        # <<< FIX: Use self.undo_stack instead of undefined 'undo_stack' >>>
-        self.undo_stack.beginMacro(f"Add Template: {template_data.get('name', 'Unnamed Template')}")
+        undo_stack.beginMacro(f"Add Template: {template_data.get('name', 'Unnamed Template')}")
 
         newly_created_scene_items = []
         state_items_map = {} 
@@ -1378,7 +1377,7 @@ class DiagramScene(QGraphicsScene):
                 entry_action=state_data.get('entry_action', ""),
                 during_action=state_data.get('during_action', ""),
                 exit_action=state_data.get('exit_action', ""),
-                description=state_data.get('description', template_data.get('description', "") if state_data.get('is_initial', False) else ""),
+                description=state_data.get('description', fsm_data.get('description', "") if state_data.get('is_initial', False) else ""),
                 is_superstate=state_data.get('is_superstate', False),
                 sub_fsm_data=json.loads(json.dumps(state_data.get('sub_fsm_data', {'states':[], 'transitions':[], 'comments':[]}))) ,
                 shape_type=state_data.get('shape_type', self.settings_manager.get("state_default_shape")),
@@ -1719,6 +1718,7 @@ class MinimapView(QGraphicsView):
         super().mouseReleaseEvent(event)
 
     def setScene(self, scene: QGraphicsScene | None):
+        # <<< FIX: ADDED SAFETY CHECK >>>
         if sip.isdeleted(self) or sip.isdeleted(self._viewport_rect_item):
             logger.warning("MinimapView.setScene called on a deleted object. Aborting.")
             return

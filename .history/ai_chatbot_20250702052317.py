@@ -867,18 +867,11 @@ class AIChatUIManager(QObject):
             self.handle_ai_error(AIStatus.ERROR, "AI Chatbot Manager not initialized.")
             
     # --- NEW: Method to handle inline requests from dialogs ---
-    # MODIFIED: Method to handle inline requests from dialogs
-    def handle_inline_ai_request(self, prompt: str, language: str, target_widget: QWidget = None):
+    def handle_inline_ai_request(self, prompt: str, language: str):
         """Sends a request to the AI manager specifically for an inline code snippet."""
         logger.info(f"AIChatUI: Handling INLINE AI request for language '{language}': '{prompt[:50]}...'")
-        
-        request_id = ""
-        if target_widget:
-            request_id = f"inline_req_{uuid.uuid4()}"
-            self._inline_request_targets[request_id] = target_widget
-
         if self.mw.ai_chatbot_manager:
-            self.mw.ai_chatbot_manager.generate_inline_code_snippet(prompt, request_id)
+            self.mw.ai_chatbot_manager.generate_inline_code_snippet(prompt)
         else:
             self.handle_ai_error(AIStatus.ERROR, "AI Chatbot Manager not initialized for inline request.")
 
@@ -889,22 +882,20 @@ class AIChatbotManager(QObject):
     fsmDataReceived = pyqtSignal(dict, str)
     plainResponseReady = pyqtSignal(str)
     # --- NEW SIGNAL ---
-    inlineResponseReady = pyqtSignal(str, str, str) # code, source_prompt, request_id
+    inlineResponseReady = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         
         super().__init__(parent)
         self.parent_window = parent
         self.settings_manager = self.parent_window.settings_manager if hasattr(self.parent_window, 'settings_manager') else None
-        # MODIFIED STATE
-        self._is_inline_request_pending = False
-        self._last_inline_prompt = ""
-        self._last_inline_request_id = ""
+        
         self.chatbot_worker: ChatbotWorker | None = None
         self.chatbot_thread: QThread | None = None
         self.last_fsm_request_description: str | None = None
         # --- NEW STATE for inline requests ---
-        
+        self._is_inline_request_pending = False
+        self._last_inline_prompt = ""
         
         self._current_ai_status = AIStatus.INACTIVE
         self._setup_worker() # Setup worker immediately
@@ -1006,13 +997,11 @@ class AIChatbotManager(QObject):
     def _handle_worker_response(self, ai_response_content: str, was_fsm_generation_attempt: bool):
         logger.info(f"MGR_HANDLE_WORKER_RESPONSE: Received from worker. Was FSM attempt: {was_fsm_generation_attempt}")
         
-        # MODIFIED: Check if this was for an inline request
+        # --- NEW: Check if this was for an inline request ---
         if self._is_inline_request_pending:
             self._is_inline_request_pending = False
-            # Emit with the request ID
-            self.inlineResponseReady.emit(ai_response_content, self._last_inline_prompt, self._last_inline_request_id)
+            self.inlineResponseReady.emit(ai_response_content, self._last_inline_prompt)
             self._last_inline_prompt = ""
-            self._last_inline_request_id = ""
             return
 
         if was_fsm_generation_attempt:
@@ -1050,8 +1039,8 @@ class AIChatbotManager(QObject):
         self.plainResponseReady.emit(ai_response_content)
 
 
-    def _prepare_and_send_to_worker(self, user_message_text: str, is_fsm_gen_specific: bool = False, is_inline_code_request: bool = False, inline_request_id: str = ""):
-        logger.info(f"MGR_PREP_SEND: For: '{user_message_text[:30]}...', FSM_specific_req: {is_fsm_gen_specific}, Inline: {is_inline_code_request}, ID: {inline_request_id}")
+    def _prepare_and_send_to_worker(self, user_message_text: str, is_fsm_gen_specific: bool = False, is_inline_code_request: bool = False):
+        logger.info(f"MGR_PREP_SEND: For: '{user_message_text[:30]}...', FSM_specific_req: {is_fsm_gen_specific}, Inline: {is_inline_code_request}")
 
         # --- MODIFIED: The check is now for a configured provider, not a specific key ---
         if not self.chatbot_worker or not self.chatbot_worker.provider or not self.chatbot_worker.provider.is_configured():
@@ -1085,11 +1074,10 @@ class AIChatbotManager(QObject):
         else:
             self.last_fsm_request_description = None
 
-        # MODIFIED: Set flags for inline request
+        # --- NEW: Set flag for inline request ---
         self._is_inline_request_pending = is_inline_code_request
         if is_inline_code_request:
             self._last_inline_prompt = user_message_text
-            self._last_inline_request_id = inline_request_id
 
         diagram_json_str: str | None = None
         current_editor = self.parent_window.current_editor()
@@ -1134,10 +1122,10 @@ class AIChatbotManager(QObject):
     def generate_fsm_from_description(self, description: str):
          self._prepare_and_send_to_worker(description, is_fsm_gen_specific=True)
          
-    # MODIFIED METHOD
-    def generate_inline_code_snippet(self, prompt: str, request_id: str):
+    # --- NEW METHOD ---
+    def generate_inline_code_snippet(self, prompt: str):
         """Sends a prompt specifically for generating an inline code snippet."""
-        self._prepare_and_send_to_worker(prompt, is_fsm_gen_specific=False, is_inline_code_request=True, inline_request_id=request_id)
+        self._prepare_and_send_to_worker(prompt, is_fsm_gen_specific=False, is_inline_code_request=True)
 
     def clear_conversation_history(self):
         logger.info("MGR: clear_conversation_history CALLED.")
