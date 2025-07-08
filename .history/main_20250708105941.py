@@ -404,9 +404,6 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         
-        # ... (at the top of __init__)
-        # --- NEW: Instantiate Plugin Manager early ---
-        self.plugin_manager = PluginManager()
         
         super().__init__()
         

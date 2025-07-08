@@ -112,39 +112,6 @@ class ActionHandler(QObject):
 
 
 
-    # --- NEW: Generic Handler for Plugins ---
-    @pyqtSlot(BsmExporterPlugin)
-    def on_export_with_plugin(self, plugin: BsmExporterPlugin):
-        """Generic handler that uses a plugin to export the diagram."""
-        editor = self.mw.current_editor()
-        if not editor or not editor.scene.items():
-            QMessageBox.information(self.mw, "Empty Diagram", f"Cannot generate {plugin.name} for an empty diagram.")
-            return
-
-        start_dir = os.path.dirname(editor.file_path) if editor.file_path else QDir.homePath()
-        
-        # Use the file filter provided by the plugin
-        file_path, _ = QFileDialog.getSaveFileName(self.mw, f"Export as {plugin.name}",
-                                                   start_dir,
-                                                   plugin.file_filter)
-        if not file_path:
-            return
-
-        diagram_data = editor.scene.get_diagram_data()
-        try:
-            # Call the plugin's export method
-            file_content = plugin.export(diagram_data)
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(file_content)
-            
-            QMessageBox.information(self.mw, "Export Successful", f"{plugin.name} exported successfully to:\n{file_path}")
-            logger.info(f"Successfully exported '{plugin.name}' to {file_path}")
-        except Exception as e:
-            QMessageBox.critical(self.mw, "Plugin Export Error", f"An error occurred while exporting with '{plugin.name}':\n{e}")
-            logger.error(f"Error during plugin export for '{plugin.name}': {e}", exc_info=True)
-
-
     # --- START: NEW HANDLER METHOD ---
     @pyqtSlot()
     def on_export_c_testbench(self):

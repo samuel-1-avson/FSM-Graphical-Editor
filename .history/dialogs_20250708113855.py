@@ -1977,7 +1977,7 @@ class SnippetManagerDialog(QDialog):
                  QMessageBox.critical(self, "Delete Error", "Failed to delete the snippet.")
 
 
-# --- THIS IS THE CORRECTED DIALOG CLASS ---
+# --- ADD NEW DIALOG CLASS ---
 class AutoLayoutPreviewDialog(QDialog):
     def __init__(self, preview_pixmap: QPixmap, parent=None):
         super().__init__(parent)

@@ -403,11 +403,6 @@ class MainWindow(QMainWindow):
         self.log_message("INFO", "Properties in dock reverted to selection state.")
 
     def __init__(self):
-        
-        # ... (at the top of __init__)
-        # --- NEW: Instantiate Plugin Manager early ---
-        self.plugin_manager = PluginManager()
-        
         super().__init__()
         
         # --- CORRECTED INITIALIZATION ORDER ---
@@ -458,8 +453,7 @@ class MainWindow(QMainWindow):
         self.ai_chatbot_manager = AIChatbotManager(self)
         self.ai_chat_ui_manager = AIChatUIManager(self)
         self.ide_manager = IDEManager(self)
-
-            
+        
         self._update_central_widget()
         # 4. Finalize UI and connect signals
         if not hasattr(self, 'log_output') or not self.log_output: 

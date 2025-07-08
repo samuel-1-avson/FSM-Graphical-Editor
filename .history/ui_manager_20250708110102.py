@@ -23,7 +23,7 @@ from .code_editor import CodeEditor
 from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
 from . import config
 from .graphics_scene import MinimapView
-from .modern_welcome_screen import WelcomeWidget
+from .modern_welcome_screen import ModernWelcomeScreen
 import logging
 
 logger = logging.getLogger(__name__)
@@ -82,16 +82,17 @@ class UIManager(QObject):
     def populate_dynamic_docks(self):
         """Populates docks whose content is managed by other classes."""
         mw = self.mw # In UIManager, self.mw is the main window
-        if hasattr(mw, 'py_sim_ui_manager') and hasattr(mw, 'py_sim_dock'):
-            py_sim_contents_widget = mw.py_sim_ui_manager.create_dock_widget_contents()
+        if self.py_sim_ui_manager and hasattr(mw, 'py_sim_dock'):
+            py_sim_contents_widget = self.py_sim_ui_manager.create_dock_widget_contents()
             mw.py_sim_dock.setWidget(py_sim_contents_widget)
         
-        if hasattr(mw, 'ai_chat_ui_manager') and hasattr(mw, 'ai_chatbot_dock'):
-            ai_chat_contents_widget = mw.ai_chat_ui_manager.create_dock_widget_contents()
+        if self.ai_chat_ui_manager and hasattr(mw, 'ai_chatbot_dock'):
+            ai_chat_contents_widget = self.ai_chat_ui_manager.create_dock_widget_contents()
             mw.ai_chatbot_dock.setWidget(ai_chat_contents_widget)
 
-        if hasattr(mw, 'hardware_sim_ui_manager') and hasattr(mw, 'hardware_sim_dock'):
-            hardware_sim_contents_widget = mw.hardware_sim_ui_manager.create_dock_widget_contents()
+        # --- NEW SECTION for Hardware Simulator ---
+        if self.hardware_sim_ui_manager and hasattr(mw, 'hardware_sim_dock'):
+            hardware_sim_contents_widget = self.hardware_sim_ui_manager.create_dock_widget_contents()
             mw.hardware_sim_dock.setWidget(hardware_sim_contents_widget)
             
         self._populate_resource_estimation_dock()
@@ -114,23 +115,23 @@ class UIManager(QObject):
         mw.export_python_fsm_action = QAction("&Python FSM Class...", mw)
         mw.export_plantuml_action = QAction("&PlantUML...", mw)
         mw.export_mermaid_action = QAction("&Mermaid...", mw)
-        
-        testbench_icon = get_standard_icon(self._safe_get_style_enum("SP_FileIcon", "SP_CustomBase"), "Test")
-        mw.export_c_testbench_action = QAction(testbench_icon, "C &Testbench...", mw, statusTip="Generate a C test harness for the FSM")
-        
+
         # --- START: NEW HDL ACTIONS ---
+        # Create QActions for VHDL and Verilog export.
+        # We can use a generic icon for now, or create custom ones later.
         hdl_icon = get_standard_icon(self._safe_get_style_enum("SP_DriveNetIcon", "SP_ComputerIcon"), "HDL")
         mw.export_vhdl_action = QAction(hdl_icon, "&VHDL Code...", mw, statusTip="Export the FSM as synthesizable VHDL code")
         mw.export_verilog_action = QAction(hdl_icon, "&Verilog Code...", mw, statusTip="Export the FSM as synthesizable Verilog code")
         # --- END: NEW HDL ACTIONS ---
 
+        
         # --- EDIT ---
         mw.undo_action = QAction(get_standard_icon(QStyle.SP_ArrowBack, "Un"), "&Undo", mw, shortcut=QKeySequence.Undo)
         mw.redo_action = QAction(get_standard_icon(QStyle.SP_ArrowForward, "Re"), "&Redo", mw, shortcut=QKeySequence.Redo)
         mw.delete_action = QAction(get_standard_icon(QStyle.SP_TrashIcon, "Del"), "&Delete", mw, shortcut=QKeySequence.Delete)
         mw.select_all_action = QAction("Select &All", mw, shortcut=QKeySequence.SelectAll)
         mw.find_item_action = QAction("&Find Item...", mw, shortcut=QKeySequence.Find)
-        mw.save_selection_as_template_action = QAction("Save Selection as Template...", mw, enabled=False) 
+        mw.save_selection_as_template_action = QAction("Save Selection as Template...", mw, enabled=False) # New action
         mw.manage_snippets_action = QAction("Manage Custom Snippets...", mw)
         mw.preferences_action = QAction(get_standard_icon(QStyle.SP_FileDialogDetailedView, "Prefs"), "&Preferences...", mw)
         
@@ -195,6 +196,7 @@ class UIManager(QObject):
         mw.ide_save_as_file_action = QAction("Save Script As...", mw)
         mw.ide_run_script_action = QAction(get_standard_icon(QStyle.SP_MediaPlay, "IDERunPy"), "Run Python Script", mw)
         mw.ide_analyze_action = QAction("Analyze with AI", mw)
+        # AI IMPROVEMENT: New action for analyzing selection
         mw.ide_analyze_selection_action = QAction("Analyze Selection with AI", mw)
 
         mw.show_resource_estimation_action = QAction("Resource Estimation", mw, checkable=True)
@@ -204,6 +206,15 @@ class UIManager(QObject):
         mw.ask_ai_to_generate_fsm_action = QAction("Generate FSM from Description...", mw)
         mw.clear_ai_chat_action = QAction("Clear Chat History", mw)
         mw.openai_settings_action = QAction("AI Assistant Settings...", mw)
+        
+        
+        # --- START: NEW TESTBENCH ACTION ---
+        # Create the QAction for the C Testbench export.
+        # We can use a generic "document" icon for it.
+        testbench_icon = get_standard_icon(self._safe_get_style_enum("SP_FileIcon", "SP_CustomBase"), "Test")
+        mw.export_c_testbench_action = QAction(testbench_icon, "C &Testbench...", mw, statusTip="Generate a C test harness for the FSM")
+        # --- END: NEW TESTBENCH ACTION ---
+        
         
         # --- HELP ---
         mw.quick_start_action = QAction(get_standard_icon(QStyle.SP_MessageBoxQuestion, "QS"), "&Quick Start Guide", mw)
@@ -222,39 +233,19 @@ class UIManager(QObject):
         example_menu = file_menu.addMenu("Open E&xample")
         mw.open_example_traffic_action = example_menu.addAction("Traffic Light FSM")
         mw.open_example_toggle_action = example_menu.addAction("Simple Toggle FSM")
+        export_menu = file_menu.addMenu("E&xport"); export_menu.addActions([mw.export_png_action, mw.export_svg_action]); export_menu.addSeparator()
+        export_menu.addActions([mw.export_simulink_action, mw.generate_c_code_action, mw.export_python_fsm_action])
+        export_menu.addSeparator(); export_menu.addActions([mw.export_plantuml_action, mw.export_mermaid_action])
+        file_menu.addSeparator(); file_menu.addActions([mw.save_action, mw.save_as_action]); file_menu.addSeparator(); file_menu.addAction(mw.exit_action)
         
-        export_menu = file_menu.addMenu("E&xport")
-        export_menu.addActions([mw.export_png_action, mw.export_svg_action])
+        # --- START: NEW HDL EXPORT SUBMENU ---
+        # Add a dedicated submenu for HDL to keep the Export menu clean.
         export_menu.addSeparator()
-        export_menu.addActions([mw.export_simulink_action, mw.generate_c_code_action])
-        export_menu.addAction(mw.export_c_testbench_action)
-        export_menu.addAction(mw.export_python_fsm_action)
-        export_menu.addSeparator()
-        
         hdl_export_menu = export_menu.addMenu("HDL Export")
         hdl_export_menu.setIcon(get_standard_icon(self._safe_get_style_enum("SP_DriveNetIcon", "SP_ComputerIcon"), "HDL"))
         hdl_export_menu.addActions([mw.export_vhdl_action, mw.export_verilog_action])
-        export_menu.addSeparator()
+        # --- END: NEW HDL EXPORT SUBMENU ---
         
-        export_menu.addActions([mw.export_plantuml_action, mw.export_mermaid_action])
-
-        # --- FIX: Move dynamic plugin menu logic here ---
-        if hasattr(self.mw, 'plugin_manager') and self.mw.plugin_manager.exporter_plugins:
-            export_menu.addSeparator()
-            for plugin in self.mw.plugin_manager.exporter_plugins:
-                action = QAction(plugin.name + "...", self.mw)
-                action.triggered.connect(
-                    lambda checked=False, p=plugin: self.mw.action_handler.on_export_with_plugin(p)
-                )
-                export_menu.addAction(action)
-
-        file_menu.addSeparator()
-        file_menu.addActions([mw.save_action, mw.save_as_action])
-        file_menu.addSeparator()
-        file_menu.addAction(mw.exit_action)
-        
-        # --- EDIT, VIEW, etc. ---
-        # ... (rest of menu creation is correct) ...
         # --- EDIT MENU ---
         edit_menu = mb.addMenu("&Edit")
         edit_menu.addActions([mw.undo_action, mw.redo_action]); edit_menu.addSeparator()
@@ -291,12 +282,39 @@ class UIManager(QObject):
         ide_menu.addSeparator()
         ide_menu.addAction(mw.ide_run_script_action)
         ide_menu.addSeparator()
+        # AI IMPROVEMENT: Add new action to menu
         ide_menu.addActions([mw.ide_analyze_action, mw.ide_analyze_selection_action])
 
         tools_menu.addMenu("Development Tools").addActions([mw.show_resource_estimation_action, mw.show_live_preview_action])
         ai_menu = mb.addMenu("&AI Assistant")
         ai_menu.addActions([mw.ask_ai_to_generate_fsm_action, mw.clear_ai_chat_action]); ai_menu.addSeparator(); ai_menu.addAction(mw.openai_settings_action)
         help_menu = mb.addMenu("&Help"); help_menu.addActions([mw.quick_start_action, mw.about_action])
+        
+        
+        
+        
+        # --- START: DYNAMIC PLUGIN MENU ---
+    # Get the discovered plugins from the manager in the main window
+    if hasattr(self.mw, 'plugin_manager') and self.mw.plugin_manager.exporter_plugins:
+        export_menu.addSeparator()
+        for plugin in self.mw.plugin_manager.exporter_plugins:
+            # For each plugin, create a QAction
+            action = QAction(plugin.name + "...", self.mw)
+            # Use a lambda to capture the specific plugin instance for the handler
+            action.triggered.connect(
+                lambda checked=False, p=plugin: self.mw.action_handler.on_export_with_plugin(p)
+            )
+            export_menu.addAction(action)
+    # --- END: DYNAMIC PLUGIN MENU ---
+        
+        
+        # --- START: ADD TESTBENCH ACTION TO MENU ---
+        # Add the new action here, grouped with the C/C++ code generation.
+        export_menu.addAction(mw.export_c_testbench_action)
+        # --- END: ADD TESTBENCH ACTION TO MENU ---
+        
+        
+        
         
         logger.debug("UIManager: Menus created.")
 
@@ -312,8 +330,9 @@ class UIManager(QObject):
         align_menu = QMenu(mw); align_sub = align_menu.addMenu("Align"); align_sub.addActions(mw.align_actions); dist_sub = align_menu.addMenu("Distribute"); dist_sub.addActions(mw.distribute_actions)
         align_btn.setMenu(align_menu); tb.addWidget(align_btn)
         
+        # Add Git button to toolbar
         git_btn = QToolButton(mw)
-        git_btn.setIcon(get_standard_icon(QStyle.SP_ToolBarHorizontalExtensionButton, "Git")) 
+        git_btn.setIcon(get_standard_icon(QStyle.SP_ToolBarHorizontalExtensionButton, "Git")) # A generic icon for now
         git_btn.setToolTip("Git Actions")
         git_btn.setPopupMode(QToolButton.InstantPopup)
         git_menu_for_button = QMenu(mw)
@@ -326,17 +345,18 @@ class UIManager(QObject):
         tb.addActions([mw.zoom_in_action, mw.zoom_out_action, mw.reset_zoom_action, mw.fit_diagram_action]); tb.addSeparator()
         tb.addActions([mw.start_py_sim_action, mw.stop_py_sim_action, mw.reset_py_sim_action]); tb.addSeparator()
         export_btn = QToolButton(mw); export_btn.setIcon(get_standard_icon(QStyle.SP_DialogSaveButton, "Export")); export_btn.setToolTip("Export & Generate Code"); export_btn.setPopupMode(QToolButton.InstantPopup)
+        export_menu = QMenu(mw); export_menu.addActions([mw.export_png_action, mw.export_svg_action]); export_menu.addSeparator(); export_menu.addActions([mw.export_simulink_action, mw.generate_c_code_action, mw.export_python_fsm_action, mw.generate_matlab_code_action]); export_menu.addSeparator(); export_menu.addActions([mw.export_plantuml_action, mw.export_mermaid_action])
         
-        export_menu = QMenu(mw)
-        export_menu.addActions([mw.export_png_action, mw.export_svg_action])
-        export_menu.addSeparator()
-        export_menu.addActions([mw.export_simulink_action, mw.generate_c_code_action, mw.export_c_testbench_action, mw.export_python_fsm_action, mw.generate_matlab_code_action])
+         # --- START: ADD TESTBENCH ACTION TO TOOLBAR MENU ---
+        export_menu.addAction(mw.export_c_testbench_action)
+        # --- END: ADD TESTBENCH ACTION TO TOOLBAR MENU ---
+        
+        # --- START: ADD HDL SUBMENU TO TOOLBAR BUTTON ---
         export_menu.addSeparator()
         hdl_export_menu_tb = export_menu.addMenu("HDL Export")
         hdl_export_menu_tb.setIcon(get_standard_icon(self._safe_get_style_enum("SP_DriveNetIcon", "SP_ComputerIcon"), "HDL"))
         hdl_export_menu_tb.addActions([mw.export_vhdl_action, mw.export_verilog_action])
-        export_menu.addSeparator()
-        export_menu.addActions([mw.export_plantuml_action, mw.export_mermaid_action])
+        # --- END: ADD HDL SUBMENU TO TOOLBAR BUTTON ---
         
         export_btn.setMenu(export_menu); tb.addWidget(export_btn)
         mw.toolbars_menu.clear(); mw.toolbars_menu.addAction(tb.toggleViewAction())
@@ -357,6 +377,7 @@ class UIManager(QObject):
             "resource_estimation_dock": ("ResourceEstimationDock", "Resource Estimation"),
             "live_preview_dock": ("LivePreviewDock", "Live Code Preview"),
             "minimap_dock": ("MinimapDock", "Navigator"),
+            # --- NEW DOCK DEFINITION ---
             "hardware_sim_dock": ("HardwareSimDock", "Hardware Simulator"),
         }
         
@@ -383,6 +404,7 @@ class UIManager(QObject):
         problems_layout.addWidget(mw.problems_ask_ai_btn)
         mw.problems_dock.setWidget(problems_widget)
         
+        # --- NEW: Minimap Dock Setup ---
         mw.minimap_view = MinimapView()
         mw.minimap_dock.setWidget(mw.minimap_view)
         
@@ -400,6 +422,7 @@ class UIManager(QObject):
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
+        # --- NEW: Search Bar ---
         self.palette_search_bar = QLineEdit()
         self.palette_search_bar.setPlaceholderText("Filter elements...")
         self.palette_search_bar.setClearButtonEnabled(True)
@@ -441,20 +464,22 @@ class UIManager(QObject):
         layout.addStretch()
         mw.elements_palette_dock.setWidget(widget)
         
+        # Connect search bar signal
         self.palette_search_bar.textChanged.connect(self._filter_palette_elements)
         
     def _filter_palette_elements(self, text):
         """Filters draggable buttons in the palette based on search text."""
         text = text.lower()
-        if hasattr(self, 'drag_elements_group'):
-            for button in self.drag_elements_group.findChildren(DraggableToolButton):
-                matches = text in button.text().lower()
-                button.setVisible(matches)
+        # Filter drag elements
+        for button in self.drag_elements_group.findChildren(DraggableToolButton):
+            matches = text in button.text().lower()
+            button.setVisible(matches)
         
-        if hasattr(self, 'templates_group'):
-            for button in self.templates_group.findChildren(DraggableToolButton):
-                matches = text in button.text().lower() or text in button.toolTip().lower()
-                button.setVisible(matches)
+        # Filter template elements
+        for button in self.templates_group.findChildren(DraggableToolButton):
+            matches = text in button.text().lower() or text in button.toolTip().lower()
+            button.setVisible(matches)
+
 
     def _load_and_display_templates(self):
         mw = self.mw; layout = mw.template_buttons_layout
@@ -490,6 +515,7 @@ class UIManager(QObject):
         mw.properties_placeholder_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(mw.properties_placeholder_label)
 
+        # This layout will hold the collapsible sections
         mw.properties_editor_container = QWidget()
         mw.properties_editor_layout = QVBoxLayout(mw.properties_editor_container)
         mw.properties_editor_layout.setContentsMargins(0,0,0,0)
@@ -518,6 +544,7 @@ class UIManager(QObject):
         
         mw.properties_dock.setWidget(widget)
 
+
     def _populate_resource_estimation_dock(self):
         mw = self.mw; widget = QWidget(); layout = QVBoxLayout(widget)
         target_group = QGroupBox("Target Device"); target_layout = QFormLayout(target_group)
@@ -529,6 +556,7 @@ class UIManager(QObject):
         layout.addWidget(usage_group); disclaimer = QLabel("<small><i>Estimates are heuristics.</i></small>"); disclaimer.setWordWrap(True); layout.addWidget(disclaimer); layout.addStretch(); mw.resource_estimation_dock.setWidget(widget)
 
     def _populate_live_preview_dock(self):
+        """Creates the contents of the live code preview dock."""
         mw = self.mw
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -548,7 +576,7 @@ class UIManager(QObject):
         
         mw.live_preview_editor = CodeEditor()
         mw.live_preview_editor.setReadOnly(True)
-        mw.live_preview_editor.setObjectName("LivePreviewEditor") 
+        mw.live_preview_editor.setObjectName("LivePreviewEditor") # For styling
         mw.live_preview_editor.setPlaceholderText("Edit the diagram to see a live code preview...")
         layout.addWidget(mw.live_preview_editor, 1)
 
@@ -562,6 +590,7 @@ class UIManager(QObject):
         mw.main_op_status_label = QLabel("Ready")
         status_bar.addWidget(mw.main_op_status_label, 1)
         
+        # Create segments and store them
         mw.mode_status_segment = StatusSegment(QStyle.SP_ArrowRight, "Sel", "Select", "Interaction Mode", "InteractionModeStatusLabel")
         mw.zoom_status_segment = StatusSegment(QStyle.SP_FileDialogInfoView, "Zoom", "100%", "Zoom Level", "ZoomStatusLabel")
         mw.pysim_status_segment = StatusSegment(QStyle.SP_MediaStop, "PySim", "Idle", "Python Sim Status", "PySimStatusLabel")

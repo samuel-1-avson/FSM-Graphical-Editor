@@ -913,16 +913,16 @@ class TransitionPropertiesDialog(QDialog):
 
         if is_new_transition: self.event_edit.setFocus()
 
-    # --- FIX: Fix double signal connection and duplicate return ---
+    # --- NEW: AI Helper button creation and handler ---
     def _create_ai_helper_button(self, target_widget, code_type="action"):
         button = QPushButton()
         button.setIcon(get_standard_icon(QStyle.SP_MessageBoxQuestion, "AI"))
         button.setToolTip(f"Generate {code_type} code with AI")
-        # The lambda here correctly captures the target widget and code type.
-        button.clicked.connect(lambda: self._on_ai_helper_clicked(target_widget, code_type))
+        # Pass the target widget to the handler
+        button.clicked.connect(lambda ch, w=target_widget, t=code_type: self._on_ai_helper_clicked(w, t))
         return button
 
-    def _on_ai_helper_clicked(self, target_widget, code_type):
+    def _on_ai_helper_clicked(self, target_widget, code_type): # target_widget is now passed in
         description, ok = QInputDialog.getText(self, f"Generate {code_type.capitalize()} Code", f"Describe the {code_type} you want to create:")
         if not (ok and description):
             return
@@ -1025,6 +1025,51 @@ class TransitionPropertiesDialog(QDialog):
         text_color_name = COLOR_TEXT_ON_ACCENT if luminance < 0.5 else COLOR_TEXT_PRIMARY
         self.color_button.setStyleSheet(f"background-color: {self.current_color.name()}; color: {text_color_name}; border: 1px solid {self.current_color.darker(130).name()};")
 
+class CommentPropertiesDialog(QDialog):
+    def __init__(self, parent=None, current_properties=None):
+        super().__init__(parent)
+        self.setWindowTitle("Comment Properties")
+        self.setWindowIcon(get_standard_icon(QStyle.SP_MessageBoxInformation, "Cmt"))
+        self.setStyleSheet(f"QDialog {{ background-color: {COLOR_BACKGROUND_DIALOG}; }}")
+        p = current_properties or {}; layout = QVBoxLayout(self)
+        layout.setSpacing(8); layout.setContentsMargins(12,12,12,12)
+        
+        self.text_edit = QTextEdit(p.get('text', "Comment"))
+        self.text_edit.setMinimumHeight(100); self.text_edit.setPlaceholderText("Enter your comment or note here.")
+        
+        current_font = QFont(p.get('font_family', APP_FONT_FAMILY), p.get('font_size', 9))
+        if p.get('font_italic', True): current_font.setItalic(True)
+        self.text_edit.setCurrentFont(current_font) 
+        
+        layout.addWidget(QLabel("Comment Text:")); layout.addWidget(self.text_edit)
+
+        font_group = QGroupBox("Font Style")
+        font_layout = QFormLayout(font_group)
+        self.font_family_combo = QFontComboBox()
+        self.font_family_combo.setCurrentFont(current_font)
+        font_layout.addRow("Family:", self.font_family_combo)
+        self.font_size_spin = QSpinBox(); self.font_size_spin.setRange(6, 48); self.font_size_spin.setValue(current_font.pointSize())
+        font_layout.addRow("Size:", self.font_size_spin)
+        self.font_italic_cb = QCheckBox("Italic"); self.font_italic_cb.setChecked(current_font.italic())
+        font_layout.addRow(self.font_italic_cb)
+        layout.addWidget(font_group)
+
+        self.font_family_combo.currentFontChanged.connect(lambda f: self.text_edit.setFontFamily(f.family()))
+        self.font_size_spin.valueChanged.connect(lambda s: self.text_edit.setFontPointSize(s))
+        self.font_italic_cb.toggled.connect(lambda i: self.text_edit.setFontItalic(i))
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.setMinimumWidth(350); self.text_edit.setFocus(); self.text_edit.selectAll()
+        
+    def get_properties(self):
+        return {
+            'text': self.text_edit.toPlainText(),
+            'font_family': self.font_family_combo.currentFont().family(),
+            'font_size': self.font_size_spin.value(),
+            'font_italic': self.font_italic_cb.isChecked()
+        }
 
 class MatlabSettingsDialog(QDialog):
     def __init__(self, matlab_connection: MatlabConnection, parent=None):
@@ -1977,7 +2022,7 @@ class SnippetManagerDialog(QDialog):
                  QMessageBox.critical(self, "Delete Error", "Failed to delete the snippet.")
 
 
-# --- THIS IS THE CORRECTED DIALOG CLASS ---
+# --- ADD NEW DIALOG CLASS ---
 class AutoLayoutPreviewDialog(QDialog):
     def __init__(self, preview_pixmap: QPixmap, parent=None):
         super().__init__(parent)
