@@ -35,7 +35,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtWidgets import QListWidgetItem
 from PyQt5.QtCore import QPointF
-from .ui_virtual_hardware_manager import VirtualHardwareUIManager
+from .ui_virtual_hardware_manager import VirtualHardwareUIManager # <-- NEW IMPORT
 # Local application imports
 from .graphics_scene import DiagramScene, ZoomableView
 from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
@@ -65,8 +65,7 @@ from .fsm_simulator import FSMSimulator, FSMError
 from .git_manager import GitManager
 from .perspective_manager import PerspectiveManager
 from .custom_widgets import CollapsibleSection
-from .plugin_manager import PluginManager
-from .animation_manager import AnimationManager 
+from .plugin_manager import PluginManager # <-- NEW IMPORT
 # Import the new code generation functions
 from .c_code_generator import generate_c_code_content, generate_c_testbench_content
 from .python_code_generator import generate_python_fsm_code
@@ -95,13 +94,14 @@ class MainWindow(QMainWindow):
     PERSPECTIVE_SIMULATION_FOCUS = "Simulation Focus"
     PERSPECTIVE_IDE_FOCUS = "IDE Focus"
     PERSPECTIVE_AI_FOCUS = "AI Focus"
+    # --- NEW: Added Developer View ---
     PERSPECTIVE_DEVELOPER_VIEW = "Developer View"
     DEFAULT_PERSPECTIVES_ORDER = [
         PERSPECTIVE_DESIGN_FOCUS, 
         PERSPECTIVE_SIMULATION_FOCUS,
         PERSPECTIVE_IDE_FOCUS,
         PERSPECTIVE_AI_FOCUS,
-        PERSPECTIVE_DEVELOPER_VIEW
+        PERSPECTIVE_DEVELOPER_VIEW # New
     ]
 
 
@@ -405,8 +405,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         
         # ... (at the top of __init__)
+        # --- NEW: Instantiate Plugin Manager early ---
         self.plugin_manager = PluginManager()
-        self.animation_manager = AnimationManager(self)
         
         super().__init__()
         
@@ -458,7 +458,7 @@ class MainWindow(QMainWindow):
         self.perspective_manager = PerspectiveManager(self, self.settings_manager)
         self.resource_monitor_manager = ResourceMonitorManager(self, settings_manager=self.settings_manager)
         self.py_sim_ui_manager = PySimulationUIManager(self)
-        self.hardware_sim_ui_manager = VirtualHardwareUIManager(self)
+        self.hardware_sim_ui_manager = VirtualHardwareUIManager(self) # <-- NEW: Instantiate manager
         self.ai_chatbot_manager = AIChatbotManager(self)
         self.ai_chat_ui_manager = AIChatUIManager(self)
         self.ide_manager = IDEManager(self)

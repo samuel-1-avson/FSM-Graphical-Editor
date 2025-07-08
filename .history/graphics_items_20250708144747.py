@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QGraphicsRectItem, QGraphicsPathItem, QGraphicsTextItem,
     QGraphicsItem, QGraphicsDropShadowEffect, QApplication, QGraphicsSceneMouseEvent,
     QStyle, QLineEdit, QTextEdit, QGraphicsProxyWidget, QMessageBox,
-    QGraphicsEllipseItem
+    QGraphicsEllipseItem # NEW
 )
 from PyQt5.QtGui import (
     QBrush, QColor, QFont, QPen, QPainterPath, QPolygonF, QPainter,
@@ -13,7 +13,7 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtCore import (
     Qt, QRectF, QPointF, QMimeData, QPoint, QLineF, QSize, pyqtSignal, QEvent, QObject,
-    QPropertyAnimation, QEasingCurve, pyqtProperty
+    QPropertyAnimation, QEasingCurve, Q_PROPERTY # NEW
 )
 
 from .config import (
@@ -50,18 +50,20 @@ class TransitionPulseItem(QGraphicsEllipseItem):
         self.setZValue(parent_transition.zValue() + 1)
         self._path_percent = 0.0
 
-    # --- FIX: Use pyqtProperty instead of Q_PROPERTY ---
-    def get_path_percent(self):
+    # Define a Q_PROPERTY to allow QPropertyAnimation to work on a custom attribute
+    @Q_PROPERTY(float)
+    def path_percent(self):
         return self._path_percent
 
-    def set_path_percent(self, value):
+    @path_percent.setter
+    def path_percent(self, value):
         self._path_percent = value
         path = self.parent_transition.path()
         if path.length() > 0:
             self.setPos(path.pointAtPercent(value))
-    
-    path_percent = pyqtProperty(float, fget=get_path_percent, fset=set_path_percent)
-# --- END FIX ---
+
+# --- END NEW ---
+
 
 class StateItemSignals(QObject):
     textChangedViaInlineEdit = pyqtSignal(str, str)
@@ -467,8 +469,9 @@ class GraphicsStateItem(QGraphicsRectItem):
     def set_text(self, text):
         if self.text_label != text: self.prepareGeometryChange(); self.text_label = text; self.setToolTip(self._problem_tooltip_text or self.description or self.text_label); self.update()
 
-
+# --- MODIFIED CLASS ---
 class GraphicsTransitionItem(QGraphicsPathItem):
+    # ... (existing __init__ and other methods) ...
     Type = QGraphicsItem.UserType + 2
     def type(self): return GraphicsTransitionItem.Type
     CONTROL_POINT_SIZE = 8
@@ -518,6 +521,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         self._problem_tooltip_text = ""
         self.update_path()
 
+    # --- NEW ANIMATION METHOD ---
     def start_pulse_animation(self):
         if not self.scene():
             return
@@ -532,7 +536,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         anim.setEasingCurve(QEasingCurve.OutCubic)
         
         # Connect the finished signal to a cleanup lambda
-        anim.finished.connect(lambda: self.scene().removeItem(pulse_item) if self.scene() and pulse_item.scene() == self.scene() else None)
+        anim.finished.connect(lambda: self.scene().removeItem(pulse_item) if self.scene() else None)
         anim.start(QPropertyAnimation.DeleteWhenStopped)
 
 
@@ -666,6 +670,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
             self.update_path() 
             self.update()
     
+    # ... (rest of GraphicsTransitionItem class is unchanged) ...
     def get_data(self):
         return {
             'source': self.start_item.text_label if self.start_item else "None", 

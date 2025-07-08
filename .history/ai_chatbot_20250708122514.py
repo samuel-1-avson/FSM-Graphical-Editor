@@ -805,9 +805,8 @@ class AIChatbotManager(QObject):
         return self._current_ai_status
         
     def is_configured(self) -> bool:
-        """Checks if the chatbot has a configured and ready provider."""
-        # --- FIX: Check the worker's provider, not a non-existent attribute ---
-        return self.chatbot_worker and self.chatbot_worker.provider and self.chatbot_worker.provider.is_configured()
+        """Checks if the chatbot has a configured and ready."""
+        return self.chatbot_worker and self.chatbot_worker._api_key_set
 
 
     def _cleanup_existing_worker_and_thread(self):
@@ -949,10 +948,9 @@ class AIChatbotManager(QObject):
     def _prepare_and_send_to_worker(self, user_message_text: str, is_fsm_gen_specific: bool = False, is_inline_code_request: bool = False, inline_request_id: str = ""):
         logger.info(f"MGR_PREP_SEND: For: '{user_message_text[:30]}...', FSM_specific_req: {is_fsm_gen_specific}, Inline: {is_inline_code_request}, ID: {inline_request_id}")
 
-        # --- FIX: Use the correct method to check if the worker is configured ---
-        if not self.chatbot_worker or not self.chatbot_worker.provider or not self.chatbot_worker.provider.is_configured():
-            err_msg = "AI Assistant not configured. Please select a provider and set the API Key in Settings."
-            logger.warning(f"MGR_PREP_SEND: AI provider not configured. Aborting send.")
+        if not self.chatbot_worker or not self.chatbot_worker._api_key_set:
+            err_msg = "AI Assistant not configured. Please set a Gemini API Key in Settings."
+            logger.warning("MGR_PREP_SEND: Gemini API key not set.")
             self.errorOccurred.emit(AIStatus.API_KEY_REQUIRED, err_msg)
             if self.parent_window and hasattr(self.parent_window, 'ai_chat_ui_manager'):
                 self.parent_window.ai_chat_ui_manager._append_to_chat_display("System Error", err_msg)

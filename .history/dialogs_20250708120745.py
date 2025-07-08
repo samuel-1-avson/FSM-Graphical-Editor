@@ -1,4 +1,3 @@
-
 # fsm_designer_project/dialogs.py
 
 import sys
@@ -334,11 +333,28 @@ class StatePropertiesDialog(QDialog):
         self.setMinimumWidth(650) 
         self.setStyleSheet(f"QDialog {{ background-color: {COLOR_BACKGROUND_DIALOG}; }} QLabel#SafetyNote, QLabel#HardwareHintLabel {{ font-size: {APP_FONT_SIZE_SMALL}; color: {COLOR_TEXT_SECONDARY}; }} QGroupBox {{ background-color: {QColor(COLOR_BACKGROUND_LIGHT).lighter(102).name()}; }}")
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         # --- DEPENDENCY INJECTION ---
         self.settings_manager = settings_manager
         self.custom_snippet_manager = custom_snippet_manager
         # --- END DI ---
+
+
+        # --- NEW: Create AI Helper Buttons ---
+        self.entry_action_ai_btn = self._create_ai_helper_button(self.entry_action_edit, "action")
+        self.during_action_ai_btn = self._create_ai_helper_button(self.during_action_edit, "action")
+        self.exit_action_ai_btn = self._create_ai_helper_button(self.exit_action_edit, "action")
         
+
         self.parent_window_ref = parent
         self.scene_ref = scene_ref
         p = current_properties or {}
@@ -464,7 +480,7 @@ class StatePropertiesDialog(QDialog):
         self.exit_action_snippet_btn = self._create_insert_snippet_button(self.exit_action_edit, "actions", " Action")
         
         
-        # --- FIX: Moved AI Helper Button creation to after their target widgets are created ---
+        # --- NEW: AI Helper Buttons ---
         self.entry_action_ai_btn = self._create_ai_helper_button(self.entry_action_edit, "action")
         self.during_action_ai_btn = self._create_ai_helper_button(self.during_action_edit, "action")
         self.exit_action_ai_btn = self._create_ai_helper_button(self.exit_action_edit, "action")
@@ -2039,3 +2055,4 @@ class AutoLayoutPreviewDialog(QDialog):
         button_box.rejected.connect(self.reject)
         
         layout.addWidget(button_box)
+
