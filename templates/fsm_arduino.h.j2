@@ -1,0 +1,60 @@
+{# fsm_designer_project/templates/fsm_arduino.h.j2 - Jinja2 Template for Arduino Header #}
+#ifndef {{ h_guard }}
+#define {{ h_guard }}
+
+#include <Arduino.h>
+
+// --- FSM STATE ENUM ---
+typedef enum {
+{%- for state in states %}
+    STATE_{{ state.c_name|upper }},
+{%- endfor %}
+    FSM_NUM_STATES // Helper for array sizing or loop limits
+} FSM_State_t;
+
+// --- FSM EVENT ENUM ---
+{% if events %}
+typedef enum {
+{%- for event in events %}
+    EVENT_{{ event.c_name|upper }},
+{%- endfor %}
+    FSM_NUM_EVENTS // Helper for array sizing or loop limits
+} FSM_Event_t;
+
+#define FSM_NO_EVENT -1 // Special value for triggering 'during' actions or internal steps
+{% else %}
+// No events with names were defined in transitions.
+#define FSM_NO_EVENT -1
+{% endif %}
+
+
+// --- FSM CORE API ---
+/**
+ * @brief Initializes the FSM to its starting state and runs the initial state's entry action.
+ * Call this once in your setup().
+ */
+void {{ fsm_name_c }}_init(void);
+
+/**
+ * @brief Runs the FSM logic. Checks for transitions based on the given event
+ * and executes 'during' actions.
+ * @param event_id The event to process (from FSM_Event_t enum) or FSM_NO_EVENT.
+ */
+void {{ fsm_name_c }}_run(int event_id);
+
+/**
+ * @brief Gets the current state of the FSM.
+ * @return The current state (from FSM_State_t enum).
+ */
+FSM_State_t {{ fsm_name_c }}_get_current_state(void);
+
+
+// --- USER-DEFINED ACTION PROTOTYPES ---
+// These are the functions that will be called by the FSM.
+// You must implement their logic in the main .ino file.
+{% for proto in action_prototypes %}
+{{ proto }};
+{%- endfor %}
+
+
+#endif // {{ h_guard }}
