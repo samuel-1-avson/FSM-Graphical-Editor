@@ -3,7 +3,7 @@ import os
 import re
 import logging
 import html
-from jinja2 import Environment, FileSystemLoader, select_autoescape, StrictUndefined
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from PyQt5.QtCore import QDateTime # <-- NEW: Add QDateTime import
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ def generate_c_testbench_content(diagram_data: dict, fsm_name_c: str) -> str:
         raise ValueError("Cannot generate testbench: No states defined in the diagram.")
 
     template_dir = os.path.join(os.path.dirname(__file__), 'templates')
-    env = Environment(loader=FileSystemLoader(template_dir), autoescape=select_autoescape(), trim_blocks=True, lstrip_blocks=True, undefined=StrictUndefined)
+    env = Environment(loader=FileSystemLoader(template_dir), autoescape=select_autoescape(), trim_blocks=True, lstrip_blocks=True)
     
     context = {
         "fsm_name_c": fsm_name_c,
@@ -172,6 +172,15 @@ def generate_c_testbench_content(diagram_data: dict, fsm_name_c: str) -> str:
 
     template = env.get_template("testbench.c.j2")
     return template.render(context)
+
+
+# --- BEGINNING OF THE DEPRECATED, OLDER FUNCTION THAT SHOULD BE DELETED ---
+# <<< DELETE THIS ENTIRE FUNCTION >>>
+def translate_action_to_c_stub_line_OLD_AND_DEPRECATED(py_action_line: str) -> str:
+    # THIS FUNCTION IS OBSOLETE AND SHOULD BE REMOVED.
+    # THE PLATFORM-AWARE VERSION ABOVE IS THE CORRECT ONE.
+    return f"// DEPRECATED: {py_action_line}"
+# <<< END OF FUNCTION TO DELETE >>>
 
 
 def generate_c_code_content(diagram_data: dict, base_filename: str, target_platform: str) -> dict[str, str]:

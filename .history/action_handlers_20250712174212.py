@@ -45,11 +45,10 @@ class ActionHandler(QObject):
         self.mw.save_as_action.triggered.connect(self.on_save_file_as)
         self.mw.export_simulink_action.triggered.connect(self.on_export_simulink)
         self.mw.generate_c_code_action.triggered.connect(self.on_generate_c_code)
-        if hasattr(self.mw, 'export_c_testbench_action'):
-            self.mw.export_c_testbench_action.triggered.connect(self.on_export_c_testbench)
+        self.mw.export_c_testbench_action.triggered.connect(self.on_export_c_testbench)
+        self.mw.export_python_fsm_action.triggered.connect(self.on_export_python_fsm)
         self.mw.export_plantuml_action.triggered.connect(self.on_export_plantuml)
         self.mw.export_mermaid_action.triggered.connect(self.on_export_mermaid)
-        self.mw.export_python_fsm_action.triggered.connect(self.on_export_python_fsm)
         self.mw.export_png_action.triggered.connect(self.on_export_png)
         self.mw.export_svg_action.triggered.connect(self.on_export_svg)
 
@@ -141,10 +140,14 @@ class ActionHandler(QObject):
             QMessageBox.warning(self.mw, "Error", "Log handler not available.")
             return
 
-        log_content = self.mw.ui_log_handler.get_full_log_text(plain=True)
-        clipboard = QApplication.clipboard()
-        clipboard.setText(log_content)
-        self.mw.log_message("INFO", "Log content copied to clipboard.")
+        try:
+            log_content = self.mw.ui_log_handler.get_full_log_text(plain=True)
+            clipboard = QApplication.clipboard()
+            clipboard.setText(log_content)
+            self.mw.log_message("INFO", "Log content copied to clipboard.")
+        except Exception as e:
+            logger.error(f"Error copying log content: {e}", exc_info=True)
+            QMessageBox.critical(self.mw, "Copy Error", f"Could not copy log content: {e}")
     # --- END: NEW LOG ACTION HANDLERS ---
 
     # --- NEW: Generic Handler for Plugins ---
@@ -214,9 +217,14 @@ class ActionHandler(QObject):
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(testbench_code)
             
-            QMessageBox.information(self.mw, "Testbench Generation Successful", f"C testbench file generated successfully:\n{file_path}\n\nRemember to also export the main FSM C files to compile against it.")
+            QMessageBox.information(self.mw, "Testbench Generation Successful",
+                                    f"C testbench file generated successfully:\n{file_path}\n\n"
+                                    "Remember to also export the main FSM C files to compile against it.")
+            logger.info(f"C testbench for FSM '{fsm_name_c}' exported to {file_path}")
+
         except Exception as e:
             QMessageBox.critical(self.mw, "Testbench Generation Error", f"Failed to generate testbench: {e}")
+            logger.error(f"Error generating C testbench: {e}", exc_info=True)
 
 
     @pyqtSlot()
@@ -476,7 +484,7 @@ class ActionHandler(QObject):
             if 'dot' in error_msg.lower() and ('not found' in error_msg.lower() or 'no such file' in error_msg.lower()):
                  msg_detail = "Graphviz 'dot' command not found. Please ensure Graphviz is installed and its 'bin' directory is in your system's PATH."
             else:
-                 msg_detail = f"An unexpected error occurred during auto-layout: {e}"
+                 msg_detail = f"An unexpected error occurred during auto-layout: {error_msg}"
             QMessageBox.critical(self.mw, "Auto-Layout Error", msg_detail)
             logger.error(f"Auto-layout failed: {msg_detail}", exc_info=True)
 

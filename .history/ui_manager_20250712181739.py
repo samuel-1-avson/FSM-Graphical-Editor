@@ -490,7 +490,7 @@ class UIManager(QObject):
         self._load_and_display_templates()
         template_layout.addWidget(mw.template_buttons_container)
         
-        manage_templates_btn = QPushButton("Manage Assets...")
+        manage_templates_btn = QPushButton("Manage Snippets...")
         manage_templates_btn.clicked.connect(self.mw.action_handler.on_manage_snippets)
         template_layout.addWidget(manage_templates_btn)
 
@@ -525,12 +525,11 @@ class UIManager(QObject):
             icon_to_use = QIcon()
             
             # Check if the resource path is valid
-            actual_path = _get_bundled_file_path(os.path.basename(icon_resource_path), "icons")
-            if actual_path:
-                icon_to_use = QIcon(actual_path)
-            else:
+            if icon_resource_path.startswith(":") and not _get_bundled_file_path(os.path.basename(icon_resource_path), "icons"):
                 logger.warning(f"Built-in template icon resource not found: {icon_resource_path}")
                 icon_to_use = get_standard_icon(QStyle.SP_FileLinkIcon, "Tpl")
+            else:
+                icon_to_use = QIcon(icon_resource_path)
 
             btn = DraggableToolButton(data['name'], MIME_TYPE_BSM_TEMPLATE, json.dumps(data)); btn.setIcon(icon_to_use)
             btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)

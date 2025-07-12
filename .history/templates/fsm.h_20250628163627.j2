@@ -1,4 +1,4 @@
-{# fsm_designer_project/templates/fsm.h.j2 - Jinja2 Template for C Header #}
+{# bsm_designer_project/templates/fsm.h.j2 - Jinja2 Template for C Header #}
 #ifndef {{ h_guard }}
 #define {{ h_guard }}
 
@@ -11,7 +11,7 @@ typedef enum {
 } FSM_State_t;
 
 // --- FSM EVENT ENUM ---
-{% if events -%}
+{% if events %}
 typedef enum {
 {%- for event in events %}
     EVENT_{{ event.c_name|upper }},
@@ -20,10 +20,10 @@ typedef enum {
 } FSM_Event_t;
 
 #define FSM_NO_EVENT -1 // Special value for triggering 'during' actions or internal steps
-{%- else -%}
+{% else %}
 // No events with names were defined in transitions.
 #define FSM_NO_EVENT -1
-{%- endif %}
+{% endif %}
 
 
 // --- FSM CORE API ---
