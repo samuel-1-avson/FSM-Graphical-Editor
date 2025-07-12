@@ -250,11 +250,12 @@ class StateMachinePoweredSimulator:
         dynamic_callback_wrapper.__name__ = f"{original_name}_{callback_type}_{hash(code_string)}"
         return dynamic_callback_wrapper
 
+    # --- FIX: Changed callback signature to use **kwargs ---
     def _master_on_enter_state_impl(self, **kwargs):
         target: State = kwargs.get('target')
         sm_instance: StateMachine = kwargs.get('machine')
         
-        if not target or not sm_instance: return 
+        if not target or not sm_instance: return # Should not happen
 
         target_state_name = target.id
         self._log_action(f"Entering state: {target_state_name}")
@@ -317,12 +318,13 @@ class StateMachinePoweredSimulator:
         if not all([source, target, event_data_obj, event]): return
         triggered_event_name = event_data_obj.event
         self._log_action(f"After transition on '{triggered_event_name}' from '{source.id}' to '{target.id}'")
+    # --- END FIX ---
 
     def _build_fsm_class_and_instance(self):
         if not self._states_input_data:
             if not self.parent_simulator:
                 logger.warning(f"{self.log_prefix}FSM has no states defined. Cannot build class.")
-            return
+            return 
 
         FSMClassName = f"DynamicFSM_{self.log_prefix.replace('[','').replace(']','').replace('-','_')}{hash(str(self._states_input_data))}"
         
@@ -355,13 +357,9 @@ class StateMachinePoweredSimulator:
         for t_data in self._transitions_input_data:
             source_state = sm_definition.get(t_data['source'])
             target_state = sm_definition.get(t_data['target'])
-            if not source_state or not target_state:
-                logger.warning(f"{self.log_prefix}Skipping transition from '{t_data['source']}' to '{t_data['target']}' due to missing state definition.")
-                continue
+            if not source_state or not target_state: continue
             event_name = t_data.get('event')
-            if not event_name:
-                event_name = f"__internal_transition_{source_state.id}_to_{target_state.id}"
-                logger.debug(f"{self.log_prefix}Generated internal event name '{event_name}' for eventless transition.")
+            if not event_name: event_name = f"__internal_transition_{source_state.id}_to_{target_state.id}"
 
             trans_params = {}
             if t_data.get('condition'): trans_params['cond'] = self._create_dynamic_callback(t_data['condition'], "condition", f"cond_{source_state.id}_to_{target_state.id}_{event_name}")
@@ -386,8 +384,11 @@ class StateMachinePoweredSimulator:
              return
 
         self.FSMClass = type(FSMClassName, (StateMachine,), sm_definition)
+        # The line below is where the traceback error occurs.
         self.sm = self.FSMClass(model=self._variables) 
         logger.info(f"{self.log_prefix}StateMachine class '{FSMClassName}' built. Initial state: {self.sm.current_state.id if self.sm and self.sm.current_state else 'None'}")
+    
+    # ... (rest of the file remains the same)
     
     def reset(self):
         self._log_action("--- FSM Resetting ---")
@@ -396,14 +397,21 @@ class StateMachinePoweredSimulator:
         self.current_tick = 0
         self.breakpoint_hit_flag = False
         self.paused_on_breakpoint = False
+        
         if self.active_sub_simulator:
-            self._log_action("Resetting active sub-machine..."); self.active_sub_simulator.reset(); self._action_log.extend(self.active_sub_simulator.get_last_executed_actions_log()); self.active_sub_simulator = self.active_superstate_name = None
+            self._log_action("Resetting active sub-machine...")
+            self.active_sub_simulator.reset() 
+            self._action_log.extend(self.active_sub_simulator.get_last_executed_actions_log()) 
+            self.active_sub_simulator = self.active_superstate_name = None
+        
         if self.FSMClass:
             try:
                 self.sm = self.FSMClass(model=self._variables, allow_event_without_transition=True)
                 current_state_id = self.sm.current_state.id if self.sm and self.sm.current_state else 'Unknown (No Initial State?)'
                 self._log_action(f"FSM Reset. Current state: {current_state_id}")
-            except Exception as e: logger.error(f"{self.log_prefix}Reset failed during SM re-instantiation: {e}", exc_info=True); raise FSMError(f"Reset failed during SM re-instantiation: {e}")
+            except Exception as e:
+                logger.error(f"{self.log_prefix}Reset failed during SM re-instantiation: {e}", exc_info=True)
+                raise FSMError(f"Reset failed during SM re-instantiation: {e}")
         elif not self.parent_simulator and not self._states_input_data : 
             logger.error(f"{self.log_prefix}FSM Class not built (no states defined), cannot reset properly.")
 
@@ -411,9 +419,11 @@ class StateMachinePoweredSimulator:
         if self.simulation_halted_flag:
             self._log_action(f"Simulation HALTED. Event '{event_name or 'Internal (Tick)'}' ignored. Reset required.")
             return self.get_current_state_name(), self.get_last_executed_actions_log()
+
         if self.paused_on_breakpoint:
             self._log_action(f"Simulation PAUSED at breakpoint. Current state: {self.get_current_state_name()}. Event '{event_name or 'None'}' ignored. Use 'Continue'.")
             return self.get_current_state_name(), self.get_last_executed_actions_log()
+
         if not self.sm: 
             if self.parent_simulator : self._log_action("Step ignored: Sub-FSM is empty/not initialized."); return self.get_current_state_name(), self.get_last_executed_actions_log()
             else: self._log_action("Step ignored: FSM not initialized."); self.simulation_halted_flag = True; return self.get_current_state_name(), self.get_last_executed_actions_log()
@@ -423,34 +433,44 @@ class StateMachinePoweredSimulator:
         self._log_action(f"--- Step. State: {self.get_current_state_name()}. Event: {event_name or 'Internal (Tick)'} ---")
         
         if self.breakpoint_hit_flag:
-            self.paused_on_breakpoint = True; self.breakpoint_hit_flag = False
+            self.paused_on_breakpoint = True; self.breakpoint_hit_flag = False;
             self._log_action(f"Simulation PAUSED at breakpoint. Current state: {self.get_current_state_name()}")
             return self.get_current_state_name(), self.get_last_executed_actions_log()
+
         try:
             main_state_data = self._states_input_data.get(main_state_id)
             if main_state_data and main_state_data.get('during_action'):
                 action_str = main_state_data['during_action']; self._log_action(f"During action for '{main_state_id}': {action_str}")
                 during_cb = self._create_dynamic_callback(action_str, "action", f"during_{main_state_id}")
                 during_cb(machine=self.sm)
+
             if self.simulation_halted_flag: return self.get_current_state_name(), self.get_last_executed_actions_log()
             if self.breakpoint_hit_flag: self.paused_on_breakpoint = True; self.breakpoint_hit_flag = False; self._log_action(f"Simulation PAUSED at breakpoint (hit during pre-step hook). Current state: {self.get_current_state_name()}"); return self.get_current_state_name(), self.get_last_executed_actions_log()
-            
+
             if self.active_sub_simulator:
                 superstate_log_name = self.active_superstate_name or main_state_id; self._log_action(f"Stepping sub-machine in '{superstate_log_name}' with event: {event_name or 'None (Internal)'}.")
                 _, sub_log = self.active_sub_simulator.step(event_name=event_name) 
                 self._action_log.extend(sub_log) 
-                if self.active_sub_simulator.simulation_halted_flag: self.simulation_halted_flag = True; self._log_action(f"Propagation: Parent HALTED due to sub-machine error in '{superstate_log_name}'."); return self.get_current_state_name(), self.get_last_executed_actions_log()
-                if self.active_sub_simulator.paused_on_breakpoint: self.paused_on_breakpoint = True; self._log_action(f"Propagation: Parent PAUSED because sub-machine in '{superstate_log_name}' hit a breakpoint."); return self.get_current_state_name(), self.get_last_executed_actions_log()
+                if self.active_sub_simulator.simulation_halted_flag:
+                    self.simulation_halted_flag = True; self._log_action(f"Propagation: Parent HALTED due to sub-machine error in '{superstate_log_name}'."); return self.get_current_state_name(), self.get_last_executed_actions_log()
+                if self.active_sub_simulator.paused_on_breakpoint: 
+                    self.paused_on_breakpoint = True; self._log_action(f"Propagation: Parent PAUSED because sub-machine in '{superstate_log_name}' hit a breakpoint."); return self.get_current_state_name(), self.get_last_executed_actions_log()
+
                 sub_sm_instance = self.active_sub_simulator.sm
                 if sub_sm_instance and sub_sm_instance.current_state and sub_sm_instance.current_state.final:
-                    self._log_action(f"Sub-machine in '{superstate_log_name}' reached final state: '{sub_sm_instance.current_state.id}'.")
+                    self._log_action(f"Sub-machine in '{superstate_log_name}' reached final state: '{sub_sm_instance.current_state.id}'.");
                     if self.active_superstate_name: self._variables[f"{self.active_superstate_name}_sub_completed"] = True; self._log_action(f"Variable '{self.active_superstate_name}_sub_completed' set to True in parent FSM.")
             
             if self.simulation_halted_flag: return self.get_current_state_name(), self.get_last_executed_actions_log()
             if self.breakpoint_hit_flag: self.paused_on_breakpoint = True; self.breakpoint_hit_flag = False; self._log_action(f"Simulation PAUSED at breakpoint (hit during sub-machine step). Current state: {self.get_current_state_name()}"); return self.get_current_state_name(), self.get_last_executed_actions_log()
+
+            if event_name:
+                self._log_action(f"Sending event '{event_name}' to FSM (current level: {'parent' if self.active_sub_simulator else 'main'}).")
+                self.sm.send(event_name)
             
-            if event_name: self._log_action(f"Sending event '{event_name}' to FSM (current level: {'parent' if self.active_sub_simulator else 'main'})."); self.sm.send(event_name)
-            if self.breakpoint_hit_flag: self.paused_on_breakpoint = True; self.breakpoint_hit_flag = False; self._log_action(f"Simulation PAUSED at breakpoint (hit during/after event processing). Current state: {self.get_current_state_name()}")
+            if self.breakpoint_hit_flag:
+                self.paused_on_breakpoint = True; self.breakpoint_hit_flag = False; self._log_action(f"Simulation PAUSED at breakpoint (hit during/after event processing). Current state: {self.get_current_state_name()}")
+
         except FSMError as e_halt: 
             if self.simulation_halted_flag or "HALTED due to error" in str(e_halt): self._log_action(f"[SIMULATION HALTED internally] {e_halt}"); self.simulation_halted_flag = True
             else: self._log_action(f"FSM Logic Error during step: {e_halt}"); logger.error(f"{self.log_prefix}FSM Logic Error:", exc_info=True)
@@ -461,33 +481,50 @@ class StateMachinePoweredSimulator:
             elif event_name and hasattr(self.sm, event_name) and callable(getattr(self.sm, event_name)):  log_msg = f"AttributeError processing event '{event_name}': {e}. Internal setup/callback issue?"
             self._log_action(log_msg); logger.error(f"{self.log_prefix}AttributeError for '{event_name}': {e}", exc_info=True)
         except Exception as e: self._log_action(f"Unexpected error on event '{event_name}': {type(e).__name__} - {e}"); logger.error(f"{self.log_prefix}Event processing error:", exc_info=True)
+
         return self.get_current_state_name(), self.get_last_executed_actions_log()
 
     def add_state_breakpoint(self, state_name: str):
-        self.breakpoints["states"].add(state_name); self._log_action(f"Breakpoint ADDED for state entry: {state_name}")
+        self.breakpoints["states"].add(state_name)
+        self._log_action(f"Breakpoint ADDED for state entry: {state_name}")
+
     def remove_state_breakpoint(self, state_name: str):
-        if state_name in self.breakpoints["states"]: self.breakpoints["states"].remove(state_name); self._log_action(f"Breakpoint REMOVED for state entry: {state_name}")
+        if state_name in self.breakpoints["states"]:
+            self.breakpoints["states"].remove(state_name)
+            self._log_action(f"Breakpoint REMOVED for state entry: {state_name}")
+
     def continue_simulation(self) -> bool:
-        if self.paused_on_breakpoint: self._log_action("Continuing simulation from breakpoint..."); self.paused_on_breakpoint = False; self.breakpoint_hit_flag = False; return True
-        self._log_action("Continue called, but not paused at a breakpoint."); return False
+        if self.paused_on_breakpoint:
+            self._log_action("Continuing simulation from breakpoint...")
+            self.paused_on_breakpoint = False
+            self.breakpoint_hit_flag = False 
+            return True
+        self._log_action("Continue called, but not paused at a breakpoint.")
+        return False
+
     def get_current_state_name(self):
         if not self.sm: return "Uninitialized" if not self.parent_simulator else "EmptySubFSM"
         name = self.sm.current_state.id if self.sm and self.sm.current_state else "Unknown"
-        if self.active_sub_simulator and self.active_sub_simulator.sm: name += f" ({self.active_sub_simulator.get_current_state_name()})" 
+        if self.active_sub_simulator and self.active_sub_simulator.sm: 
+            name += f" ({self.active_sub_simulator.get_current_state_name()})" 
         return name
+
     def get_current_leaf_state_name(self):
-        if self.active_sub_simulator and self.active_sub_simulator.sm : return self.active_sub_simulator.get_current_leaf_state_name()
+        if self.active_sub_simulator and self.active_sub_simulator.sm :
+            return self.active_sub_simulator.get_current_leaf_state_name()
         elif self.sm and self.sm.current_state: return self.sm.current_state.id
         return "UnknownLeaf"
+
     def get_variables(self): return self._variables.copy()
-    def get_last_executed_actions_log(self): log_snapshot = self._action_log[:]; self._action_log = []; return log_snapshot
+    def get_last_executed_actions_log(self):
+        log_snapshot = self._action_log[:]
+        self._action_log = [] 
+        return log_snapshot
+
     def get_possible_events_from_current_state(self) -> list[str]:
         if not self.sm or not self.sm.current_state: return []
         possible_events_set = set()
-        current_sm_to_query = self.sm 
-        if self.active_sub_simulator and self.active_sub_simulator.sm: current_sm_to_query = self.active_sub_simulator.sm
+        current_sm_to_query = self.active_sub_simulator.sm if self.active_sub_simulator and self.active_sub_simulator.sm else self.sm
         if current_sm_to_query and current_sm_to_query.current_state: possible_events_set.update(str(evt.id) for evt in current_sm_to_query.allowed_events if not evt.id.startswith("__internal_transition"))
         if self.active_sub_simulator and self.sm and self.sm.current_state: possible_events_set.update(str(evt.id) for evt in self.sm.allowed_events if not evt.id.startswith("__internal_transition"))
         return sorted(list(filter(None, possible_events_set))) 
-
-FSMSimulator = StateMachinePoweredSimulator

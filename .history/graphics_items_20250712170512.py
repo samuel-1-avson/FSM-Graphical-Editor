@@ -688,32 +688,37 @@ class GraphicsTransitionItem(QGraphicsPathItem):
             ry = item_rect.height() / 2.0
             if rx == 0 or ry == 0: return center
 
-            # Translate line so ellipse is at origin
-            line_start_rel = line.p1() - center
-            line_end_rel = line.p2() - center
-            line_vec = line_end_rel - line_start_rel
-            
-            # Solve quadratic equation for line-ellipse intersection
-            a = (line_vec.x()**2 / rx**2) + (line_vec.y()**2 / ry**2)
-            b = 2 * ( (line_start_rel.x() * line_vec.x() / rx**2) + (line_start_rel.y() * line_vec.y() / ry**2) )
-            c = (line_start_rel.x()**2 / rx**2) + (line_start_rel.y()**2 / ry**2) - 1.0
-            
-            delta = b**2 - 4*a*c
-            if delta < 0: return center # No intersection
+            line_vec = line.p2() - line.p1()
+            if line_vec.manhattanLength() == 0: return center
 
-            # Find the two potential intersection times 't'
-            sqrt_delta = math.sqrt(delta)
-            t1 = (-b + sqrt_delta) / (2*a)
-            t2 = (-b - sqrt_delta) / (2*a)
+            k = line.p1()
+            if k != center: # If line does not start at center, translate it to be relative to the center
+                line_start_rel = line.p1() - center
+                line_end_rel = line.p2() - center
+                dx = line_end_rel.x() - line_start_rel.x()
+                dy = line_end_rel.y() - line_start_rel.y()
+                a = (dx**2 / rx**2) + (dy**2 / ry**2)
+                b = 2 * ( (line_start_rel.x() * dx / rx**2) + (line_start_rel.y() * dy / ry**2) )
+                c = (line_start_rel.x()**2 / rx**2) + (line_start_rel.y()**2 / ry**2) - 1.0
+                
+                delta = b**2 - 4*a*c
+                if delta < 0: return center # No intersection
+                
+                t1 = (-b + math.sqrt(delta)) / (2*a)
+                t2 = (-b - math.sqrt(delta)) / (2*a)
 
-            # We are interested in the first intersection point along the line's direction.
-            # We check for the smallest positive 't' value.
-            if 0 <= t2 <= 1:
-                return line.p1() + t2 * line_vec
-            if 0 <= t1 <= 1:
-                return line.p1() + t1 * line_vec
+                # Find the intersection point that lies on the line segment
+                if 0 <= t1 <= 1: return line.p1() + t1 * line_vec
+                if 0 <= t2 <= 1: return line.p1() + t2 * line_vec
+                
+            else: # Line starts at center
+                line_vec = line.p2() - center
+                a = (line_vec.x()**2 / rx**2) + (line_vec.y()**2 / ry**2)
+                if a < 1e-9: return center
+                t = 1.0 / math.sqrt(a)
+                return center + t * line_vec
             
-            return center # Fallback if no intersection is on the segment
+            return center # Fallback
 
         rect_path = QPainterPath(); 
         if isinstance(item, GraphicsStateItem) and item.shape_type == "rectangle":

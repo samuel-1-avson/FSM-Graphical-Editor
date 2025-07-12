@@ -562,7 +562,6 @@ class ActionHandler(QObject):
     def on_manage_fsm_templates(self):
         QMessageBox.information(self.mw, "Manage Templates", "Template management (edit/delete) will be implemented here.\nFor now, please manually edit the 'custom_code_snippets.json' file in your app config directory.")
 
-    @pyqtSlot()
     @pyqtSlot(bool)
     def on_new_file(self, silent=False):
         """Creates a new, empty editor tab."""

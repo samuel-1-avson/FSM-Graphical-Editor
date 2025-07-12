@@ -16,7 +16,7 @@ if __name__ == '__main__' and __package__ is None:
 
 import json
 import socket
-import html # <--- FIX: ADDED IMPORT
+
 from PyQt5.QtCore import (
     Qt, QTimer, QPoint, QUrl, pyqtSignal, pyqtSlot, QSize, QIODevice, QFile, QSaveFile
 )
@@ -665,13 +665,19 @@ class MainWindow(QMainWindow):
         editor.undo_stack.indexChanged.connect(self._request_live_preview_update)
              
     def add_new_editor_tab(self) -> EditorWidget:
+        """Creates a new, empty editor tab, connects its signals, and makes it active."""
         new_editor = EditorWidget(self, self.custom_snippet_manager)
+        
         new_editor.scene.settings_manager = self.settings_manager
         new_editor.scene.custom_snippet_manager = self.custom_snippet_manager
+        
         index = self.tab_widget.addTab(new_editor, new_editor.get_tab_title())
         self.tab_widget.setCurrentIndex(index)
+        new_editor.view.setFocus()
         self._connect_editor_signals(new_editor)
+        self._update_window_title()
         self._update_central_widget()
+        QTimer.singleShot(10, self._update_git_menu_actions_state)
         return new_editor
 
 
@@ -1551,19 +1557,13 @@ Please explain what this means in the context of an FSM and suggest how I might 
         editor = self.current_editor()
         py_sim_active = editor.py_sim_active if editor else False
         
-        # This action is now for *initializing* the simulation
-        sim_can_be_initialized = not py_sim_active and not is_matlab_op_running
+        sim_can_start = not py_sim_active and not is_matlab_op_running
+        sim_can_be_controlled = py_sim_active and not is_matlab_op_running
         
-        if hasattr(self, 'start_py_sim_action'): self.start_py_sim_action.setEnabled(sim_can_be_initialized)
-        
-        # Stop and Reset are only available once a simulation is active
-        sim_can_be_stopped_or_reset = py_sim_active and not is_matlab_op_running
-        if hasattr(self, 'stop_py_sim_action'): self.stop_py_sim_action.setEnabled(sim_can_be_stopped_or_reset)
-        if hasattr(self, 'reset_py_sim_action'): self.reset_py_sim_action.setEnabled(sim_can_be_stopped_or_reset)
-        
-        # Delegate internal button states to the manager
-        if hasattr(self, 'py_sim_ui_manager') and self.py_sim_ui_manager:
-            self.py_sim_ui_manager._update_internal_controls_enabled_state()
+        if hasattr(self, 'start_py_sim_action'): self.start_py_sim_action.setEnabled(sim_can_start)
+        if hasattr(self, 'stop_py_sim_action'): self.stop_py_sim_action.setEnabled(sim_can_be_controlled)
+        if hasattr(self, 'reset_py_sim_action'): self.reset_py_sim_action.setEnabled(sim_can_be_controlled)
+        if hasattr(self, 'py_sim_ui_manager') and self.py_sim_ui_manager: self.py_sim_ui_manager._update_internal_controls_enabled_state()
 
     @pyqtSlot()
     def _update_zoom_to_selection_action_enable_state(self):

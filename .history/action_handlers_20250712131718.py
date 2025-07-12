@@ -5,10 +5,10 @@ import logging
 from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QPushButton, QHBoxLayout,
     QStyle, QDialogButtonBox, QVBoxLayout, QTextEdit,
-    QGraphicsScene, QComboBox, QApplication
+    QGraphicsScene, QComboBox
 )
 from PyQt5.QtCore import QObject, pyqtSlot, QDir, QUrl, QPointF, Qt, QRectF, QSizeF, QDateTime, QFile, QIODevice
-from PyQt5.QtGui import QDesktopServices, QImage, QPainter, QPixmap
+from PyQt5.QtGui import QDesktopServices, QImage, QPainter, QPixmap, QApplication
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtCore import QTimer
 from .c_code_generator import generate_c_code_files, generate_c_testbench_content, sanitize_c_identifier
@@ -562,7 +562,6 @@ class ActionHandler(QObject):
     def on_manage_fsm_templates(self):
         QMessageBox.information(self.mw, "Manage Templates", "Template management (edit/delete) will be implemented here.\nFor now, please manually edit the 'custom_code_snippets.json' file in your app config directory.")
 
-    @pyqtSlot()
     @pyqtSlot(bool)
     def on_new_file(self, silent=False):
         """Creates a new, empty editor tab."""

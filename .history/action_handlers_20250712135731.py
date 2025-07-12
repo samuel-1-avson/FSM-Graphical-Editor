@@ -5,12 +5,13 @@ import logging
 from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QPushButton, QHBoxLayout,
     QStyle, QDialogButtonBox, QVBoxLayout, QTextEdit,
-    QGraphicsScene, QComboBox, QApplication
+    QGraphicsScene, QComboBox  # <--- NEW: Import QComboBox
 )
-from PyQt5.QtCore import QObject, pyqtSlot, QDir, QUrl, QPointF, Qt, QRectF, QSizeF, QDateTime, QFile, QIODevice
+from PyQt5.QtCore import QObject, pyqtSlot, QDir, QUrl, QPointF, Qt, QRectF, QSizeF, QDateTime
 from PyQt5.QtGui import QDesktopServices, QImage, QPainter, QPixmap
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtCore import QTimer
+# --- NEW: Add the new generator function to imports ---
 from .c_code_generator import generate_c_code_files, generate_c_testbench_content, sanitize_c_identifier
 # Import pygraphviz optionally
 try:
@@ -23,6 +24,7 @@ except ImportError:
 from .utils import get_standard_icon, _get_bundled_file_path
 from .config import FILE_FILTER, FILE_EXTENSION, DEFAULT_EXECUTION_ENV
 from .undo_commands import MoveItemsCommand
+from .c_code_generator import generate_c_code_files
 from .python_code_generator import generate_python_fsm_file
 from .export_utils import generate_plantuml_text, generate_mermaid_text
 from .hdl_code_generator import generate_vhdl_content, sanitize_vhdl_identifier
@@ -58,12 +60,6 @@ class ActionHandler(QObject):
         self.mw.save_selection_as_template_action.triggered.connect(self.on_save_selection_as_template) # New
         self.mw.manage_snippets_action.triggered.connect(self.on_manage_snippets)
 
-        # --- LOG ACTIONS (NEW) ---
-        if hasattr(self.mw, 'log_save_action'):
-            self.mw.log_save_action.triggered.connect(self.on_save_log)
-        if hasattr(self.mw, 'log_copy_action'):
-            self.mw.log_copy_action.triggered.connect(self.on_copy_log)
-
         # View Actions
         self.mw.show_grid_action.triggered.connect(lambda checked: self.on_toggle_view_setting("view_show_grid", checked))
         self.mw.snap_to_grid_action.triggered.connect(lambda checked: self.on_toggle_view_setting("view_snap_to_grid", checked))
@@ -83,8 +79,12 @@ class ActionHandler(QObject):
         self.mw.distribute_h_action.triggered.connect(lambda: self.on_distribute_items("horizontal"))
         self.mw.distribute_v_action.triggered.connect(lambda: self.on_distribute_items("vertical"))
         
+        
+        # --- NEW CONNECTION ---
         if hasattr(self.mw, 'export_c_testbench_action'):
             self.mw.export_c_testbench_action.triggered.connect(self.on_export_c_testbench)
+        # --- END NEW ---
+        
         
         # --- Git Actions ---
         if hasattr(self.mw, 'git_commit_action'):
@@ -110,47 +110,7 @@ class ActionHandler(QObject):
             return None
         return editor.file_path
 
-    # --- START: NEW LOG ACTION HANDLERS ---
-    @pyqtSlot()
-    def on_save_log(self):
-        """Saves the entire log history to a text file."""
-        if not hasattr(self.mw, 'ui_log_handler'):
-            QMessageBox.warning(self.mw, "Error", "Log handler not available.")
-            return
 
-        timestamp = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
-        default_filename = f"fsm_designer_log_{timestamp}.log"
-        start_dir = QDir.homePath()
-
-        file_path, _ = QFileDialog.getSaveFileName(self.mw, "Save Log File",
-                                                   os.path.join(start_dir, default_filename),
-                                                   "Log Files (*.log);;Text Files (*.txt);;All Files (*)")
-        if file_path:
-            try:
-                log_content = self.mw.ui_log_handler.get_full_log_text(plain=True)
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(log_content)
-                self.mw.log_message("INFO", f"Log saved successfully to: {file_path}")
-            except Exception as e:
-                logger.error(f"Error saving log file: {e}", exc_info=True)
-                QMessageBox.critical(self.mw, "File Save Error", f"Could not save log file: {e}")
-
-    @pyqtSlot()
-    def on_copy_log(self):
-        """Copies the entire log history to the clipboard."""
-        if not hasattr(self.mw, 'ui_log_handler'):
-            QMessageBox.warning(self.mw, "Error", "Log handler not available.")
-            return
-
-        try:
-            log_content = self.mw.ui_log_handler.get_full_log_text(plain=True)
-            clipboard = QApplication.clipboard()
-            clipboard.setText(log_content)
-            self.mw.log_message("INFO", "Log content copied to clipboard.")
-        except Exception as e:
-            logger.error(f"Error copying log content: {e}", exc_info=True)
-            QMessageBox.critical(self.mw, "Copy Error", f"Could not copy log content: {e}")
-    # --- END: NEW LOG ACTION HANDLERS ---
 
     # --- NEW: Generic Handler for Plugins ---
     @pyqtSlot(BsmExporterPlugin)
@@ -185,6 +145,7 @@ class ActionHandler(QObject):
             logger.error(f"Error during plugin export for '{plugin.name}': {e}", exc_info=True)
 
 
+    # --- START: NEW HANDLER METHOD ---
     @pyqtSlot()
     def on_export_c_testbench(self):
         """Handler for exporting a C testbench file for the FSM."""
@@ -227,6 +188,9 @@ class ActionHandler(QObject):
         except Exception as e:
             QMessageBox.critical(self.mw, "Testbench Generation Error", f"Failed to generate testbench: {e}")
             logger.error(f"Error generating C testbench: {e}", exc_info=True)
+
+    # --- END: NEW HANDLER METHOD ---
+
 
 
     @pyqtSlot()
@@ -325,6 +289,7 @@ class ActionHandler(QObject):
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         dialog.exec_()
+    # --- END GIT ACTION HANDLERS ---
         
     def add_to_recent_files(self, file_path):
         """Adds a file path to the recent files list in settings."""
@@ -562,7 +527,6 @@ class ActionHandler(QObject):
     def on_manage_fsm_templates(self):
         QMessageBox.information(self.mw, "Manage Templates", "Template management (edit/delete) will be implemented here.\nFor now, please manually edit the 'custom_code_snippets.json' file in your app config directory.")
 
-    @pyqtSlot()
     @pyqtSlot(bool)
     def on_new_file(self, silent=False):
         """Creates a new, empty editor tab."""
@@ -680,27 +644,36 @@ class ActionHandler(QObject):
         output_dir = QFileDialog.getExistingDirectory(self.mw, "Select Output Directory for C/C++ Code", os.path.dirname(editor.file_path or QDir.homePath()))
         
         if output_dir:
+            # --- START: MODIFIED SECTION ---
+            # Replace QInputDialog with a custom QDialog for more options.
             dialog = QDialog(self.mw)
             dialog.setWindowTitle("Generate C/C++ Code")
             layout = QFormLayout(dialog)
             layout.setSpacing(10)
 
+            # 1. Base Filename Input (as before)
             filename_base_edit = QLineEdit(default_filename_base)
             layout.addRow("Base Filename:", filename_base_edit)
 
+            # 2. NEW: Platform Selector ComboBox
             platform_combo = QComboBox()
+            # This list should ideally be defined in a config or the generator module itself
             TARGET_PLATFORMS = ["Generic C (Header/Source Pair)", "Arduino (.ino Sketch)", "STM32 HAL (Snippet)"]
             platform_combo.addItems(TARGET_PLATFORMS)
             layout.addRow("Target Platform:", platform_combo)
             
+            # 3. Standard Dialog Buttons
             button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
             button_box.accepted.connect(dialog.accept)
             button_box.rejected.connect(dialog.reject)
             layout.addRow(button_box)
 
             if dialog.exec() == QDialog.Accepted:
+                # Retrieve values from the dialog widgets
                 filename_base = filename_base_edit.text().strip()
-                selected_platform = platform_combo.currentText() 
+                selected_platform = platform_combo.currentText() # Get the user's platform choice
+
+                # --- END: MODIFIED SECTION ---
 
                 if not filename_base:
                     QMessageBox.warning(self.mw, "Invalid Filename", "Base filename cannot be empty.")
@@ -714,6 +687,8 @@ class ActionHandler(QObject):
                 diagram_data = editor.scene.get_diagram_data()
                 try:
                     logger.info(f"Generating C code for platform '{selected_platform}' with base name '{filename_base}'")
+                    # --- MODIFIED: Pass the selected platform to the generator ---
+                    # This anticipates the change we will make in c_code_generator.py in Step 2
                     c_file_path, h_file_path = generate_c_code_files(
                         diagram_data, output_dir, filename_base, target_platform=selected_platform
                     )
@@ -1137,7 +1112,7 @@ class ActionHandler(QObject):
         guide_path = _get_bundled_file_path("QUICK_START.html", resource_prefix="docs")
         if guide_path:
             if not QDesktopServices.openUrl(QUrl.fromLocalFile(guide_path)): QMessageBox.warning(self.mw, "Could Not Open Guide", f"Failed to open the Quick Start Guide.\nPath: {guide_path}"); logger.warning("Failed to open Quick Start Guide from: %s", guide_path)
-        else: QMessageBox.information(self, "Guide Not Found", "The Quick Start Guide (QUICK_START.html) was not found.")
+        else: QMessageBox.information(self.mw, "Guide Not Found", "The Quick Start Guide (QUICK_START.html) was not found.")
 
     @pyqtSlot()
     def on_about(self):

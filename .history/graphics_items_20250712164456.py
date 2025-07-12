@@ -35,13 +35,12 @@ from .utils import get_standard_icon
 import logging
 logger = logging.getLogger(__name__)
 
+# --- FIX: Pulse item must inherit from QObject for animations ---
 class TransitionPulseItem(QObject, QGraphicsEllipseItem):
     def __init__(self, parent_transition):
-        # --- FIX: Explicitly call base class constructors to avoid TypeError ---
-        # The original `super().__init__(-5, ...)` was ambiguous and passed integer arguments
-        # to QObject's constructor, which expects a QObject parent, causing the crash.
         QObject.__init__(self)
-        QGraphicsEllipseItem.__init__(self, parent=None)
+        # --- FIX: Call constructor without arguments and set rect separately to avoid overload ambiguity ---
+        QGraphicsEllipseItem.__init__(self, parent=None) 
         self.setRect(-5, -5, 10, 10)
         # --- END FIX ---
         
@@ -285,7 +284,8 @@ class GraphicsStateItem(QGraphicsRectItem):
 
     def set_problematic_style(self, is_problematic: bool, problem_description: str = ""):
         if self._is_problematic == is_problematic and self._problem_tooltip_text == problem_description: return
-        self._is_problematic = is_problematic; self._problem_tooltip_text = problem_description if is_problematic else ""
+        self._is_problematic = is_problematic
+        self._problem_tooltip_text = problem_description if is_problematic else ""
         tooltip_to_set = self._problem_tooltip_text or self.description or self.text_label
         self.setToolTip(tooltip_to_set); self.update()
 
@@ -299,6 +299,7 @@ class GraphicsStateItem(QGraphicsRectItem):
         if self.text_label != name and name is not None: self.text_label = name; changed = True
         if self.is_initial != is_initial: self.is_initial = is_initial; changed = True
         if self.is_final != is_final: self.is_final = is_final; changed = True
+        
         action_language = props.get('action_language', DEFAULT_EXECUTION_ENV)
         entry, during, exit_a, desc = props.get('entry', props.get('entry_action', "")), props.get('during', props.get('during_action', "")), props.get('exit_a', props.get('exit_action', "")), props.get('desc', props.get('description', ""))
         if self.action_language != action_language: self.action_language = action_language; changed = True
@@ -306,16 +307,19 @@ class GraphicsStateItem(QGraphicsRectItem):
         if self.during_action != during: self.during_action = during; changed = True
         if self.exit_action != exit_a: self.exit_action = exit_a; changed = True
         if self.description != desc: self.description = desc; self.setToolTip(self._problem_tooltip_text or self.description or self.text_label); changed = True
+        
         is_superstate_prop, sub_fsm_data_prop = props.get('is_superstate_prop', props.get('is_superstate')), props.get('sub_fsm_data_prop', props.get('sub_fsm_data'))
         if is_superstate_prop is not None and self.is_superstate != is_superstate_prop: self.is_superstate = is_superstate_prop; changed = True
         if sub_fsm_data_prop is not None and self.sub_fsm_data != sub_fsm_data_prop: self.sub_fsm_data = sub_fsm_data_prop; changed = True
+            
         settings = QApplication.instance().settings_manager if QApplication.instance() and hasattr(QApplication.instance(), 'settings_manager') else None
         default_color_hex = settings.get("item_default_state_color") if settings else COLOR_ITEM_STATE_DEFAULT_BG
         color_hex = props.get('color_hex', props.get('color'))
         new_base_color = QColor(color_hex) if color_hex and QColor(color_hex).isValid() else QColor(default_color_hex)
         if self.base_color != new_base_color: self.base_color = new_base_color; self.border_color = new_base_color.darker(120); self.setBrush(self.base_color); changed = True
-        shape_type_prop = props.get('shape_type_prop', props.get('shape_type'));
+        shape_type_prop = props.get('shape_type_prop', props.get('shape_type'))
         if shape_type_prop is not None and self.shape_type != shape_type_prop: self.shape_type = shape_type_prop; changed = True
+
         font_family_prop, font_size_prop, font_bold_prop, font_italic_prop = props.get('font_family_prop', props.get('font_family')), props.get('font_size_prop', props.get('font_size')), props.get('font_bold_prop', props.get('font_bold')), props.get('font_italic_prop', props.get('font_italic'))
         new_font = QFont(self._font)
         if font_family_prop is not None: new_font.setFamily(font_family_prop)
@@ -323,14 +327,18 @@ class GraphicsStateItem(QGraphicsRectItem):
         if font_bold_prop is not None: new_font.setBold(font_bold_prop)
         if font_italic_prop is not None: new_font.setItalic(font_italic_prop)
         if self._font != new_font: self._font = new_font; changed = True
+            
         border_width_prop = props.get('border_width_prop', props.get('border_width'))
         if border_width_prop is not None and self.custom_border_width != border_width_prop: self.custom_border_width = border_width_prop; changed = True
+        
         border_style_str_prop = props.get('border_style_str_prop', props.get('border_style_str'))
         if border_style_str_prop is not None:
             new_qt_style = SettingsManager.STRING_TO_QT_PEN_STYLE.get(border_style_str_prop, Qt.SolidLine)
             if 'border_style_qt' not in self.__dict__ or self.border_style_qt != new_qt_style: self.border_style_qt = new_qt_style; changed = True
+        
         icon_path_prop = props.get('icon_path_prop', props.get('icon_path'))
         if icon_path_prop != self.icon_path: self.icon_path = icon_path_prop; self._load_custom_icon(); changed = True
+        
         if changed: self.original_pen = QPen(self.border_color, self.custom_border_width, self.border_style_qt); self.prepareGeometryChange(); self.update()
 
     def get_data(self):
@@ -359,11 +367,9 @@ class GraphicsStateItem(QGraphicsRectItem):
         if self._inline_edit_aborted: self.update(); return
         if not new_text: QMessageBox.warning(None, "Invalid Name", "State name cannot be empty."); self.update(); return
         if new_text != old_text and self.scene() and hasattr(self.scene(), 'get_state_by_name'):
-            if (existing := self.scene().get_state_by_name(new_text)) and existing != self: QMessageBox.warning(None, "Duplicate Name", f"A state named '{new_text}' already exists. Edit cancelled."); self.update(); return
+            if existing := self.scene().get_state_by_name(new_text) and existing != self: QMessageBox.warning(None, "Duplicate Name", f"A state named '{new_text}' already exists. Edit cancelled."); self.update(); return
             from .undo_commands import EditItemPropertiesCommand
             old_props, self.text_label, new_props = self.get_data(), new_text, self.get_data()
-            self.text_label = old_props['name'] # Revert temporarily to get correct data
-            new_props = self.get_data(); new_props['name'] = new_text; self.text_label = new_text
             cmd = EditItemPropertiesCommand(self, old_props, new_props, "Rename State"); self.scene().undo_stack.push(cmd); self.scene().set_dirty(True)
             if hasattr(self.signals, 'textChangedViaInlineEdit'): self.signals.textChangedViaInlineEdit.emit(old_text, new_text)
             if hasattr(self.scene(), '_update_transitions_for_renamed_state'): self.scene()._update_transitions_for_renamed_state(old_text, new_text)
@@ -682,38 +688,14 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         item_rect = item.sceneBoundingRect(); 
         
         if isinstance(item, GraphicsStateItem) and item.shape_type == "ellipse":
-            # --- IMPROVEMENT: Robust geometric calculation for ellipse intersection ---
-            center = item_rect.center()
-            rx = item_rect.width() / 2.0
-            ry = item_rect.height() / 2.0
-            if rx == 0 or ry == 0: return center
+            ellipse_path = QPainterPath()
+            ellipse_path.addEllipse(item_rect)
+            temp_path = QPainterPath(line.p1()); temp_path.lineTo(line.p2())
+            intersect_path = ellipse_path.intersected(temp_path)
+            if not intersect_path.isEmpty() and intersect_path.elementCount() > 0:
+                return QPointF(intersect_path.elementAt(0).x, intersect_path.elementAt(0).y)
+            return item_rect.center() 
 
-            # Translate line so ellipse is at origin
-            line_start_rel = line.p1() - center
-            line_end_rel = line.p2() - center
-            line_vec = line_end_rel - line_start_rel
-            
-            # Solve quadratic equation for line-ellipse intersection
-            a = (line_vec.x()**2 / rx**2) + (line_vec.y()**2 / ry**2)
-            b = 2 * ( (line_start_rel.x() * line_vec.x() / rx**2) + (line_start_rel.y() * line_vec.y() / ry**2) )
-            c = (line_start_rel.x()**2 / rx**2) + (line_start_rel.y()**2 / ry**2) - 1.0
-            
-            delta = b**2 - 4*a*c
-            if delta < 0: return center # No intersection
-
-            # Find the two potential intersection times 't'
-            sqrt_delta = math.sqrt(delta)
-            t1 = (-b + sqrt_delta) / (2*a)
-            t2 = (-b - sqrt_delta) / (2*a)
-
-            # We are interested in the first intersection point along the line's direction.
-            # We check for the smallest positive 't' value.
-            if 0 <= t2 <= 1:
-                return line.p1() + t2 * line_vec
-            if 0 <= t1 <= 1:
-                return line.p1() + t1 * line_vec
-            
-            return center # Fallback if no intersection is on the segment
 
         rect_path = QPainterPath(); 
         if isinstance(item, GraphicsStateItem) and item.shape_type == "rectangle":

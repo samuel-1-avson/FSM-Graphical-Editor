@@ -35,13 +35,12 @@ from .utils import get_standard_icon
 import logging
 logger = logging.getLogger(__name__)
 
+# --- FIX: Pulse item must inherit from QObject for animations ---
 class TransitionPulseItem(QObject, QGraphicsEllipseItem):
     def __init__(self, parent_transition):
-        # --- FIX: Explicitly call base class constructors to avoid TypeError ---
-        # The original `super().__init__(-5, ...)` was ambiguous and passed integer arguments
-        # to QObject's constructor, which expects a QObject parent, causing the crash.
         QObject.__init__(self)
-        QGraphicsEllipseItem.__init__(self, parent=None)
+        # --- FIX: Call constructor without arguments and set rect separately to avoid overload ambiguity ---
+        QGraphicsEllipseItem.__init__(self, parent=None) 
         self.setRect(-5, -5, 10, 10)
         # --- END FIX ---
         
@@ -682,38 +681,14 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         item_rect = item.sceneBoundingRect(); 
         
         if isinstance(item, GraphicsStateItem) and item.shape_type == "ellipse":
-            # --- IMPROVEMENT: Robust geometric calculation for ellipse intersection ---
-            center = item_rect.center()
-            rx = item_rect.width() / 2.0
-            ry = item_rect.height() / 2.0
-            if rx == 0 or ry == 0: return center
+            ellipse_path = QPainterPath()
+            ellipse_path.addEllipse(item_rect)
+            temp_path = QPainterPath(line.p1()); temp_path.lineTo(line.p2())
+            intersect_path = ellipse_path.intersected(temp_path)
+            if not intersect_path.isEmpty() and intersect_path.elementCount() > 0:
+                return QPointF(intersect_path.elementAt(0).x, intersect_path.elementAt(0).y)
+            return item_rect.center() 
 
-            # Translate line so ellipse is at origin
-            line_start_rel = line.p1() - center
-            line_end_rel = line.p2() - center
-            line_vec = line_end_rel - line_start_rel
-            
-            # Solve quadratic equation for line-ellipse intersection
-            a = (line_vec.x()**2 / rx**2) + (line_vec.y()**2 / ry**2)
-            b = 2 * ( (line_start_rel.x() * line_vec.x() / rx**2) + (line_start_rel.y() * line_vec.y() / ry**2) )
-            c = (line_start_rel.x()**2 / rx**2) + (line_start_rel.y()**2 / ry**2) - 1.0
-            
-            delta = b**2 - 4*a*c
-            if delta < 0: return center # No intersection
-
-            # Find the two potential intersection times 't'
-            sqrt_delta = math.sqrt(delta)
-            t1 = (-b + sqrt_delta) / (2*a)
-            t2 = (-b - sqrt_delta) / (2*a)
-
-            # We are interested in the first intersection point along the line's direction.
-            # We check for the smallest positive 't' value.
-            if 0 <= t2 <= 1:
-                return line.p1() + t2 * line_vec
-            if 0 <= t1 <= 1:
-                return line.p1() + t1 * line_vec
-            
-            return center # Fallback if no intersection is on the segment
 
         rect_path = QPainterPath(); 
         if isinstance(item, GraphicsStateItem) and item.shape_type == "rectangle":

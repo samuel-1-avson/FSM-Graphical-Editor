@@ -16,7 +16,7 @@ if __name__ == '__main__' and __package__ is None:
 
 import json
 import socket
-import html # <--- FIX: ADDED IMPORT
+
 from PyQt5.QtCore import (
     Qt, QTimer, QPoint, QUrl, pyqtSignal, pyqtSlot, QSize, QIODevice, QFile, QSaveFile
 )

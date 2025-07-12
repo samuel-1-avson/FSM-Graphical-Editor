@@ -12,8 +12,6 @@ from .config import (
 )
 from PyQt5.QtGui import QColor, QPalette
 
-logger = logging.getLogger(__name__)
-
 class QtLogSignal(QObject):
     log_received = pyqtSignal(str)
     clear_logs_signal = pyqtSignal()

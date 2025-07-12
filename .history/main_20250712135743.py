@@ -2,7 +2,7 @@
 
 import sys
 import os
-import logging
+
 # --- BEGIN SYS.PATH MODIFICATION BLOCK ---
 # This ensures the application can be run directly as a script
 if __name__ == '__main__' and __package__ is None:
@@ -15,8 +15,9 @@ if __name__ == '__main__' and __package__ is None:
 # --- END SYS.PATH MODIFICATION BLOCK ---
 
 import json
+import logging
 import socket
-import html # <--- FIX: ADDED IMPORT
+
 from PyQt5.QtCore import (
     Qt, QTimer, QPoint, QUrl, pyqtSignal, pyqtSlot, QSize, QIODevice, QFile, QSaveFile
 )
@@ -26,7 +27,7 @@ from PyQt5.QtGui import (
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QDockWidget, QAction,
     QToolBar, QVBoxLayout, QWidget, QLabel,
-    QStatusBar, QTextEdit, QFileDialog, # Added QFileDialog
+    QStatusBar, QTextEdit,
     QPushButton, QMenu, QMessageBox,
     QInputDialog, QLineEdit, QColorDialog, QDialog, QFormLayout,
     QSpinBox, QComboBox, QDoubleSpinBox,
@@ -73,7 +74,7 @@ from .export_utils import generate_plantuml_text, generate_mermaid_text
 
 
 try:
-    from .logging_setup import setup_global_logging, QTextEditHandler
+    from .logging_setup import setup_global_logging
 except ImportError:
     print("CRITICAL: logging_setup.py not found (relative import failed). Logging will be basic.")
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
@@ -107,6 +108,7 @@ class MainWindow(QMainWindow):
     # --- REFACTORED / NEW METHODS FOR PROPERTIES DOCK ---
 
     def _get_property_schema_for_item(self, item):
+        """Returns a schema describing which properties to show for a given item type."""
         item_type = type(item)
         if item_type is GraphicsStateItem:
             return {
@@ -147,6 +149,7 @@ class MainWindow(QMainWindow):
         editor = self.current_editor()
         selected_items = editor.scene.selectedItems() if editor else []
         
+        # --- DYNAMIC DOCK TITLE ---
         if len(selected_items) == 1:
             item = selected_items[0]
             item_name = "Item"
@@ -159,6 +162,7 @@ class MainWindow(QMainWindow):
         else:
             self.properties_dock.setWindowTitle("Properties")
 
+        # --- MODIFIED: Clear old content ---
         while self.properties_editor_layout.count():
             child_item = self.properties_editor_layout.takeAt(0)
             if widget := child_item.widget():
@@ -230,9 +234,11 @@ class MainWindow(QMainWindow):
                 else:
                     self.properties_placeholder_label.setText(f"<i>Editing: {type(self._current_edited_item_in_dock).__name__}.<br>Use 'Advanced Edit...' for details.</i>")
         
+        # --- NEW: Handle multi-selection ---
         elif len(selected_items) > 1:
             show_multi_select_editor = True
             
+            # Add align/distribute actions directly to the dock
             align_distribute_label = QLabel("<b>Align & Distribute</b>")
             self.properties_multi_layout.addWidget(align_distribute_label)
             
@@ -296,7 +302,7 @@ class MainWindow(QMainWindow):
             if new_color.isValid() and new_color != initial_color:
                 self._update_dock_color_button_style(color_button, new_color)
                 color_button.setProperty("currentColorHex", new_color.name())
-                self._on_dock_property_changed_mw()  
+                self._on_dock_property_changed_mw() 
 
 
 
@@ -397,11 +403,16 @@ class MainWindow(QMainWindow):
         self.log_message("INFO", "Properties in dock reverted to selection state.")
 
     def __init__(self):
-        super().__init__()
         
+        # ... (at the top of __init__)
         self.plugin_manager = PluginManager()
         self.animation_manager = AnimationManager(self)
         
+        super().__init__()
+        
+        # --- CORRECTED INITIALIZATION ORDER ---
+
+        # 1. Core non-UI managers and settings
         if not hasattr(QApplication.instance(), 'settings_manager'):
              QApplication.instance().settings_manager = SettingsManager(app_name=APP_NAME)
         self.settings_manager = QApplication.instance().settings_manager
@@ -419,24 +430,31 @@ class MainWindow(QMainWindow):
         self._current_edited_item_in_dock = None
         self._current_edited_item_original_props_in_dock = {}
 
+        # 2. Central UI setup
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.setMovable(True)
         self.tab_widget.setDocumentMode(True)
         
         self.ui_manager = UIManager(self)
-        self.ui_manager.setup_ui()
+        self.ui_manager.setup_ui() # CRITICAL: This creates all menus, docks, and toolbars
 
+        # --- NEW: Set main window size ---
         self.resize(1600, 1000)
         self.setMinimumSize(1280, 800)
 
+        # --- NEW: Welcome Page Connections ---
         self.welcome_widget = WelcomeWidget(self)
-        self.welcome_widget.newFileRequested.connect(self.action_handler.on_new_file)
-        self.welcome_widget.openFileRequested.connect(self.action_handler.on_open_file)
-        self.welcome_widget.openRecentRequested.connect(self._on_open_recent_from_welcome)
-        self.welcome_widget.showGuideRequested.connect(self.action_handler.on_show_quick_start)
-        self.welcome_widget.showExamplesRequested.connect(self._browse_examples)
+        if hasattr(self, 'welcome_widget') and isinstance(self.welcome_widget, WelcomeWidget):
+            # FIX: Use lambda to ensure correct slot signature matching
+            self.welcome_widget.newFileRequested.connect(lambda: self.action_handler.on_new_file())
+            self.welcome_widget.openFileRequested.connect(lambda: self.action_handler.on_open_file())
+            self.welcome_widget.openRecentRequested.connect(self._on_open_recent_from_welcome)
+            self.welcome_widget.showGuideRequested.connect(lambda: self.action_handler.on_show_quick_start())
+            self.welcome_widget.showExamplesRequested.connect(self._browse_examples)
 
+
+        # 3. Managers that depend on the UI being created
         self.perspective_manager = PerspectiveManager(self, self.settings_manager)
         self.resource_monitor_manager = ResourceMonitorManager(self, settings_manager=self.settings_manager)
         self.py_sim_ui_manager = PySimulationUIManager(self)
@@ -445,24 +463,32 @@ class MainWindow(QMainWindow):
         self.ai_chat_ui_manager = AIChatUIManager(self)
         self.ide_manager = IDEManager(self)
 
+            
         self._update_central_widget()
+        # 4. Finalize UI and connect signals
         if not hasattr(self, 'log_output') or not self.log_output: 
-            self.log_output = QTextEdit()
+            self.log_output = QTextEdit() 
+        setup_global_logging(self.log_output)
         
-        # This instance must be stored to control the logger's behavior later
-        self.ui_log_handler = setup_global_logging(self.log_output)
-        
+        # MODIFIED: Call this method here, which now includes the hardware sim dock
         self.ui_manager.populate_dynamic_docks()
         self._connect_application_signals() 
         self._apply_initial_settings()
         self.restore_geometry_and_state()
+
         
+        
+        
+        
+        
+        # 5. Start background services and initial actions
         self._internet_connected: bool | None = None
         self.internet_check_timer = QTimer(self)
         self._init_internet_status_check()
         if self.settings_manager.get("resource_monitor_enabled"):
             self.resource_monitor_manager.setup_and_start_monitor()
 
+        self._set_status_label_object_names() 
         QTimer.singleShot(100, lambda: self.perspective_manager.apply_perspective(self.perspective_manager.current_perspective_name))
         QTimer.singleShot(250, lambda: self.ai_chatbot_manager.set_online_status(self._internet_connected if self._internet_connected is not None else False))
         
@@ -480,9 +506,9 @@ class MainWindow(QMainWindow):
         else:
             if self.centralWidget() != self.tab_widget:
                 self.setCentralWidget(self.tab_widget)
-                
-                
+    
     def _connect_application_signals(self):
+        """Central hub for all application-level signal connections."""
         logger.debug("Connecting application-level signals...")
         
         self.action_handler.connect_actions()
@@ -499,13 +525,6 @@ class MainWindow(QMainWindow):
         
         if hasattr(self, 'problems_ask_ai_btn'):
             self.problems_ask_ai_btn.clicked.connect(self.on_ask_ai_about_validation_issue)
-
-        if hasattr(self, 'log_level_filter_combo'):
-            self.log_level_filter_combo.currentTextChanged.connect(self._on_log_filter_changed)
-        if hasattr(self, 'log_filter_edit'):
-            self.log_filter_edit.textChanged.connect(self._on_log_filter_changed)
-        if hasattr(self, 'log_clear_action'):
-            self.log_clear_action.triggered.connect(lambda: self.ui_log_handler.clear_log() if hasattr(self, 'ui_log_handler') else None)
 
         self.perspective_manager.populate_menu()
         if hasattr(self, 'save_perspective_action'): self.save_perspective_action.triggered.connect(self.perspective_manager.save_current_as)
@@ -534,6 +553,7 @@ class MainWindow(QMainWindow):
             self.live_preview_dock.visibilityChanged.connect(self._request_live_preview_update)
 
         logger.info("Application-level signals connected.")
+   
        
     # --- NEW Method for Recent Files Menu ---
     def _populate_recent_files_menu(self):
@@ -665,13 +685,19 @@ class MainWindow(QMainWindow):
         editor.undo_stack.indexChanged.connect(self._request_live_preview_update)
              
     def add_new_editor_tab(self) -> EditorWidget:
+        """Creates a new, empty editor tab, connects its signals, and makes it active."""
         new_editor = EditorWidget(self, self.custom_snippet_manager)
+        
         new_editor.scene.settings_manager = self.settings_manager
         new_editor.scene.custom_snippet_manager = self.custom_snippet_manager
+        
         index = self.tab_widget.addTab(new_editor, new_editor.get_tab_title())
         self.tab_widget.setCurrentIndex(index)
+        new_editor.view.setFocus()
         self._connect_editor_signals(new_editor)
+        self._update_window_title()
         self._update_central_widget()
+        QTimer.singleShot(10, self._update_git_menu_actions_state)
         return new_editor
 
 
@@ -1551,19 +1577,13 @@ Please explain what this means in the context of an FSM and suggest how I might 
         editor = self.current_editor()
         py_sim_active = editor.py_sim_active if editor else False
         
-        # This action is now for *initializing* the simulation
-        sim_can_be_initialized = not py_sim_active and not is_matlab_op_running
+        sim_can_start = not py_sim_active and not is_matlab_op_running
+        sim_can_be_controlled = py_sim_active and not is_matlab_op_running
         
-        if hasattr(self, 'start_py_sim_action'): self.start_py_sim_action.setEnabled(sim_can_be_initialized)
-        
-        # Stop and Reset are only available once a simulation is active
-        sim_can_be_stopped_or_reset = py_sim_active and not is_matlab_op_running
-        if hasattr(self, 'stop_py_sim_action'): self.stop_py_sim_action.setEnabled(sim_can_be_stopped_or_reset)
-        if hasattr(self, 'reset_py_sim_action'): self.reset_py_sim_action.setEnabled(sim_can_be_stopped_or_reset)
-        
-        # Delegate internal button states to the manager
-        if hasattr(self, 'py_sim_ui_manager') and self.py_sim_ui_manager:
-            self.py_sim_ui_manager._update_internal_controls_enabled_state()
+        if hasattr(self, 'start_py_sim_action'): self.start_py_sim_action.setEnabled(sim_can_start)
+        if hasattr(self, 'stop_py_sim_action'): self.stop_py_sim_action.setEnabled(sim_can_be_controlled)
+        if hasattr(self, 'reset_py_sim_action'): self.reset_py_sim_action.setEnabled(sim_can_be_controlled)
+        if hasattr(self, 'py_sim_ui_manager') and self.py_sim_ui_manager: self.py_sim_ui_manager._update_internal_controls_enabled_state()
 
     @pyqtSlot()
     def _update_zoom_to_selection_action_enable_state(self):
@@ -1629,21 +1649,6 @@ Please explain what this means in the context of an FSM and suggest how I might 
     def _run_internet_check_job(self): pass
     def _update_ai_features_enabled_state(self, is_ready): pass
     def _update_internet_status_display(self, is_conn, msg): pass
-    
-    
-    @pyqtSlot()
-    def _on_log_filter_changed(self):
-        if not hasattr(self, 'ui_log_handler'):
-            return
-
-        level_text = self.log_level_filter_combo.currentText()
-        filter_text = self.log_filter_edit.text()
-        
-        log_level = getattr(logging, level_text.upper(), logging.INFO)
-        
-        self.ui_log_handler.set_filters(level=log_level, text=filter_text)
-    
-    
     
     @pyqtSlot(GraphicsStateItem, bool)
     def on_toggle_state_breakpoint(self, state_item: GraphicsStateItem, set_bp: bool):
