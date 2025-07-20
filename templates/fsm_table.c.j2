@@ -1,0 +1,102 @@
+{# fsm_designer_project/templates/fsm_table.c.j2 - State Table Source #}
+#include "{{ fsm_name_c }}.h"
+#include <stddef.h> // For NULL
+
+// --- FSM State Register ---
+static FSM_StateId_t current_fsm_state_id;
+
+// --- Forward Declarations for State Transition Tables ---
+{% for state in states if state.transitions %}
+static const FSM_Transition_t transitions_for_{{ state.c_name }}[];
+{%- endfor %}
+
+// --- The State Table ---
+// This table maps each state enum to its corresponding functions and transitions.
+static const FSM_StateConfig_t state_table[FSM_NUM_STATES] = {
+{%- for state in states %}
+    [STATE_{{ state.c_name|upper }}] = {
+        .entry_action  = {% if state.entry_action_func %}&{{ state.entry_action_func }}{% else %}NULL{% endif %},
+        .during_action = {% if state.during_action_func %}&{{ state.during_action_func }}{% else %}NULL{% endif %},
+        .exit_action   = {% if state.exit_action_func %}&{{ state.exit_action_func }}{% else %}NULL{% endif %},
+        .transitions   = {% if state.transitions %}transitions_for_{{ state.c_name }}{% else %}NULL{% endif %},
+        .num_transitions = {{ state.transitions|length }}
+    } {% if not loop.last %},{% endif %}
+{%- endfor %}
+};
+
+// --- Transition Table Definitions ---
+{% for state in states if state.transitions %}
+static const FSM_Transition_t transitions_for_{{ state.c_name }}[] = {
+    {%- for trans in state.transitions %}
+    {
+        .event = EVENT_{{ trans.event.c_name|upper }},
+        .condition = {% if trans.condition_func %}&{{ trans.condition_func }}{% else %}NULL{% endif %},
+        .action = {% if trans.action_func %}&{{ trans.action_func }}{% else %}NULL{% endif %},
+        .next_state = STATE_{{ trans.target_c_name|upper }}
+    } {% if not loop.last %},{% endif %}
+    {%- endfor %}
+};
+{% endfor %}
+
+// --- FSM Core Implementation ---
+void {{ fsm_name_c }}_init(void) {
+    current_fsm_state_id = {{ initial_state_c_enum.replace('STATE_', '') }};
+    if (state_table[current_fsm_state_id].entry_action != NULL) {
+        state_table[current_fsm_state_id].entry_action();
+    }
+}
+
+void {{ fsm_name_c }}_run(FSM_EventId_t event_id) {
+    const FSM_StateConfig_t* state_config = &state_table[current_fsm_state_id];
+
+    // 1. Check for a valid transition if an event occurred
+    if (event_id != FSM_NO_EVENT) {
+        for (uint8_t i = 0; i < state_config->num_transitions; ++i) {
+            const FSM_Transition_t* t = &state_config->transitions[i];
+            if (t->event == event_id) {
+                bool condition_met = (t->condition == NULL) || t->condition();
+                if (condition_met) {
+                    if (state_config->exit_action != NULL) state_config->exit_action();
+                    if (t->action != NULL) t->action();
+                    current_fsm_state_id = t->next_state;
+                    if (state_table[current_fsm_state_id].entry_action != NULL) {
+                        state_table[current_fsm_state_id].entry_action();
+                    }
+                    return; // Transition taken, processing for this run is complete
+                }
+            }
+        }
+    }
+
+    // 2. If no transition was taken, execute the 'during' action
+    if (state_config->during_action != NULL) {
+        state_config->during_action();
+    }
+}
+
+FSM_StateId_t {{ fsm_name_c }}_get_current_state(void) {
+    return current_fsm_state_id;
+}
+
+// --- Action and Condition Function Stubs ---
+{% for func_sig, code, source_info in action_functions %}
+{{ func_sig }} {
+    {%- if options.include_comments %}
+    // {{ source_info }}
+    // Original action: {{ code }}
+    {%- endif %}
+    {%- for stub_line in code_to_c_stub(code) %}
+{{ stub_line }}
+    {%- endfor %}
+}
+{% endfor %}
+{% for func_sig, code, source_info in condition_functions %}
+{{ func_sig }} {
+    {%- if options.include_comments %}
+    // {{ source_info }}
+    // Original condition: {{ code }}
+    {%- endif %}
+    // TODO: Implement condition logic
+    return ({{ code }});
+}
+{% endfor %}
