@@ -7,10 +7,10 @@ Provides easy integration of modern UI components into the existing application.
 from PyQt5.QtWidgets import QMainWindow, QDockWidget, QTabWidget, QSplitter
 from PyQt5.QtCore import Qt, QSettings
 
-from .ribbon_toolbar import ModernRibbon
-from .modern_properties_panel import ModernPropertiesPanel
-from .modern_status_bar import ModernStatusBar
-from .modern_welcome_screen import ModernWelcomeScreen
+from .ui.widgets.ribbon_toolbar import ModernRibbon
+from .ui.widgets.modern_properties_panel import ModernPropertiesPanel
+from .ui.widgets.modern_status_bar import ModernStatusBar
+from .ui.widgets.modern_welcome_screen import ModernWelcomeScreen
 
 
 class UIModernizer:

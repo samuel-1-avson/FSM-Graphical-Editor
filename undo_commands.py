@@ -5,11 +5,11 @@ from PyQt5.QtCore import QPointF
 # Ensure GraphicsStateItem is importable. If in same dir, relative import is fine.
 # Adjust if your project structure is different.
 try:
-    from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
+    from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
 except ImportError:
-    from graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
+    from ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
 
-from .config import DEFAULT_EXECUTION_ENV # Import default
+from .utils.config import DEFAULT_EXECUTION_ENV # Import default
 import logging
 
 logger = logging.getLogger(__name__)

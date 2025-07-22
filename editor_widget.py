@@ -3,9 +3,9 @@
 import os
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QUndoStack, QTabWidget
 
-from .graphics_scene import DiagramScene, ZoomableView
-from .snippet_manager import CustomSnippetManager
-from .fsm_simulator import FSMSimulator, FSMError  # Import the simulator class for type hinting
+from .ui.graphics.graphics_scene import DiagramScene, ZoomableView
+from .core.snippet_manager import CustomSnippetManager
+from .core.fsm_simulator import FSMSimulator, FSMError  # Import the simulator class for type hinting
 
 
 class EditorWidget(QWidget):

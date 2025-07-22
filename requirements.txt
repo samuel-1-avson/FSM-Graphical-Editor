@@ -10,7 +10,7 @@ pygraphviz>=1.11
 Pillow==10.4.0
 jinja2==3.1.4
 markdown-it-py==3.0.0
-pyserial==3.5 # <-- ADD THIS LINE
++ pyserial==3.5 # <-- ADD THIS LINE
 
 # Development and Testing
 pytest
