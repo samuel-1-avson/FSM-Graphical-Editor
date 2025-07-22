@@ -107,8 +107,15 @@ class ActionHandler(QObject):
         self.mw.save_selection_as_template_action.triggered.connect(self.on_save_selection_as_template) # New
        
         # --- LOG ACTIONS (NEW) ---
+
+
+         
+             
+
+        # --- LOG ACTIONS (NEW) ---
         if hasattr(self.mw, 'log_save_action'):
             self.mw.log_save_action.triggered.connect(self.on_save_log)
+            logger.error(f"Auto-layout failed: {msg_detail}", exc_info=True)
         if hasattr(self.mw, 'log_copy_action'):
             self.mw.log_copy_action.triggered.connect(self.on_copy_log)
 
@@ -160,22 +167,7 @@ class ActionHandler(QObject):
         self.mw.open_example_traffic_action.triggered.connect(lambda: self._open_example_file("traffic_light.bsm"))
         self.mw.open_example_toggle_action.triggered.connect(lambda: self._open_example_file("simple_toggle.bsm"))
 
-    @pyqtSlot()
-    def on_close_project(self):
-        """
-        Placeholder for closing a project. Currently closes the active tab.
-        """
-        editor = self.mw.current_editor()
-        if editor:
-            # The main window's tabCloseRequested signal handler already contains
-            # the logic to prompt for saving, so we can just call that.
-            index = self.mw.tab_widget.indexOf(editor)
-            if index != -1:
-                self.mw.tab_widget.tabCloseRequested.emit(index)
-        else:
-            # If no editor is open (e.g., only welcome screen), there's nothing to close.
-            self.mw.log_message("INFO", "Close action triggered, but no active document to close.")
-
+    # ... (All other methods in ActionHandler remain exactly the same) ...
     # --- GIT ACTION HANDLERS ---
     def _get_current_file_path_for_git(self) -> str | None:
         """Helper to get a valid file path from the current editor for Git operations."""

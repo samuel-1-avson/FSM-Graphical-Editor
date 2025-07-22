@@ -16,7 +16,7 @@ from .ai_providers import get_available_providers
 from PyQt5.QtGui import QMovie, QIcon, QColor, QDesktopServices
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTextBrowser, QHBoxLayout, QLineEdit,
                              QPushButton, QLabel, QStyle, QMessageBox, QInputDialog, QAction, QApplication,
-                             QDialog, QFormLayout, QDialogButtonBox, QGroupBox, QComboBox, QTextEdit, QCheckBox)
+                             QDialog, QFormLayout, QDialogButtonBox, QGroupBox, QComboBox, QTextEdit)
 
 from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
@@ -50,7 +50,6 @@ class AIStatus(Enum):
     CONNECTION_ERROR = auto()
     ACTION_PROPOSED = auto()
     AUTHENTICATION_ERROR = auto()
-    AGENT_THINKING = auto()
     PROVIDER_NOT_SET = auto()
 
 class ChatbotWorker(QObject):
@@ -60,7 +59,6 @@ class ChatbotWorker(QObject):
     responseReady = pyqtSignal(str, bool)
     errorOccurred = pyqtSignal(AIStatus, str)
     statusUpdate = pyqtSignal(AIStatus, str)
-    tool_call_request = pyqtSignal(str, str, dict) # message_id, tool_name, tool_args
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -68,8 +66,6 @@ class ChatbotWorker(QObject):
         self.conversation_history: List[Dict] = []
         self.current_diagram_context_json_str: str | None = None
         self._is_stopped = False
-        self._is_agent_mode = False
-        self._available_tools_json: str = ""
         logger.info("ChatbotWorker initialized (generic).")
 
     @pyqtSlot(AIProvider)
@@ -84,12 +80,6 @@ class ChatbotWorker(QObject):
     @pyqtSlot(str)
     def set_diagram_context_slot(self, diagram_json_str: str):
         self.current_diagram_context_json_str = diagram_json_str if diagram_json_str else None
-
-    @pyqtSlot(bool, str)
-    def set_agent_mode_slot(self, is_agent_mode: bool, available_tools_json: str):
-        self._is_agent_mode = is_agent_mode
-        self._available_tools_json = available_tools_json
-
 
     def _prepare_system_prompt(self, user_message: str, force_fsm_generation: bool) -> str:
         """Constructs the system prompt based on context and request type."""
@@ -119,14 +109,6 @@ class ChatbotWorker(QObject):
                 " When asked to generate an FSM, you MUST respond with ONLY a valid JSON object. "
                 "Do not include comments, explanations, or any other text outside the main JSON object."
             )
-        elif self._is_agent_mode:
-            system_prompt_content += (
-                " You are now in Agent Mode. Your goal is to complete the user's task by calling available tools. "
-                "Analyze the user's request and the current diagram. Formulate a plan. "
-                "To call a tool, respond with ONLY a JSON object: "
-                "{\"tool_name\": \"function_name\", \"tool_args\": {\"arg1\": \"value1\"}}. "
-                f"The available tools are: {self._available_tools_json}"
-            )
         else:
             # --- NEW: Instructions for conversational editing ---
             system_prompt_content += (
@@ -149,28 +131,6 @@ class ChatbotWorker(QObject):
              
         return system_prompt_content, is_fsm_generation_attempt
 
-    @pyqtSlot(str, str)
-    def process_tool_response_slot(self, message_id: str, tool_response: str):
-        """Continues the conversation after a tool has been executed."""
-        if self._is_stopped or not self._is_agent_mode:
-            return
-
-        # Find the original message and append the tool response to it
-        # Note: A real implementation would use a more robust history management system
-        self.conversation_history.append({"role": "tool", "content": tool_response})
-
-        self.statusUpdate.emit(AIStatus.AGENT_THINKING, "Status: Agent is processing tool result...")
-
-        try:
-            # Send the history (including the tool response) back to the AI for the next step
-            ai_response_content = self.provider.generate_response(self.conversation_history, is_json_mode=False)
-            if self._is_stopped: return
-            self.conversation_history.append({"role": "assistant", "content": ai_response_content})
-            self.responseReady.emit(ai_response_content, False) # Assume not FSM gen
-            self.statusUpdate.emit(AIStatus.READY, f"Status: Ready ({self.provider.get_name()}).")
-        except Exception as e:
-            self.errorOccurred.emit(AIStatus.ERROR, f"Error after tool response: {e}")
-
     @pyqtSlot(str, bool)
     def process_message_slot(self, user_message: str, force_fsm_generation: bool):
         if self._is_stopped:
@@ -181,9 +141,7 @@ class ChatbotWorker(QObject):
             self.errorOccurred.emit(AIStatus.PROVIDER_NOT_SET, msg)
             return
 
-        status = AIStatus.AGENT_THINKING if self._is_agent_mode else AIStatus.THINKING
-        status_text = "Agent is thinking..." if self._is_agent_mode else f"Thinking ({self.provider.get_name()})..."
-        self.statusUpdate.emit(status, f"Status: {status_text}")
+        self.statusUpdate.emit(AIStatus.THINKING, f"Status: Thinking ({self.provider.get_name()})...")
 
         system_prompt, is_json_mode = self._prepare_system_prompt(user_message, force_fsm_generation)
 
@@ -200,19 +158,6 @@ class ChatbotWorker(QObject):
             ai_response_content = self.provider.generate_response(history_for_provider, is_json_mode=is_json_mode)
 
             if self._is_stopped: return
-
-            # Check if the AI wants to call a tool (in agent mode)
-            if self._is_agent_mode and ai_response_content.strip().startswith('{'):
-                try:
-                    tool_call_data = json.loads(ai_response_content)
-                    if "tool_name" in tool_call_data and "tool_args" in tool_call_data:
-                        message_id = str(uuid.uuid4())
-                        self.conversation_history.append({"role": "user", "content": user_message})
-                        self.conversation_history.append({"role": "assistant", "content": ai_response_content})
-                        self.tool_call_request.emit(message_id, tool_call_data["tool_name"], tool_call_data["tool_args"])
-                        return # Stop here, wait for the tool result to come back
-                except json.JSONDecodeError:
-                    pass # Not a valid tool call, treat as plain text below
 
             self.conversation_history.append({"role": "user", "content": user_message})
             self.conversation_history.append({"role": "assistant", "content": ai_response_content})
@@ -321,7 +266,6 @@ class AIChatUIManager(QObject):
         self.ai_chat_send_button: QPushButton = None
         self.ai_chat_status_label: QLabel = None
         self.original_send_button_icon: QIcon = None
-        self.ai_agent_mode_cb: QCheckBox = None
         
         self._code_snippet_cache: Dict[str, str] = {}
         self._last_copy_feedback_timer: QTimer | None = None
@@ -424,16 +368,6 @@ class AIChatUIManager(QObject):
         self.ai_chat_status_label.setObjectName("AIChatStatusLabel")
         ai_chat_layout.addWidget(self.ai_chat_status_label)
 
-        # --- NEW: Agent Mode Toggle ---
-        agent_mode_layout = QHBoxLayout()
-        self.ai_agent_mode_cb = QCheckBox("Agent Task Mode")
-        self.ai_agent_mode_cb.setToolTip("Enable to give the AI high-level tasks to complete using tools.")
-        self.ai_agent_mode_cb.toggled.connect(self.mw.ai_chatbot_manager.set_agent_mode)
-        agent_mode_layout.addStretch()
-        agent_mode_layout.addWidget(self.ai_agent_mode_cb)
-        ai_chat_layout.addLayout(agent_mode_layout)
-        # --- END NEW ---
-
         return ai_chat_widget
 
     @pyqtSlot(AIStatus, str)
@@ -457,7 +391,7 @@ class AIChatUIManager(QObject):
             self.ai_chat_status_label.setStyleSheet(f"{base_style} color: {COLOR_TEXT_PRIMARY}; background-color: {COLOR_ACCENT_WARNING};")
         elif status_enum == AIStatus.ERROR or status_enum == AIStatus.CONTENT_BLOCKED or status_enum == AIStatus.RATE_LIMIT:
             self.ai_chat_status_label.setStyleSheet(f"{base_style} color: white; background-color: {COLOR_ACCENT_ERROR}; font-weight: bold;")
-        elif status_enum in [AIStatus.THINKING, AIStatus.INITIALIZING, AIStatus.AGENT_THINKING]:
+        elif status_enum == AIStatus.THINKING or status_enum == AIStatus.INITIALIZING:
             self.ai_chat_status_label.setStyleSheet(f"{base_style} color: {COLOR_TEXT_PRIMARY}; background-color: {QColor(COLOR_ACCENT_SECONDARY).lighter(130).name()}; font-style: italic;")
             is_thinking_ui = True
         elif status_enum == AIStatus.READY or status_enum == AIStatus.ACTION_PROPOSED:
@@ -472,7 +406,6 @@ class AIChatUIManager(QObject):
 
         if self.ai_chat_send_button:
             self.ai_chat_send_button.setEnabled(can_send_message)
-            self.ai_agent_mode_cb.setEnabled(can_send_message)
             if is_thinking_ui:
                 self.ai_chat_send_button.setText("...")
                 self.ai_chat_send_button.setIcon(QIcon())
@@ -482,7 +415,6 @@ class AIChatUIManager(QObject):
 
         if self.ai_chat_input:
             self.ai_chat_input.setEnabled(can_send_message)
-            self.ai_agent_mode_cb.setEnabled(can_send_message)
             if can_send_message and self.mw and hasattr(self.mw, 'ai_chatbot_dock') and self.mw.ai_chatbot_dock and self.mw.ai_chatbot_dock.isVisible() and self.mw.isActiveWindow():
                 self.ai_chat_input.setFocus()
 
@@ -763,7 +695,7 @@ class AIChatUIManager(QObject):
     def on_clear_ai_chat_history(self):
         logger.info("AIChatUI: on_clear_ai_chat_history CALLED!")
         if self.mw.ai_chatbot_manager:
-            reply = QMessageBox.question(self, "Clear Chat History",
+            reply = QMessageBox.question(self.mw, "Clear Chat History",
                                          "Are you sure you want to clear the entire AI chat history?",
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
@@ -833,7 +765,7 @@ class AIChatUIManager(QObject):
         
         # Generate a unique ID for this request so we can find the target widget later
         request_id = f"inline_req_{uuid.uuid4()}"
-        self._inline_request_targets[request_id] = request_id
+        self._inline_request_targets[request_id] = target_widget
 
         if self.mw.ai_chatbot_manager:
             self.mw.ai_chatbot_manager.generate_inline_code_snippet(prompt, request_id)
@@ -895,17 +827,6 @@ class AIChatbotManager(QObject):
         self.errorOccurred.emit(error_status, error_message)
 
 
-    def get_available_tools_json(self) -> str:
-        """Returns a JSON string describing available tools for the AI agent."""
-        tools = [
-            {"name": "add_state", "description": "Adds a new state to the diagram.", "parameters": {"name": "string", "x": "number", "y": "number"}},
-            {"name": "add_transition", "description": "Adds a transition between two states.", "parameters": {"source": "string", "target": "string", "event": "string"}},
-            {"name": "rename_state", "description": "Renames an existing state.", "parameters": {"old_name": "string", "new_name": "string"}},
-            {"name": "delete_item", "description": "Deletes a state or transition.", "parameters": {"name": "string"}},
-            {"name": "get_diagram_data", "description": "Returns the current FSM structure as JSON.", "parameters": {}},
-        ]
-        return json.dumps(tools)
-
     def get_current_ai_status(self) -> AIStatus:
         return self._current_ai_status
         
@@ -955,7 +876,6 @@ class AIChatbotManager(QObject):
         self.chatbot_worker.responseReady.connect(self._handle_worker_response)
         self.chatbot_worker.errorOccurred.connect(self._handle_worker_error_with_status)
         self.chatbot_worker.statusUpdate.connect(self._update_current_ai_status)
-        self.chatbot_worker.tool_call_request.connect(self.on_tool_call_requested)
 
         self.chatbot_thread.start()
         logger.info("MGR_SETUP_WORKER: New AI Chatbot worker thread started.")
@@ -1071,24 +991,6 @@ class AIChatbotManager(QObject):
         self.plainResponseReady.emit(ai_response_content)
 
 
-    @pyqtSlot(str, str, dict)
-    def on_tool_call_requested(self, message_id: str, tool_name: str, tool_args: dict):
-        """Handles a tool call request from the AI worker."""
-        self._update_current_ai_status(AIStatus.AGENT_THINKING, f"Status: Agent wants to run tool: {tool_name}")
-        
-        # In a real implementation, you would now execute the tool.
-        # For this foundation, we will simulate a success response.
-        logger.info(f"AGENT: Simulating execution of tool '{tool_name}' with args {tool_args}")
-        
-        # This part would call methods on the ActionHandler or Scene
-        tool_result = f"Successfully executed tool {tool_name}."
-
-        # Send the result back to the worker to continue the loop
-        if self.chatbot_worker:
-            QMetaObject.invokeMethod(self.chatbot_worker, "process_tool_response_slot", Qt.QueuedConnection,
-                                     Q_ARG(str, message_id),
-                                     Q_ARG(str, tool_result))
-
     def _prepare_and_send_to_worker(self, user_message_text: str, is_fsm_gen_specific: bool = False, is_inline_code_request: bool = False, inline_request_id: str = ""):
         logger.info(f"MGR_PREP_SEND: For: '{user_message_text[:30]}...', FSM_specific_req: {is_fsm_gen_specific}, Inline: {is_inline_code_request}, ID: {inline_request_id}")
 
@@ -1171,13 +1073,6 @@ class AIChatbotManager(QObject):
     def generate_inline_code_snippet(self, prompt: str, request_id: str):
         """Sends a prompt specifically for generating an inline code snippet."""
         self._prepare_and_send_to_worker(prompt, is_fsm_gen_specific=False, is_inline_code_request=True, inline_request_id=request_id)
-
-    @pyqtSlot(bool)
-    def set_agent_mode(self, is_agent_mode: bool):
-        """Sets whether the AI is in conversational agent mode."""
-        if self.chatbot_worker:
-            tools_json = self.get_available_tools_json() if is_agent_mode else ""
-            QMetaObject.invokeMethod(self.chatbot_worker, "set_agent_mode_slot", Qt.QueuedConnection, Q_ARG(bool, is_agent_mode), Q_ARG(str, tools_json))
 
     def clear_conversation_history(self):
         logger.info("MGR: clear_conversation_history CALLED.")

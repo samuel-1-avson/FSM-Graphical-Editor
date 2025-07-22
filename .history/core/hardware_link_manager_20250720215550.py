@@ -1,4 +1,4 @@
-# fsm_designer_project/core/hardware_link_manager.py
+# fsm_designer_project/hardware_link_manager.py
 import logging
 import serial
 import serial.tools.list_ports

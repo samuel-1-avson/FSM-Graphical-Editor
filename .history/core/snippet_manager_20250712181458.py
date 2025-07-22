@@ -1,4 +1,4 @@
-# fsm_designer_project/core/snippet_manager.py
+# fsm_designer_project/snippet_manager.py
 import os
 import json
 import logging
