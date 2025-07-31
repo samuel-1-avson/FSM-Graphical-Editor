@@ -1,0 +1,85 @@
+{
+    "DebounceLogic": {
+        "name": "Debounce Logic",
+        "description": "A simple debounce pattern for an input signal.",
+        "icon_resource": ":/icons/debounce_icon.png",
+        "states": [
+            {
+                "name": "Unstable",
+                "description": "Input is currently unstable or bouncing."
+            },
+            {
+                "name": "Waiting",
+                "entry_action": "start_debounce_timer()"
+            },
+            {
+                "name": "Stable",
+                "description": "Input is considered stable."
+            }
+        ],
+        "transitions": [
+            {
+                "source": "Unstable",
+                "target": "Waiting",
+                "event": "input_change"
+            },
+            {
+                "source": "Waiting",
+                "target": "Stable",
+                "event": "debounce_timer_expired"
+            },
+            {
+                "source": "Waiting",
+                "target": "Unstable",
+                "event": "input_change_while_waiting",
+                "control_offset_y": 60
+            },
+            {
+                "source": "Stable",
+                "target": "Unstable",
+                "event": "input_goes_unstable_again",
+                "control_offset_y": -60
+            }
+        ],
+        "comments": [
+            {
+                "text": "Debounce timer should be set appropriately for your hardware.",
+                "width": 180
+            }
+        ]
+    },
+    "Blinker": {
+        "name": "Simple Blinker",
+        "description": "Alternates between On and Off states based on a timer.",
+        "icon_resource": ":/icons/blinker_icon.png",
+        "states": [
+            {
+                "name": "LedOff",
+                "is_initial": true,
+                "entry_action": "set_led_off()\\nstart_timer(OFF_DURATION)"
+            },
+            {
+                "name": "LedOn",
+                "entry_action": "set_led_on()\\nstart_timer(ON_DURATION)"
+            }
+        ],
+        "transitions": [
+            {
+                "source": "LedOff",
+                "target": "LedOn",
+                "event": "timer_expired"
+            },
+            {
+                "source": "LedOn",
+                "target": "LedOff",
+                "event": "timer_expired"
+            }
+        ],
+        "comments": [
+            {
+                "text": "Define ON_DURATION and OFF_DURATION variables in your simulation environment.",
+                "width": 200
+            }
+        ]
+    }
+}

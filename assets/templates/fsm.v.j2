@@ -23,11 +23,15 @@ module {{ entity_name }} (
     input wire reset, // Active-high reset
 
     // -----------------------------------------------
-    // TODO: Declare your event and condition inputs here
-    // Example:
-    // input wire event_go,
-    // input wire cond_sensor_high,
+    // Event and condition inputs (auto-generated from diagram)
     // -----------------------------------------------
+{%- if input_signals %}
+    {%- for signal in input_signals %}
+    input wire {{ signal }},
+    {%- endfor %}
+{%- else %}
+    // No event or condition signals found in the diagram.
+{% endif %}
 
 
     // -----------------------------------------------
@@ -41,8 +45,8 @@ module {{ entity_name }} (
 
     // State encoding using parameters for readability and synthesis flexibility
     localparam STATE_BITS = {{ state_bits }};
-{% for state in states %}
-    localparam {{ state.verilog_name | upper }} = {{ loop.index0 }}; // State: {{ state.original_name }}
+{%- for state in states %}
+    localparam {{ state.hdl_name | upper }} = {{ loop.index0 }}; // State: {{ state.original_name }}
 {%- endfor %}
 
     // State registers
@@ -64,7 +68,7 @@ module {{ entity_name }} (
     // Block 2: Combinational Logic (Next-State and Output Logic)
     //
     // IMPORTANT: Add all event and condition signals to the sensitivity
-    // list ('always @(*)') by simply listing them inside the block.
+    // list if not using 'always @(*)'. Recommended: always @(current_state, {{ all_events_and_conditions }})
     // =================================================================
     always @(*) begin
         // Default assignments to prevent latches
@@ -75,7 +79,7 @@ module {{ entity_name }} (
 
         case (current_state)
     {% for state in states %}
-            {{ state.verilog_name | upper }}: begin
+            {{ state.hdl_name | upper }}: begin
                 // =========== LOGIC FOR STATE: {{ state.original_name }} ===========
                 // TODO: Implement any 'during' actions for this state here.
                 // For example, if an LED should be on while in this state:

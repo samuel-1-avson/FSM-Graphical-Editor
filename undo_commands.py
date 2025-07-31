@@ -2,12 +2,6 @@
 
 from PyQt5.QtWidgets import QUndoCommand, QGraphicsItem
 from PyQt5.QtCore import QPointF
-# Ensure GraphicsStateItem is importable. If in same dir, relative import is fine.
-# Adjust if your project structure is different.
-try:
-    from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
-except ImportError:
-    from ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
 
 from .utils.config import DEFAULT_EXECUTION_ENV # Import default
 import logging
@@ -17,6 +11,9 @@ logger = logging.getLogger(__name__)
 class AddItemCommand(QUndoCommand):
     def __init__(self, scene, item, description="Add Item"):
         super().__init__(description)
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
+
         self.scene = scene
         self.item_instance = item
 
@@ -43,6 +40,8 @@ class AddItemCommand(QUndoCommand):
 
     def _get_display_name_for_log(self, item_instance_or_data):
         # Helper to get a display name for logging, works with instance or stored data
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
         is_instance = isinstance(item_instance_or_data, QGraphicsItem)
         
         item_type = item_instance_or_data.type() if is_instance else item_instance_or_data.get('_type')
@@ -67,6 +66,8 @@ class AddItemCommand(QUndoCommand):
         return "UnknownItem"
 
     def redo(self):
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem
         display_name = self._get_display_name_for_log(self.item_instance)
 
         if self.item_instance.scene() is None:
@@ -126,6 +127,8 @@ class AddItemCommand(QUndoCommand):
 class RemoveItemsCommand(QUndoCommand):
     def __init__(self, scene, items_to_remove, description="Remove Items"):
         super().__init__(description)
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
         self.scene = scene
         self.removed_items_data = []
 
@@ -140,6 +143,8 @@ class RemoveItemsCommand(QUndoCommand):
 
 
     def redo(self):
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
         items_actually_removed_this_redo = []
         for item_data in self.removed_items_data:
             item_to_remove = None
@@ -174,6 +179,8 @@ class RemoveItemsCommand(QUndoCommand):
 
 
     def undo(self):
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
         newly_re_added_instances = []
         states_map_for_undo = {}
 
@@ -250,6 +257,8 @@ class MoveItemsCommand(QUndoCommand):
             self.scene_ref = self.items_and_positions_info[0][0].scene()
 
     def _apply_positions(self, use_new_positions: bool):
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem
         if not self.scene_ref: return
         for item, old_pos, new_pos in self.items_and_positions_info:
             target_pos = new_pos if use_new_positions else old_pos
@@ -271,44 +280,58 @@ class MoveItemsCommand(QUndoCommand):
 
 
 class EditItemPropertiesCommand(QUndoCommand):
-    def __init__(self, item, old_props_data, new_props_data, description="Edit Properties"):
+    def __init__(self, items, old_props_data, new_props_data, description="Edit Properties"):
         super().__init__(description)
-        self.item = item
-        self.old_props_data = old_props_data
-        self.new_props_data = new_props_data
-        self.scene_ref = item.scene()
-        item_name_for_log = self.new_props_data.get('name', self.new_props_data.get('event', self.new_props_data.get('text', type(item).__name__)))
-        logger.debug(f"EditItemPropertiesCommand: Initialized for item '{item_name_for_log}'. Old: {old_props_data}, New: {new_props_data}")
+        # Ensure items and props are always lists for consistent handling
+        self.items = items if isinstance(items, list) else [items]
+        self.old_props_list = old_props_data if isinstance(old_props_data, list) else [old_props_data]
+        self.new_props_list = new_props_data if isinstance(new_props_data, list) else [new_props_data]
 
+        # Get scene reference from the first item
+        self.scene_ref = self.items[0].scene() if self.items else None
 
-    def _apply_properties(self, props_to_apply):
-        if not self.item or not self.scene_ref:
-            logger.error("EditItemPropertiesCommand: Item or scene reference is missing.")
+        item_name_for_log = "UnknownItem"
+        if self.items and self.new_props_list:
+            first_props = self.new_props_list[0]
+            first_item = self.items[0]
+            item_name_for_log = first_props.get('name', first_props.get('event', first_props.get('text', type(first_item).__name__)))
+        
+        logger.debug(f"EditItemPropertiesCommand: Initialized for {len(self.items)} item(s) like '{item_name_for_log}'. Desc: {description}")
+
+    def _apply_properties(self, props_list):
+        # Local import to break circular dependency
+        from .ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
+        if not self.items or not self.scene_ref:
+            logger.error("EditItemPropertiesCommand: Items list or scene reference is missing.")
             return
 
-        original_name_if_state = None
+        for item, props in zip(self.items, props_list):
+            if not item or not props:
+                continue
 
-        if isinstance(self.item, GraphicsStateItem):
-            original_name_if_state = self.item.text_label
-            self.item.set_properties(**props_to_apply) # Use kwargs expansion
-            if original_name_if_state != props_to_apply['name']:
-                self.scene_ref._update_transitions_for_renamed_state(original_name_if_state, props_to_apply['name'])
-        elif isinstance(self.item, GraphicsTransitionItem):
-            self.item.set_properties(**props_to_apply)
-        elif isinstance(self.item, GraphicsCommentItem):
-            self.item.set_properties(**props_to_apply)
-            self.scene_ref.scene_content_changed_for_find.emit()
+            original_name_if_state = None
 
-        self.item.update()
+            if isinstance(item, GraphicsStateItem):
+                original_name_if_state = item.text_label
+                item.set_properties(**props)
+                if original_name_if_state != props['name']:
+                    self.scene_ref._update_transitions_for_renamed_state(original_name_if_state, props['name'])
+            elif isinstance(item, GraphicsTransitionItem):
+                item.set_properties(**props)
+            elif isinstance(item, GraphicsCommentItem):
+                item.set_properties(**props)
+                self.scene_ref.scene_content_changed_for_find.emit()
+
+            item.update()
+        
         self.scene_ref.update()
         self.scene_ref.set_dirty(True)
         self.scene_ref._request_validation_update()
 
-
     def redo(self):
-        logger.debug(f"EditItemPropertiesCommand: Redo - Applying new properties to item.")
-        self._apply_properties(self.new_props_data)
+        logger.debug(f"EditItemPropertiesCommand: Redo - Applying new properties to {len(self.items)} item(s).")
+        self._apply_properties(self.new_props_list)
 
     def undo(self):
-        logger.debug(f"EditItemPropertiesCommand: Undo - Applying old properties to item.")
-        self._apply_properties(self.old_props_data)
+        logger.debug(f"EditItemPropertiesCommand: Undo - Applying old properties to {len(self.items)} item(s).")
+        self._apply_properties(self.old_props_list)

@@ -4,7 +4,7 @@ import sys
 # At the top of fsm_designer_project/ui/dialogs/settings_dialogs.py
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QPushButton, QSpinBox, QComboBox, QDialogButtonBox,
-    QColorDialog, QHBoxLayout, QLabel, QGroupBox, QStyle, QFontComboBox, QDoubleSpinBox,
+    QColorDialog, QHBoxLayout, QLabel, QGroupBox, QStyle, QFontComboBox, QDoubleSpinBox, QAction,
     QCheckBox, QTabWidget, QWidget, QGraphicsScene, QGraphicsView, QScrollArea, QLineEdit,
     QInputDialog, QMessageBox, QFileDialog, QGraphicsItem # <-- ADD THIS IMPORT
 )
@@ -22,7 +22,6 @@ from ...utils.config import (
     COLOR_ITEM_TRANSITION_DEFAULT
 )
 from ...utils import get_standard_icon
-from ..graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
 from ...core.matlab_integration import MatlabConnection
 from ...managers.theme_manager import ThemeManager
 
@@ -47,11 +46,11 @@ class SettingsDialog(QDialog):
 
         self.original_settings_on_open = {}
         
-        self._preview_state_item: GraphicsStateItem | None = None
-        self._preview_transition_item_start: GraphicsStateItem | None = None
-        self._preview_transition_item_end: GraphicsStateItem | None = None
-        self._preview_transition_item: GraphicsTransitionItem | None = None
-        self._preview_comment_item: GraphicsCommentItem | None = None
+        self._preview_state_item: 'GraphicsStateItem' | None = None
+        self._preview_transition_item_start: 'GraphicsStateItem' | None = None
+        self._preview_transition_item_end: 'GraphicsStateItem' | None = None
+        self._preview_transition_item: 'GraphicsTransitionItem' | None = None
+        self._preview_comment_item: 'GraphicsCommentItem' | None = None
 
         main_layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
@@ -226,6 +225,12 @@ class SettingsDialog(QDialog):
         behavior_layout.addRow(restart_note_bh)
         self.tabs.addTab(behavior_tab, "Behavior")
         
+        # --- NEW TAB: Integrations (for MATLAB) ---
+        integrations_tab = QWidget()
+        self._populate_matlab_settings_tab(integrations_tab)
+        self.tabs.addTab(integrations_tab, "Integrations")
+        # --- END NEW TAB ---
+        
         main_layout.addWidget(self.tabs)
 
         button_layout = QHBoxLayout()
@@ -244,6 +249,54 @@ class SettingsDialog(QDialog):
         self.load_settings_to_ui() 
         self._connect_change_signals_for_apply_button()
         self._connect_preview_update_signals()
+
+    def _populate_matlab_settings_tab(self, tab_widget: QWidget):
+        """Creates and populates the MATLAB settings tab content."""
+        main_layout = QVBoxLayout(tab_widget)
+        main_layout.setSpacing(10); main_layout.setContentsMargins(10,10,10,10)
+
+        path_group = QGroupBox("MATLAB Executable Path"); path_form_layout = QFormLayout()
+        path_form_layout.setSpacing(6)
+        self.matlab_path_edit = QLineEdit(self.parent().matlab_connection.matlab_path if self.parent() else "")
+        self.matlab_path_edit.setPlaceholderText("e.g., C:\\...\\MATLAB\\R202Xy\\bin\\matlab.exe")
+        path_form_layout.addRow("Path:", self.matlab_path_edit)
+
+        btn_layout = QHBoxLayout(); btn_layout.setSpacing(6)
+        auto_detect_btn = QPushButton(get_standard_icon(QStyle.SP_BrowserReload,"Det"), " Auto-detect")
+        auto_detect_btn.clicked.connect(self._matlab_auto_detect)
+        auto_detect_btn.setToolTip("Attempt to find MATLAB installations.")
+        browse_btn = QPushButton(get_standard_icon(QStyle.SP_DirOpenIcon, "Brw"), " Browse...")
+        browse_btn.clicked.connect(self._matlab_browse)
+        browse_btn.setToolTip("Browse for MATLAB executable.")
+        btn_layout.addWidget(auto_detect_btn); btn_layout.addWidget(browse_btn); btn_layout.addStretch()
+
+        path_v_layout = QVBoxLayout(); path_v_layout.setSpacing(8)
+        path_v_layout.addLayout(path_form_layout); path_v_layout.addLayout(btn_layout)
+        path_group.setLayout(path_v_layout); main_layout.addWidget(path_group)
+
+        test_group = QGroupBox("Connection Test"); test_layout = QVBoxLayout(); test_layout.setSpacing(8)
+        self.matlab_test_status_label = QLabel("Status: Unknown"); self.matlab_test_status_label.setObjectName("TestStatusLabel")
+        self.matlab_test_status_label.setWordWrap(True); self.matlab_test_status_label.setTextInteractionFlags(Qt.TextSelectableByMouse); self.matlab_test_status_label.setMinimumHeight(30)
+        test_btn = QPushButton(get_standard_icon(QStyle.SP_CommandLink,"Test"), " Test Connection")
+        test_btn.clicked.connect(self._matlab_test_connection)
+        test_btn.setToolTip("Test connection to the specified MATLAB path.")
+        test_layout.addWidget(test_btn); test_layout.addWidget(self.matlab_test_status_label, 1)
+        test_group.setLayout(test_layout); main_layout.addWidget(test_group)
+        main_layout.addStretch()
+
+        # Connect signals and set initial state
+        if self.parent() and hasattr(self.parent(), 'matlab_connection'):
+            matlab_conn = self.parent().matlab_connection
+            matlab_conn.connectionStatusChanged.connect(self._matlab_update_test_label)
+            if matlab_conn.matlab_path and matlab_conn.connected:
+                 self._matlab_update_test_label(True, f"Connected: {matlab_conn.matlab_path}")
+            elif matlab_conn.matlab_path:
+                self._matlab_update_test_label(False, "Path set, but connection unconfirmed.")
+            else:
+                self._matlab_update_test_label(False, "Path not set.")
+
+            # Also connect the line edit to the apply button
+            self.matlab_path_edit.textChanged.connect(self._on_setting_ui_changed)
 
     def _update_theme_list(self):
         """Populates the theme combobox with available themes."""
@@ -264,7 +317,7 @@ class SettingsDialog(QDialog):
     @pyqtSlot()
     def _on_theme_selection_changed(self):
         selected_theme = self.theme_combo.currentText()
-        is_deletable = selected_theme not in ["Light", "Dark"]
+        is_deletable = selected_theme not in ["Light", "Dark", "Crimson"]
         self.edit_theme_btn.setEnabled(True) # Always allow editing
         self.delete_theme_btn.setEnabled(is_deletable)
 
@@ -305,7 +358,7 @@ class SettingsDialog(QDialog):
 
     def _on_delete_theme(self):
         theme_name = self.theme_combo.currentText()
-        if theme_name in ["Light", "Dark"]: return
+        if theme_name in ["Light", "Dark", "Crimson"]: return
 
         reply = QMessageBox.question(self, "Delete Theme", f"Are you sure you want to delete the theme '{theme_name}'?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
@@ -315,6 +368,9 @@ class SettingsDialog(QDialog):
 
 
     def _create_preview_items(self):
+        # --- FIX: Move imports inside the method to break circular dependency ---
+        from ..graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
+
         # State Preview Item
         self._preview_state_item = GraphicsStateItem(0, 0, 100, 50, "State") # Dimensions are relative, fitInView handles scaling
         self._preview_state_item.setFlag(QGraphicsItem.ItemIsMovable, False); self._preview_state_item.setFlag(QGraphicsItem.ItemIsSelectable, False)
@@ -594,6 +650,13 @@ class SettingsDialog(QDialog):
         self.settings_manager.set("resource_monitor_enabled", self.resource_monitor_enabled_cb.isChecked(), save_immediately=False)
         self.settings_manager.set("resource_monitor_interval_ms", self.resource_monitor_interval_spin.value(), save_immediately=False)
 
+        # --- NEW: Apply MATLAB path setting ---
+        if self.parent() and hasattr(self.parent(), 'matlab_connection'):
+            matlab_conn = self.parent().matlab_connection
+            new_path = self.matlab_path_edit.text().strip()
+            if matlab_conn.matlab_path != new_path:
+                matlab_conn.set_matlab_path(new_path)
+
         self.settings_manager.save_settings() 
         self.load_settings_to_ui() 
         QMessageBox.information(self, "Settings Applied", "Settings have been applied. Some changes may require an application restart.")
@@ -622,6 +685,48 @@ class SettingsDialog(QDialog):
             if reply == QMessageBox.No:
                 return 
         super().reject()
+    
+    # --- NEW METHODS for MATLAB settings tab ---
+    def _matlab_auto_detect(self):
+        if self.parent() and hasattr(self.parent(), 'matlab_connection'):
+            self.matlab_test_status_label.setText("Status: Auto-detecting MATLAB, please wait...")
+            self.matlab_test_status_label.setStyleSheet(f"font-style: italic; color: {COLOR_TEXT_SECONDARY}; background-color: {QColor(COLOR_ACCENT_PRIMARY_LIGHT).lighter(120).name()};")
+            QApplication.processEvents()
+            self.parent().matlab_connection.detect_matlab()
+
+    def _matlab_browse(self):
+        exe_filter = "MATLAB Executable (matlab.exe)" if sys.platform == 'win32' else "MATLAB Executable (matlab);;All Files (*)"
+        start_dir = QDir.homePath()
+        if self.matlab_path_edit.text() and QDir(QDir.toNativeSeparators(self.matlab_path_edit.text())).exists():
+             path_obj = QDir(self.matlab_path_edit.text()); path_obj.cdUp(); start_dir = path_obj.absolutePath()
+        path, _ = QFileDialog.getOpenFileName(self, "Select MATLAB Executable", start_dir, exe_filter)
+        if path:
+            self.matlab_path_edit.setText(path)
+            self._matlab_update_test_label(False, "Path changed. Click 'Test Connection'.")
+
+    def _matlab_test_connection(self):
+        if self.parent() and hasattr(self.parent(), 'matlab_connection'):
+            matlab_conn = self.parent().matlab_connection
+            path = self.matlab_path_edit.text().strip()
+            if not path:
+                self._matlab_update_test_label(False, "Path is empty."); return
+            self.matlab_test_status_label.setText("Status: Testing connection, please wait...")
+            self.matlab_test_status_label.setStyleSheet(f"font-style: italic; color: {COLOR_TEXT_SECONDARY}; background-color: {QColor(COLOR_ACCENT_PRIMARY_LIGHT).lighter(120).name()};")
+            QApplication.processEvents()
+            if matlab_conn.set_matlab_path(path):
+                matlab_conn.test_connection()
+
+    def _matlab_update_test_label(self, success, message):
+        status_prefix = "Status: "
+        current_style = "font-weight: bold; padding: 5px; border-radius: 3px;"
+        if success:
+            current_style += f"color: {COLOR_ACCENT_SUCCESS}; background-color: {QColor(COLOR_ACCENT_SUCCESS).lighter(180).name()};"
+        else:
+            current_style += f"color: {COLOR_ACCENT_ERROR}; background-color: {QColor(COLOR_ACCENT_ERROR).lighter(180).name()};"
+        self.matlab_test_status_label.setText(status_prefix + message)
+        self.matlab_test_status_label.setStyleSheet(current_style)
+        if success and self.parent().matlab_connection.matlab_path:
+            self.matlab_path_edit.setText(self.parent().matlab_connection.matlab_path)
         
 class ThemeEditDialog(QDialog):
     """A dialog to create or edit a theme's colors based on a core palette."""
@@ -715,82 +820,3 @@ class ThemeEditDialog(QDialog):
             logger.error("ThemeManager is missing 'derive_theme_from_palette' method. Returning core palette.")
             return self.core_palette
         return self.theme_manager.derive_theme_from_palette(self.core_palette)       
-
-
-class MatlabSettingsDialog(QDialog):
-    def __init__(self, matlab_connection: MatlabConnection, parent=None):
-        super().__init__(parent)
-        self.matlab_connection = matlab_connection
-        self.setWindowTitle("MATLAB Settings"); self.setWindowIcon(get_standard_icon(QStyle.SP_ComputerIcon, "Cfg"))
-        self.setMinimumWidth(550) 
-        self.setStyleSheet(f"QDialog {{ background-color: {COLOR_BACKGROUND_DIALOG}; }} QLabel#TestStatusLabel {{ padding: 5px; border-radius: 3px; }} QGroupBox {{ background-color: {QColor(COLOR_BACKGROUND_LIGHT).lighter(102).name()}; }}")
-        main_layout = QVBoxLayout(self); main_layout.setSpacing(10); main_layout.setContentsMargins(10,10,10,10) 
-        path_group = QGroupBox("MATLAB Executable Path"); path_form_layout = QFormLayout()
-        path_form_layout.setSpacing(6) 
-        self.path_edit = QLineEdit(self.matlab_connection.matlab_path)
-        self.path_edit.setPlaceholderText("e.g., C:\\...\\MATLAB\\R202Xy\\bin\\matlab.exe")
-        path_form_layout.addRow("Path:", self.path_edit)
-        btn_layout = QHBoxLayout(); btn_layout.setSpacing(6) 
-        auto_detect_btn = QPushButton(get_standard_icon(QStyle.SP_BrowserReload,"Det"), " Auto-detect")
-        auto_detect_btn.clicked.connect(self._auto_detect); auto_detect_btn.setToolTip("Attempt to find MATLAB installations.")
-        browse_btn = QPushButton(get_standard_icon(QStyle.SP_DirOpenIcon, "Brw"), " Browse...")
-        browse_btn.clicked.connect(self._browse); browse_btn.setToolTip("Browse for MATLAB executable.")
-        btn_layout.addWidget(auto_detect_btn); btn_layout.addWidget(browse_btn); btn_layout.addStretch()
-        path_v_layout = QVBoxLayout(); path_v_layout.setSpacing(8) 
-        path_v_layout.addLayout(path_form_layout); path_v_layout.addLayout(btn_layout)
-        path_group.setLayout(path_v_layout); main_layout.addWidget(path_group)
-        test_group = QGroupBox("Connection Test"); test_layout = QVBoxLayout(); test_layout.setSpacing(8) 
-        self.test_status_label = QLabel("Status: Unknown"); self.test_status_label.setObjectName("TestStatusLabel")
-        self.test_status_label.setWordWrap(True); self.test_status_label.setTextInteractionFlags(Qt.TextSelectableByMouse); self.test_status_label.setMinimumHeight(30) 
-        test_btn = QPushButton(get_standard_icon(QStyle.SP_CommandLink,"Test"), " Test Connection")
-        test_btn.clicked.connect(self._test_connection_and_update_label); test_btn.setToolTip("Test connection to the specified MATLAB path.")
-        test_layout.addWidget(test_btn); test_layout.addWidget(self.test_status_label, 1)
-        test_group.setLayout(test_layout); main_layout.addWidget(test_group)
-        dialog_buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        dialog_buttons.button(QDialogButtonBox.Ok).setText("Apply & Close")
-        dialog_buttons.accepted.connect(self._apply_settings); dialog_buttons.rejected.connect(self.reject)
-        main_layout.addWidget(dialog_buttons)
-        self.matlab_connection.connectionStatusChanged.connect(self._update_test_label_from_signal)
-        if self.matlab_connection.matlab_path and self.matlab_connection.connected:
-             self._update_test_label_from_signal(True, f"Connected: {self.matlab_connection.matlab_path}")
-        elif self.matlab_connection.matlab_path:
-            self._update_test_label_from_signal(False, f"Path previously set, but connection unconfirmed or failed.")
-        else: self._update_test_label_from_signal(False, "MATLAB path not set.")
-    def _auto_detect(self):
-        self.test_status_label.setText("Status: Auto-detecting MATLAB, please wait..."); self.test_status_label.setStyleSheet(f"font-style: italic; color: {COLOR_TEXT_SECONDARY}; background-color: {QColor(COLOR_ACCENT_PRIMARY_LIGHT).lighter(120).name()};")
-        QApplication.processEvents()
-        self.matlab_connection.detect_matlab()
-    def _browse(self):
-        exe_filter = "MATLAB Executable (matlab.exe)" if sys.platform == 'win32' else "MATLAB Executable (matlab);;All Files (*)"
-        start_dir = QDir.homePath()
-        if self.path_edit.text() and QDir(QDir.toNativeSeparators(self.path_edit.text())).exists():
-             path_obj = QDir(self.path_edit.text()); path_obj.cdUp(); start_dir = path_obj.absolutePath()
-        path, _ = QFileDialog.getOpenFileName(self, "Select MATLAB Executable", start_dir, exe_filter)
-        if path: self.path_edit.setText(path); self._update_test_label_from_signal(False, "Path changed. Click 'Test Connection' or 'Apply & Close'.")
-    def _test_connection_and_update_label(self):
-        path = self.path_edit.text().strip()
-        if not path: self._update_test_label_from_signal(False, "MATLAB path is empty. Cannot test."); return
-        self.test_status_label.setText("Status: Testing connection, please wait..."); self.test_status_label.setStyleSheet(f"font-style: italic; color: {COLOR_TEXT_SECONDARY}; background-color: {QColor(COLOR_ACCENT_PRIMARY_LIGHT).lighter(120).name()};")
-        QApplication.processEvents()
-        if self.matlab_connection.set_matlab_path(path): self.matlab_connection.test_connection()
-    def _update_test_label_from_signal(self, success, message):
-        status_prefix = "Status: "; current_style = "font-weight: bold; padding: 5px; border-radius: 3px;"
-        if success:
-            status_text = "Connected! "
-            if "path set and appears valid" in message : status_text = "Path Valid. "
-            elif "test successful" in message : status_text = "Connected! "
-            current_style += f"color: {COLOR_ACCENT_SUCCESS}; background-color: {QColor(COLOR_ACCENT_SUCCESS).lighter(180).name()};"
-            self.test_status_label.setText(status_prefix + status_text + message)
-        else:
-            status_text = "Error. "
-            current_style += f"color: {COLOR_ACCENT_ERROR}; background-color: {QColor(COLOR_ACCENT_ERROR).lighter(180).name()};"
-            self.test_status_label.setText(status_prefix + status_text + message)
-        self.test_status_label.setStyleSheet(current_style)
-        if success and self.matlab_connection.matlab_path and not self.path_edit.text():
-            self.path_edit.setText(self.matlab_connection.matlab_path)
-    def _apply_settings(self):
-        path = self.path_edit.text().strip()
-        if self.matlab_connection.matlab_path != path:
-            self.matlab_connection.set_matlab_path(path)
-            if path and not self.matlab_connection.connected : self.matlab_connection.test_connection()
-        self.accept()

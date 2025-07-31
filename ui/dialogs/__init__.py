@@ -1,5 +1,4 @@
 # fsm_designer_project/ui/dialogs/__init__.py
-
 """
 Initializes the dialogs package and re-exports all dialog classes from
 their respective modules. This allows other parts of the application
@@ -17,8 +16,7 @@ from .property_dialogs import (
 # Import from settings dialogs module
 from .settings_dialogs import (
     SettingsDialog,
-    ThemeEditDialog,
-    MatlabSettingsDialog
+    ThemeEditDialog
 )
 
 # Import from tool dialogs module
@@ -27,8 +25,28 @@ from .tool_dialogs import (
     SnippetManagerDialog,
     SnippetEditDialog,
     AutoLayoutPreviewDialog,
-    ImportFromTextDialog
+    ImportFromTextDialog,
+    SystemInfoDialog,
+    QuickAccessSettingsDialog
 )
 
-# --- NEW: Import from the new project dialog file ---
+# Import from the new project dialog file
 from .new_project_dialog import NewProjectDialog
+
+# Define the public API of this package
+__all__ = [
+    "StatePropertiesDialog",
+    "TransitionPropertiesDialog",
+    "CommentPropertiesDialog",
+    "SubFSMEditorDialog",
+    "SettingsDialog",
+    "ThemeEditDialog",
+    "FindItemDialog",
+    "SnippetManagerDialog",
+    "SnippetEditDialog",
+    "AutoLayoutPreviewDialog",
+    "ImportFromTextDialog",
+    "NewProjectDialog",
+    "SystemInfoDialog",
+    "QuickAccessSettingsDialog",
+]

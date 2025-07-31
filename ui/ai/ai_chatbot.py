@@ -912,7 +912,7 @@ class AIChatbotManager(QObject):
     def is_configured(self) -> bool:
         """Checks if the chatbot has a configured and ready provider."""
         # FIX: Check the worker's provider, not a non-existent attribute
-        return self.chatbot_worker and self.chatbot_worker.provider and self.chatbot_worker.provider.is_configured()
+        return bool(self.chatbot_worker and self.chatbot_worker.provider and self.chatbot_worker.provider.is_configured())
 
 
     def _cleanup_existing_worker_and_thread(self):

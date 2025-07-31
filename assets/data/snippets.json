@@ -1,0 +1,85 @@
+{
+    "Python (Generic Simulation)": {
+        "actions": {
+            "Set Variable": "my_variable = 10",
+            "Increment Counter": "counter = counter + 1",
+            "Print Message": "print('Hello from FSM!')",
+            "Log with Tick": "print(f'Current tick: {current_tick}, State: {sm.current_state.id if sm and sm.current_state else \\'N/A\\'}')"
+        },
+        "conditions": {
+            "Variable Equals": "my_variable == 10",
+            "Counter Greater Than": "counter > 5"
+        },
+        "events": {
+            "Timer Expired": "timer_expired",
+            "Button Pressed": "button_pressed",
+            "Sensor Detect": "sensor_detect_obj_A"
+        }
+    },
+    "Arduino (C++)": {
+        "actions": {
+            "Digital Write HIGH": "digitalWrite(LED_PIN, HIGH);",
+            "Digital Write LOW": "digitalWrite(LED_PIN, LOW);",
+            "Analog Write": "analogWrite(MOTOR_PIN, speed_value);",
+            "Serial Print": "Serial.println(\\\"Hello from Arduino FSM!\\\");",
+            "Delay": "delay(1000); // 1 second delay"
+        },
+        "conditions": {
+            "Digital Read HIGH": "digitalRead(BUTTON_PIN) == HIGH",
+            "Analog Read Threshold": "analogRead(SENSOR_PIN) > 512",
+            "Variable Check": "my_arduino_variable == SOME_VALUE"
+        },
+        "events": {
+            "Timer Interrupt": "ISR_TIMER_EXPIRED_FLAG",
+            "Button Change": "BUTTON_CHANGE_EVENT"
+        }
+    },
+    "C (Generic Embedded)": {
+        "actions": {
+            "Set GPIO Pin High": "HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET); // Example for STM32 HAL",
+            "Set GPIO Pin Low": "HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);",
+            "Toggle GPIO Pin": "HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);",
+            "Send UART Message": "HAL_UART_Transmit(&huart1, (uint8_t*)\\\"Msg\\\\r\\\\n\\\", 6, 100);",
+            "Basic printf (if stdio redirected)": "printf(\\\"Event occurred\\\\n\\\");"
+        },
+        "conditions": {
+            "Check GPIO Pin State": "HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_SET",
+            "Check Flag Variable": "global_event_flag == 1"
+        },
+        "events": {
+            "External Interrupt": "EXTI0_IRQ_FLAG",
+            "Timer Overflow": "TIM2_UPDATE_FLAG"
+        }
+    },
+    "RaspberryPi (Python)": {
+        "actions": {
+            "GPIO Set High": "import RPi.GPIO as GPIO\\nGPIO.setmode(GPIO.BCM) # or GPIO.BOARD\\nGPIO.setup(17, GPIO.OUT)\\nGPIO.output(17, GPIO.HIGH)",
+            "GPIO Set Low": "import RPi.GPIO as GPIO\\nGPIO.output(17, GPIO.LOW)",
+            "Print Message": "print('RPi FSM action')"
+        },
+        "conditions": {
+            "GPIO Read High": "import RPi.GPIO as GPIO\\nGPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)\\nGPIO.input(18) == GPIO.HIGH"
+        },
+        "events": {
+            "Button Press RPi": "rpi_button_event"
+        }
+    },
+    "MicroPython": {
+        "actions": {
+            "Pin On": "from machine import Pin\\nled = Pin(2, Pin.OUT)\\nled.on()",
+            "Pin Off": "from machine import Pin\\nled = Pin(2, Pin.OUT)\\nled.off()",
+            "Toggle Pin": "from machine import Pin\\nled = Pin(2, Pin.OUT)\\nled.value(not led.value())"
+        },
+        "conditions": {
+            "Pin Value High": "from machine import Pin\\nbutton = Pin(0, Pin.IN, Pin.PULL_UP)\\nbutton.value() == 1"
+        },
+        "events": {
+            "IRQ Triggered MicroPy": "micropy_irq_flag_event"
+        }
+    },
+    "Text": {
+        "actions": {},
+        "conditions": {},
+        "events": {}
+    }
+}

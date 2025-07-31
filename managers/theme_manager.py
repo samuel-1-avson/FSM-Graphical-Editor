@@ -68,6 +68,41 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#4FC3F7", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#62757f"
     }
     
+    THEME_DATA_CRIMSON = {
+        "COLOR_BACKGROUND_APP": "#800000",
+        "COLOR_BACKGROUND_LIGHT": "#FFFFFF",
+        "COLOR_BACKGROUND_MEDIUM": "#F0F0F0",
+        "COLOR_BACKGROUND_DARK": "#E0E0E0",
+        "COLOR_BACKGROUND_EDITOR_DARK": "#2A2121",
+        "COLOR_TEXT_EDITOR_DARK_PRIMARY": "#F0E6E6",
+        "COLOR_TEXT_EDITOR_DARK_SECONDARY": "#A09696",
+        "COLOR_BACKGROUND_DIALOG": "#FAFAFA",
+        "COLOR_TEXT_PRIMARY": "#212121",
+        "COLOR_TEXT_SECONDARY": "#757575",
+        "COLOR_TEXT_ON_ACCENT": "#FFFFFF",
+        "COLOR_ACCENT_PRIMARY": "#0078D7",
+        "COLOR_ACCENT_PRIMARY_LIGHT": "#CDE5F7",
+        "COLOR_ACCENT_SECONDARY": "#C586C0",
+        "COLOR_ACCENT_SUCCESS": "#28A745",
+        "COLOR_ACCENT_WARNING": "#FFC107",
+        "COLOR_ACCENT_ERROR": "#DC3545",
+        "COLOR_BORDER_LIGHT": "#DCDCDC",
+        "COLOR_BORDER_MEDIUM": "#C0C0C0",
+        "COLOR_BORDER_DARK": "#A9A9A9",
+        "COLOR_ITEM_STATE_DEFAULT_BG": "#E3F2FD",
+        "COLOR_ITEM_STATE_DEFAULT_BORDER": "#64B5F6",
+        "COLOR_ITEM_TRANSITION_DEFAULT": "#00796B",
+        "COLOR_ITEM_COMMENT_BG": "#FFF9C4",
+        "COLOR_ITEM_COMMENT_BORDER": "#FFEE58",
+        "COLOR_GRID_MINOR": "#F0F0F0",
+        "COLOR_GRID_MAJOR": "#E0E0E0",
+        "COLOR_DRAGGABLE_BUTTON_BG": "#FAFAFA",
+        "COLOR_DRAGGABLE_BUTTON_BORDER": "#DCDCDC",
+        "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#E6F2FA",
+        "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#0078D7",
+        "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#CCE4F7"
+    }
+
     THEME_KEYS = list(THEME_DATA_LIGHT.keys())
     # --- END NEW ---
 
@@ -135,7 +170,11 @@ class ThemeManager(QObject):
         """Load default and user-defined themes with error handling."""
         self._theme_cache.clear()
         # --- MODIFIED: Use class constants for default themes ---
-        self.themes = {"Light": self.THEME_DATA_LIGHT.copy(), "Dark": self.THEME_DATA_DARK.copy()}
+        self.themes = {
+            "Light": self.THEME_DATA_LIGHT.copy(),
+            "Dark": self.THEME_DATA_DARK.copy(),
+            "Crimson": self.THEME_DATA_CRIMSON.copy()
+        }
 
         if not os.path.exists(self.theme_file_path):
             logger.info("User themes file not found. Using default themes only.")
@@ -230,7 +269,7 @@ class ThemeManager(QObject):
         return sorted(self.themes.keys())
 
     def is_default_theme(self, name: str) -> bool:
-        return name in ["Light", "Dark"]
+        return name in ["Light", "Dark", "Crimson"]
 
     def get_theme_data(self, name: str) -> Optional[Dict[str, str]]:
         return self.themes.get(name)

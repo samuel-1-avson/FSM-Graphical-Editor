@@ -65,18 +65,30 @@ class PerspectiveManager(QObject):
     @pyqtSlot(str)
     def apply_perspective(self, perspective_name: str):
         logger.info(f"Applying perspective: {perspective_name}")
-        saved_state_hex = self.settings_manager.get(f"perspective_{perspective_name}", None)
+        
+        is_default_perspective = perspective_name in self.mw.DEFAULT_PERSPECTIVES_ORDER
 
-        applied = False
-        if saved_state_hex and isinstance(saved_state_hex, str):
-            try:
-                if self.mw.restoreState(bytes.fromhex(saved_state_hex)):
-                    applied = True
-            except ValueError:
-                logger.error(f"Invalid hex string for perspective '{perspective_name}'.")
-
-        if not applied:
+        if is_default_perspective:
+            # For default perspectives, ALWAYS apply the hardcoded layout to ensure they are clean.
             self._apply_default_layout(perspective_name)
+        else:
+            # For user-saved perspectives, try to restore from settings.
+            saved_state_hex = self.settings_manager.get(f"perspective_{perspective_name}", None)
+            applied = False
+            if saved_state_hex and isinstance(saved_state_hex, str):
+                try:
+                    if self.mw.restoreState(bytes.fromhex(saved_state_hex)):
+                        applied = True
+                except ValueError:
+                    logger.error(f"Invalid hex string for perspective '{perspective_name}'.")
+
+            if not applied:
+                # Fallback if a user perspective fails to load
+                logger.warning(f"Could not restore user perspective '{perspective_name}', applying Design Focus instead.")
+                self._apply_default_layout(self.mw.PERSPECTIVE_DESIGN_FOCUS)
+
+        # After applying any perspective, always re-evaluate the central widget.
+        self.mw._update_central_widget()
 
         self.current_perspective_name = perspective_name
         self.settings_manager.set("last_used_perspective", perspective_name)
@@ -86,6 +98,7 @@ class PerspectiveManager(QObject):
         logger.info(f"Applying default programmatic layout for perspective: '{name}'")
 
         all_docks = [
+            self.mw.project_explorer_dock,
             self.mw.elements_palette_dock, self.mw.properties_dock, self.mw.log_dock,
             self.mw.problems_dock, self.mw.py_sim_dock, self.mw.ai_chatbot_dock, self.mw.ide_dock,
             self.mw.resource_estimation_dock, self.mw.live_preview_dock, self.mw.minimap_dock,
@@ -98,8 +111,8 @@ class PerspectiveManager(QObject):
                 dock.setFloating(False)
                 dock.setVisible(False)
 
-        # --- REWORKED LOGIC ---
         # 1. Place all docks in their primary areas. This prevents them from appearing floating.
+        self.mw.addDockWidget(Qt.LeftDockWidgetArea, self.mw.project_explorer_dock)
         self.mw.addDockWidget(Qt.LeftDockWidgetArea, self.mw.elements_palette_dock)
         
         self.mw.addDockWidget(Qt.RightDockWidgetArea, self.mw.properties_dock)
@@ -120,21 +133,30 @@ class PerspectiveManager(QObject):
         main_height = self.mw.height()
 
         if name == self.mw.PERSPECTIVE_DESIGN_FOCUS:
-            # Layout: Elements on left, Properties/Minimap on right, Log/Problems on bottom.
+            # Layout: Project/Elements on left, Properties/Minimap on right, Log/Problems on bottom.
+            self.mw.project_explorer_dock.setVisible(True)
             self.mw.elements_palette_dock.setVisible(True)
             self.mw.properties_dock.setVisible(True)
             self.mw.log_dock.setVisible(True)
+            
+            self.mw.tabifyDockWidget(self.mw.project_explorer_dock, self.mw.elements_palette_dock)
             
             self.mw.tabifyDockWidget(self.mw.properties_dock, self.mw.minimap_dock)
             self.mw.tabifyDockWidget(self.mw.log_dock, self.mw.problems_dock)
             self.mw.tabifyDockWidget(self.mw.log_dock, self.mw.live_preview_dock)
             
+            self.mw.project_explorer_dock.raise_()
             self.mw.properties_dock.raise_()
             self.mw.log_dock.raise_()
             
-            self.mw.resizeDocks([self.mw.elements_palette_dock], [int(main_width * 0.15)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.20)], Qt.Horizontal)
+            # --- FIX: Set smaller relative sizes for the dock areas ---
+            # Give ~15% to left dock, ~18% to right dock, leaving ~67% for the center.
+            self.mw.resizeDocks([self.mw.project_explorer_dock, self.mw.properties_dock], 
+                                [int(main_width * 0.15), int(main_width * 0.18)], 
+                                Qt.Horizontal)
+            # Give 25% of the remaining vertical space to the bottom dock
             self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Vertical)
+            # --- END FIX ---
 
         elif name == self.mw.PERSPECTIVE_SIMULATION_FOCUS:
             # Layout: Split right dock vertically. Top: Sim controls. Bottom: Properties.

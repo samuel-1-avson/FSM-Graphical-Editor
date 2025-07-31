@@ -29,12 +29,16 @@ entity {{ entity_name }} is
         reset : in  std_logic;  -- Active-high reset
 
         -------------------------------------------------
-        -- TODO: Declare your event and condition inputs here.
+        -- Event and condition inputs (auto-generated from diagram)
         -- These signals drive the FSM transitions.
-        -- Example:
-        -- event_button_press : in  std_logic;
-        -- cond_sensor_high   : in  std_logic;
         -------------------------------------------------
+{%- if input_signals %}
+    {%- for signal in input_signals %}
+        {{ signal | ljust(20) }} : in  std_logic;
+    {%- endfor %}
+{%- else %}
+        -- No event or condition signals found in the diagram.
+{% endif %}
 
 
         -------------------------------------------------
@@ -53,7 +57,7 @@ architecture behavioral of {{ entity_name }} is
     -- State type definition based on the diagram states
     type state_t is (
         {% for state in states -%}
-        {{ state.vhdl_name }}{% if not loop.last %},{% endif %}  -- State: {{ state.original_name }}
+        {{ state.hdl_name }}{% if not loop.last %},{% endif %}  -- State: {{ state.original_name }}
         {% endfor %}
     );
 
@@ -83,9 +87,9 @@ begin
     -- on the current state and the inputs.
     --
     -- IMPORTANT: Add all event and condition signals to the sensitivity
-    -- list below to ensure correct combinational behavior.
+    -- list below to ensure correct combinational behavior if not using VHDL-2008's 'process(all)'.
     -- =================================================================
-    next_state_logic_proc: process(current_state, --[[ TODO: Add all event/condition signals here ]]--)
+    next_state_logic_proc: process(current_state{% if all_events_and_conditions %}, {{ all_events_and_conditions }}{% endif %})
     begin
         -- Default assignments to prevent unintentional latches in synthesis
         next_state <= current_state;
@@ -96,7 +100,7 @@ begin
 
         case current_state is
     {% for state in states %}
-            when {{ state.vhdl_name }} =>
+            when {{ state.hdl_name }} =>
                 -- ============ LOGIC FOR STATE: {{ state.original_name }} ============
                 -- TODO: Implement any 'during' actions for this state here.
                 -- For example, if an LED should be on while in this state:

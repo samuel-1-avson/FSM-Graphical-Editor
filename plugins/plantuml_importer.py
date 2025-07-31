@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Optional
 
 from .api import BsmImporterPlugin
-from ..io.fsm_importer import parse_plantuml
+from ..utils.fsm_importer import parse_plantuml
 
 logger = logging.getLogger(__name__)
 

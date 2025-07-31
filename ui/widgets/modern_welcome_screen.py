@@ -15,7 +15,7 @@ from ...utils import get_standard_icon
 from ...utils.config import (
     APP_NAME, APP_VERSION, COLOR_ACCENT_PRIMARY, COLOR_BACKGROUND_LIGHT,
     COLOR_TEXT_PRIMARY, COLOR_BORDER_LIGHT, COLOR_TEXT_SECONDARY,
-    COLOR_BACKGROUND_APP, COLOR_ACCENT_SECONDARY
+    COLOR_BACKGROUND_APP, COLOR_ACCENT_SECONDARY, PROJECT_FILE_EXTENSION
 )
 
 
@@ -207,9 +207,7 @@ class ModernWelcomeScreen(QWidget):
     
     # Signals
     newFileRequested = pyqtSignal()
-    # --- MODIFICATION ---
     openProjectRequested = pyqtSignal()
-    # --- END MODIFICATION ---
     openRecentRequested = pyqtSignal(str)
     showGuideRequested = pyqtSignal()
     showExamplesRequested = pyqtSignal()
@@ -384,9 +382,9 @@ class ModernWelcomeScreen(QWidget):
         header_layout = QHBoxLayout(header_widget)
         header_layout.setContentsMargins(0, 0, 0, 10)
         
-        # --- MODIFICATION ---
+        # --- FIX: Update label to be specific to projects ---
         self.recent_label = QLabel("Recent Projects")
-        # --- END MODIFICATION ---
+        # --- END FIX ---
         header_layout.addWidget(self.recent_label)
         header_layout.addStretch()
         
@@ -412,22 +410,27 @@ class ModernWelcomeScreen(QWidget):
         layout.addWidget(self.footer_label)
         
     def update_recent_files(self, recent_files):
-        """Update recent files list."""
+        """Update recent files list, filtering for projects."""
         # Clear existing items
         while self.recent_layout.count():
             item = self.recent_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-                
-        if not recent_files:
+        
+        # --- FIX: Filter the list to only show project files ---
+        project_files = [p for p in recent_files if p.endswith(PROJECT_FILE_EXTENSION)]
+        
+        if not project_files:
             self.recent_layout.addWidget(self.no_recent_label)
             self.no_recent_label.show()
         else:
             self.no_recent_label.hide()
-            for file_path in recent_files[:5]:  # Show up to 5 recent files
+            # Show up to 5 recent projects
+            for file_path in project_files[:5]:
                 item = RecentFileItem(file_path)
                 item.clicked.connect(self.openRecentRequested.emit)
                 self.recent_layout.addWidget(item)
+        # --- END FIX ---
 
 # For compatibility with older code that might import WelcomeWidget
 WelcomeWidget = ModernWelcomeScreen

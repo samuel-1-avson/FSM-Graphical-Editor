@@ -114,7 +114,7 @@ class SettingsManager(QObject):
         # Appearance settings
         "appearance_theme": SettingDefinition(
             "appearance_theme", "Dark", SettingCategory.APPEARANCE,
-            "Application theme", allowed_values=["Light", "Dark", "Auto"]
+            "Application theme", allowed_values=["Light", "Dark", "Auto", "Crimson"]
         ),
         "canvas_grid_minor_color": SettingDefinition(
             "canvas_grid_minor_color", "#455A64", SettingCategory.APPEARANCE,

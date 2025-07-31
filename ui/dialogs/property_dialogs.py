@@ -15,7 +15,6 @@ from PyQt5.QtCore import Qt, QSize, QPointF, QDir
 
 # --- NOTE: Relative import paths are adjusted (e.g., from ..dialogs import becomes from .) ---
 from ...managers.settings_manager import SettingsManager
-from ..graphics.graphics_items import GraphicsStateItem
 from ...utils.config import (
     COLOR_ITEM_STATE_DEFAULT_BG, COLOR_ITEM_TRANSITION_DEFAULT, COLOR_TEXT_PRIMARY,
     COLOR_TEXT_ON_ACCENT, DEFAULT_EXECUTION_ENV,
@@ -25,8 +24,11 @@ from ...utils.config import (
     COLOR_ACCENT_ERROR, DEFAULT_TRANSITION_LINE_STYLE, DEFAULT_TRANSITION_LINE_WIDTH,
     DEFAULT_TRANSITION_ARROWHEAD
 )
+
+
+
 from ...assets.assets import MECHATRONICS_SNIPPETS
-from ...core.snippet_manager import CustomSnippetManager
+from ...core import CustomSnippetManager
 from ...utils import get_standard_icon
 from ..widgets.code_editor import CodeEditor
 
@@ -242,9 +244,7 @@ class StatePropertiesDialog(QDialog):
             hw_mgr = parent.hardware_sim_ui_manager
             available_components.extend(sorted(hw_mgr.virtual_leds.keys()))
             available_components.extend(sorted(hw_mgr.virtual_sliders.keys()))
-            # --- ADD THIS LINE ---
             available_components.extend(sorted(hw_mgr.virtual_gauges.keys()))
-            # --- END ADDITION ---
         
         self.hw_component_combo.addItems(available_components)
         self.hw_component_combo.setCurrentText(p.get('hw_component_map', 'None'))

@@ -3,11 +3,9 @@ import os
 import json
 import logging
 from PyQt5.QtCore import QObject, pyqtSignal
+from ..utils.config import PROJECT_FILE_EXTENSION, PROJECT_FILE_FILTER
 
 logger = logging.getLogger(__name__)
-
-PROJECT_FILE_EXTENSION = ".bsmproj"
-PROJECT_FILE_FILTER = f"BSM Project Files (*{PROJECT_FILE_EXTENSION})"
 
 class ProjectManager(QObject):
     """Manages the creation, loading, and saving of project files."""

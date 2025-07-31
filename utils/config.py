@@ -18,6 +18,11 @@ APP_NAME = "Brain State Machine Designer"
 FILE_EXTENSION = ".bsm"
 FILE_FILTER = f"Brain State Machine Files (*{FILE_EXTENSION});;All Files (*)"
 
+# --- FIX: Moved project constants here ---
+PROJECT_FILE_EXTENSION = ".bsmproj"
+PROJECT_FILE_FILTER = f"BSM Project Files (*{PROJECT_FILE_EXTENSION})"
+# --- END FIX ---
+
 # MIME types for custom drag-and-drop operations
 MIME_TYPE_BSM_ITEMS = "application/x-bsm-designer-items"
 MIME_TYPE_BSM_TEMPLATE = "application/x-bsm-template"
