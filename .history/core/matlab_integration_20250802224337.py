@@ -1,3 +1,4 @@
+
 # fsm_designer_project/core/matlab_integration.py
 
 import sys
@@ -316,10 +317,18 @@ class MatlabConnection(QObject):
     def __init__(self):
         super().__init__()
         self.state = EngineState.DISCONNECTED
-        self._setup_worker_thread()
+        self.thread: Optional[QThread] = None
+        self.worker: Optional[MatlabEngineWorker] = None
 
-    def _setup_worker_thread(self):
-        """Initialize worker thread and connections"""
+    def connect(self):
+        """Initialize worker thread and connections on-demand."""
+        if self.state != EngineState.DISCONNECTED:
+            logger.info("MATLAB connection process already started or complete.")
+            return
+
+        self.state = EngineState.CONNECTING
+        self.connectionStatusChanged.emit(EngineState.CONNECTING, "Initializing...")
+
         self.thread = QThread()
         self.thread.setObjectName("MatlabEngineThread")
         self.worker = MatlabEngineWorker()
@@ -356,12 +365,28 @@ class MatlabConnection(QObject):
 
     def _execute_command(self, command: MatlabCommand):
         """Execute a command on the worker thread"""
-        if not self.is_connected():
+        if not self.is_connected() or not self.worker:
             self._on_command_finished(False, "MATLAB Engine not connected.", "", command.command_type)
             return
         
         QMetaObject.invokeMethod(self.worker, "execute_command", Qt.QueuedConnection,
                                Q_ARG(MatlabCommand, command))
+
+    def ensure_connection_and_execute(self, command: MatlabCommand):
+        """
+        Ensures the MATLAB engine is running, then executes a command.
+        This is the new primary way to interact with MATLAB.
+        """
+        if self.is_connected():
+            self._execute_command(command)
+        else:
+            # --- FIX: CORRECTED CONSTANT NAME ---
+            self.connectionStatusChanged.connect(
+                lambda state, msg: self._execute_command(command) if state == EngineState.CONNECTED else None,
+                Qt.SingleShotConnection
+            )
+            # --- END FIX ---
+            self.connect()
 
     def generate_simulink_model(self, states: List[Dict], transitions: List[Dict], 
                               output_dir: str, model_name: str = "BrainStateMachine") -> bool:
@@ -372,23 +397,21 @@ class MatlabConnection(QObject):
 
         slx_file_path = Path(output_dir) / f"{model_name}.slx"
         
-        # Create enhanced MATLAB script
         script_content = self._create_model_generation_script(states, transitions, str(slx_file_path), model_name)
         
         command = MatlabCommand(
             command=script_content,
             command_type=CommandType.MODEL_GENERATION,
-            timeout=60.0,  # Longer timeout for model generation
+            timeout=60.0,
             metadata={'model_name': model_name, 'output_path': str(slx_file_path)}
         )
         
-        self._execute_command(command)
+        self.ensure_connection_and_execute(command)
         return True
 
     def _create_model_generation_script(self, states: List[Dict], transitions: List[Dict], 
                                       output_path: str, model_name: str) -> str:
         """Create enhanced MATLAB script for model generation"""
-        # Convert paths for MATLAB
         slx_file_path = output_path.replace(os.sep, '/')
         
         script_lines = [
@@ -396,243 +419,136 @@ class MatlabConnection(QObject):
             f"outputModelPath = '{slx_file_path}';",
             "",
             "try",
-            "    % Initialize and validate environment",
-            "    if ~license('test', 'Simulink')",
-            "        error('Simulink license not available');",
+            "    if ~license('test', 'Simulink') || ~license('test', 'Stateflow')",
+            "        error('Simulink or Stateflow license not available');",
             "    end",
-            "    if ~license('test', 'Stateflow')",
-            "        error('Stateflow license not available');",
-            "    end",
-            "",
-            "    % Load required libraries",
-            "    load_system('sflib');",
-            "    load_system('simulink');",
-            "",
-            "    % Clean up existing model",
-            "    if bdIsLoaded(modelNameVar)",
-            "        close_system(modelNameVar, 0);",
-            "    end",
-            "    if exist(outputModelPath, 'file')",
-            "        delete(outputModelPath);",
-            "    end",
-            "",
-            "    % Create new model",
-            "    hModel = new_system(modelNameVar, 'Model');",
-            "    open_system(hModel);",
-            "",
-            "    % Configure model parameters",
-            "    set_param(modelNameVar, 'SolverType', 'Fixed-step');",
-            "    set_param(modelNameVar, 'FixedStep', '0.1');",
-            "    set_param(modelNameVar, 'StopTime', '10');",
-            "",
-            "    % Create Stateflow chart block",
-            "    chartBlockSimulinkPath = [modelNameVar, '/', 'FSM_Chart'];",
-            "    add_block('stateflow/Chart', chartBlockSimulinkPath);",
-            "    set_param(chartBlockSimulinkPath, 'Position', [100 50 400 350]);",
-            "",
-            "    % Get Stateflow objects",
+            "    load_system('sflib'); load_system('simulink');",
+            "    if bdIsLoaded(modelNameVar), close_system(modelNameVar, 0); end",
+            "    if exist(outputModelPath, 'file'), delete(outputModelPath); end",
+            "    hModel = new_system(modelNameVar, 'Model'); open_system(hModel);",
+            "    set_param(modelNameVar, 'SolverType', 'Fixed-step', 'FixedStep', '0.1', 'StopTime', '10');",
+            "    chartPath = [modelNameVar, '/', 'FSM_Chart'];",
+            "    add_block('stateflow/Chart', chartPath, 'Position', [100 50 400 350]);",
             "    machine = sfroot().find('-isa', 'Stateflow.Machine', 'Name', modelNameVar);",
-            "    if isempty(machine)",
-            "        error('Stateflow machine could not be found');",
-            "    end",
-            "    chartSFObj = machine.find('-isa', 'Stateflow.Chart');",
-            "    chartSFObj.Name = 'FiniteStateMachineLogic';",
-            "",
-            "    % Create output data",
-            "    activeStateData = Stateflow.Data(chartSFObj);",
-            "    activeStateData.Name = 'active_state_name';",
-            "    activeStateData.Scope = 'Output';",
-            "    activeStateData.DataType = 'string';",
-            "",
-            "    % Add output blocks",
-            "    add_block('simulink/Sinks/To Workspace', [modelNameVar '/State_Out'], ...",
-            "              'VariableName', 'active_state_name', 'SaveFormat', 'Array');",
+            "    chart = machine.find('-isa', 'Stateflow.Chart');",
+            "    chart.Name = 'FiniteStateMachineLogic';",
+            "    outputData = Stateflow.Data(chart);",
+            "    outputData.Name = 'active_state_name'; outputData.Scope = 'Output'; outputData.DataType = 'string';",
+            "    add_block('simulink/Sinks/To Workspace', [modelNameVar '/State_Out'], 'VariableName', 'active_state_name', 'SaveFormat', 'Array');",
             "    add_line(modelNameVar, 'FSM_Chart/1', 'State_Out/1', 'autorouting', 'on');",
-            "",
-            "    % Create state lookup map",
-            "    stateHandles = containers.Map('KeyType','char','ValueType','any');",
-            ""
+            "    stateHandles = containers.Map('KeyType','char','ValueType','any');"
         ]
 
-        # Add state creation logic
         script_lines.extend(self._generate_state_creation_code(states))
-        
-        # Add transition creation logic  
         script_lines.extend(self._generate_transition_creation_code(transitions))
 
-        # Add finalization code
         script_lines.extend([
-            "",
-            "    % Save and finalize model",
             "    save_system(modelNameVar, outputModelPath, 'OverwriteIfChangedOnDisk', true);",
             "    close_system(modelNameVar, 0);",
-            "",
             "    fprintf('MATLAB_SCRIPT_SUCCESS:%s\\n', outputModelPath);",
-            "",
             "catch e",
             "    fprintf('MATLAB_SCRIPT_FAILURE:%s\\n', strrep(getReport(e, 'extended'), '\\n', ' '));",
-            "    % Cleanup on error",
-            "    if bdIsLoaded(modelNameVar)",
-            "        close_system(modelNameVar, 0);",
-            "    end",
+            "    if bdIsLoaded(modelNameVar), close_system(modelNameVar, 0); end",
             "end"
         ])
 
         return "\n".join(script_lines)
 
     def _generate_state_creation_code(self, states: List[Dict]) -> List[str]:
-        """Generate MATLAB code for creating states"""
-        script_lines = ["    % Create states"]
-        
+        script_lines = []
         for i, state in enumerate(states):
             state_name = state['name'].replace("'", "''")
             state_id = f"state_{i}_{state['name'].replace(' ', '_').replace('-', '_')}"
             state_id = ''.join(c for c in state_id if c.isalnum() or c == '_')
-            if not state_id or not state_id[0].isalpha():
-                state_id = 's_' + state_id
+            if not state_id or not state_id[0].isalpha(): state_id = 's_' + state_id
             
-            # Calculate Stateflow coordinates (scale down from canvas coordinates)
             sf_x = state.get('x', 20 + i*150) / 2.5 + 20
             sf_y = state.get('y', 20) / 2.5 + 20
             sf_w = max(80, state.get('width', 120) / 2.5)
             sf_h = max(50, state.get('height', 60) / 2.5)
             
-            # Build state label with actions
             label_parts = [f'entry: active_state_name = "{state_name}";']
-            
-            for action_key, action_prefix in [('entry_action', 'entry'), 
-                                            ('during_action', 'during'), 
-                                            ('exit_action', 'exit')]:
+            for action_key, action_prefix in [('entry_action', 'entry'), ('during_action', 'during'), ('exit_action', 'exit')]:
                 action_code = state.get(action_key)
                 if action_code:
-                    escaped_code = action_code.replace("'", "''").replace('\n', '; ')
-                    label_parts.append(f"{action_prefix}: {escaped_code}")
-            
+                    label_parts.append(f"{action_prefix}: {action_code.replace("'", "''").replace(chr(10), '; ')}")
             state_label = "\\n".join(label_parts)
             
             script_lines.extend([
-                f"    {state_id} = Stateflow.State(chartSFObj);",
+                f"    {state_id} = Stateflow.State(chart);",
                 f"    {state_id}.Name = '{state_name}';",
                 f"    {state_id}.Position = [{sf_x}, {sf_y}, {sf_w}, {sf_h}];",
                 f"    {state_id}.LabelString = '{state_label}';",
                 f"    stateHandles('{state_name}') = {state_id};"
             ])
             
-            # Set initial state
             if state.get('is_initial', False):
-                script_lines.extend([
-                    f"    defaultTrans_{i} = Stateflow.Transition(chartSFObj);",
-                    f"    defaultTrans_{i}.Destination = {state_id};"
-                ])
-            
-            script_lines.append("")
-        
+                script_lines.append(f"    defaultTrans_{i} = Stateflow.Transition(chart); defaultTrans_{i}.Destination = {state_id};")
         return script_lines
 
     def _generate_transition_creation_code(self, transitions: List[Dict]) -> List[str]:
-        """Generate MATLAB code for creating transitions"""
-        script_lines = ["    % Create transitions"]
-        
+        script_lines = []
         for i, trans in enumerate(transitions):
             src_name = trans['source'].replace("'", "''")
             dst_name = trans['target'].replace("'", "''")
             
-            # Build transition label
             label_parts = []
-            if trans.get('event'):
-                label_parts.append(trans['event'])
-            if trans.get('condition'):
-                label_parts.append(f"[{trans['condition']}]")
-            if trans.get('action'):
-                label_parts.append(f"/{{{trans['action']}}}")
-            
+            if trans.get('event'): label_parts.append(trans['event'])
+            if trans.get('condition'): label_parts.append(f"[{trans['condition']}]")
+            if trans.get('action'): label_parts.append(f"/{{{trans['action']}}}")
             trans_label = " ".join(label_parts).strip().replace("'", "''")
             
             script_lines.extend([
                 f"    if isKey(stateHandles, '{src_name}') && isKey(stateHandles, '{dst_name}')",
-                f"        srcState = stateHandles('{src_name}');",
-                f"        dstState = stateHandles('{dst_name}');",
-                f"        trans_{i} = Stateflow.Transition(chartSFObj);",
-                f"        trans_{i}.Source = srcState;",
-                f"        trans_{i}.Destination = dstState;"
-            ])
-            
-            if trans_label:
-                script_lines.append(f"        trans_{i}.LabelString = '{trans_label}';")
-            
-            script_lines.extend([
+                f"        srcState = stateHandles('{src_name}'); dstState = stateHandles('{dst_name}');",
+                f"        trans_{i} = Stateflow.Transition(chart);",
+                f"        trans_{i}.Source = srcState; trans_{i}.Destination = dstState;",
+                f"        trans_{i}.LabelString = '{trans_label}';" if trans_label else "",
                 "    else",
                 f"        warning('States not found for transition {i}: {src_name} -> {dst_name}');",
-                "    end",
-                ""
+                "    end"
             ])
-        
         return script_lines
 
     def run_simulation(self, model_path: str, config: SimulationConfig = None) -> bool:
-        """Run Simulink simulation with enhanced configuration"""
         if not Path(model_path).exists():
             self.simulationFinished.emit(False, f"Model file not found: {model_path}", "")
             return False
-
-        if config is None:
-            config = SimulationConfig()
+        if config is None: config = SimulationConfig()
 
         model_path_matlab = str(Path(model_path)).replace(os.sep, '/')
         model_name = Path(model_path).stem
         
         script_content = f"""
 try
-    % Load and configure model
     load_system('{model_path_matlab}');
-    
-    % Configure simulation parameters
-    set_param('{model_name}', 'StopTime', '{config.stop_time}');
-    set_param('{model_name}', 'Solver', '{config.solver}');
-    
-    {f"set_param('{model_name}', 'FixedStep', '{config.fixed_step_size}');" if config.fixed_step_size else ""}
-    
-    % Configure data logging
-    {f"set_param('{model_name}', 'SaveOutput', 'on');" if config.save_output else ""}
-    
-    % Run simulation
+    set_param('{model_name}', 'StopTime', '{config.stop_time}', 'Solver', '{config.solver}', 'SaveOutput', 'on');
     fprintf('Starting simulation of model: {model_name}\\n');
     simOut = sim('{model_name}');
-    
     fprintf('MATLAB_SCRIPT_SUCCESS:Simulation completed successfully\\n');
-    
 catch e
     fprintf('MATLAB_SCRIPT_FAILURE:%s\\n', strrep(getReport(e, 'basic'),'\\n',' '));
 end
-
-% Cleanup
-if bdIsLoaded('{model_name}')
-    close_system('{model_name}', 0);
-end
+if bdIsLoaded('{model_name}'), close_system('{model_name}', 0); end
 """
 
         command = MatlabCommand(
             command=script_content,
             command_type=CommandType.SIMULATION,
-            timeout=config.stop_time + 30.0,  # Add buffer time
+            timeout=config.stop_time + 30.0,
             metadata={'model_path': model_path, 'config': config}
         )
         
-        self._execute_command(command)
+        self.ensure_connection_and_execute(command)
         return True
 
     def generate_code(self, model_path: str, config: CodeGenConfig = None, 
                      output_dir: Optional[str] = None) -> bool:
-        """Generate code from Simulink model with enhanced configuration"""
         if not Path(model_path).exists():
             self.codeGenerationFinished.emit(False, f"Model file not found: {model_path}", "")
             return False
-
-        if config is None:
-            config = CodeGenConfig()
-
-        if output_dir is None:
-            output_dir = str(Path(model_path).parent)
+        if config is None: config = CodeGenConfig()
+        if output_dir is None: output_dir = str(Path(model_path).parent)
 
         model_path_matlab = str(Path(model_path)).replace(os.sep, '/')
         output_dir_matlab = str(Path(output_dir)).replace(os.sep, '/')
@@ -640,111 +556,62 @@ end
 
         script_content = f"""
 try
-    % Validate licenses
-    required_licenses = {{'MATLAB_Coder', 'Simulink_Coder', 'Embedded_Coder'}};
-    for i = 1:length(required_licenses)
-        if ~license('test', required_licenses{{i}})
-            error(['Required license not available: ' required_licenses{{i}}]);
-        end
+    if ~license('test', 'MATLAB_Coder') || ~license('test', 'Simulink_Coder')
+        error('Required coder license not available.');
     end
-    
-    % Load model
     load_system('{model_path_matlab}');
-    
-    % Configure code generation
     set_param('{model_name}', 'SystemTargetFile', '{config.target_file}');
-    
-    % Get configuration set
     cfg = getActiveConfigSet('{model_name}');
-    
-    % Set target language
-    set_param(cfg, 'TargetLang', '{config.language}');
-    
-    % Set optimization level
-    set_param(cfg, 'OptimizationLevel', '{config.optimization_level}');
-    
-    % Configure additional options
+    set_param(cfg, 'TargetLang', '{config.language}', 'OptimizationLevel', '{config.optimization_level}');
     set_param(cfg, 'GenerateComments', '{"on" if config.include_comments else "off"}');
     set_param(cfg, 'GenerateMakefile', '{"on" if config.generate_makefile else "off"}');
-    
-    % Set custom defines
     {self._generate_custom_defines_code(config.custom_defines)}
-    
-    % Ensure output directory exists
-    if ~exist('{output_dir_matlab}', 'dir')
-        mkdir('{output_dir_matlab}');
-    end
-    
-    % Generate code
+    if ~exist('{output_dir_matlab}', 'dir'), mkdir('{output_dir_matlab}'); end
     fprintf('Starting code generation for model: {model_name}\\n');
     rtwbuild('{model_name}', 'CodeGenFolder', '{output_dir_matlab}', 'GenCodeOnly', true);
-    
-    % Determine actual output directory
     actualCodeDir = fullfile('{output_dir_matlab}', '{model_name}_ert_rtw');
-    if ~exist(actualCodeDir, 'dir')
-        actualCodeDir = '{output_dir_matlab}';
-    end
-    
+    if ~exist(actualCodeDir, 'dir'), actualCodeDir = '{output_dir_matlab}'; end
     fprintf('MATLAB_SCRIPT_SUCCESS:%s\\n', actualCodeDir);
-    
 catch e
     fprintf('MATLAB_SCRIPT_FAILURE:%s\\n', strrep(getReport(e, 'basic'),'\\n',' '));
 end
-
-% Cleanup
-if bdIsLoaded('{model_name}')
-    close_system('{model_name}', 0);
-end
+if bdIsLoaded('{model_name}'), close_system('{model_name}', 0); end
 """
 
         command = MatlabCommand(
             command=script_content,
             command_type=CommandType.CODE_GENERATION,
-            timeout=120.0,  # Longer timeout for code generation
+            timeout=120.0,
             metadata={'model_path': model_path, 'config': config, 'output_dir': output_dir}
         )
         
-        self._execute_command(command)
+        self.ensure_connection_and_execute(command)
         return True
 
     def _generate_custom_defines_code(self, custom_defines: Dict[str, str]) -> str:
-        """Generate MATLAB code for custom defines"""
-        if not custom_defines:
-            return ""
-        
-        lines = []
-        for name, value in custom_defines.items():
-            lines.append(f"    set_param(cfg, 'CustomDefine', [get_param(cfg, 'CustomDefine'), ' -D{name}={value}']);")
-        
+        if not custom_defines: return ""
+        lines = [f"    set_param(cfg, 'CustomDefine', [get_param(cfg, 'CustomDefine'), ' -D{name}={value}']);"
+                 for name, value in custom_defines.items()]
         return "\n".join(lines)
 
     def execute_custom_command(self, command: str, timeout: float = 30.0) -> bool:
-        """Execute a custom MATLAB command"""
-        matlab_command = MatlabCommand(
-            command=command,
-            command_type=CommandType.GENERAL,
-            timeout=timeout
-        )
-        
-        self._execute_command(matlab_command)
+        matlab_command = MatlabCommand(command=command, command_type=CommandType.GENERAL, timeout=timeout)
+        self.ensure_connection_and_execute(matlab_command)
         return True
 
     def get_engine_info(self) -> Dict[str, Any]:
-        """Get information about the MATLAB engine"""
-        if hasattr(self.worker, '_engine_info'):
+        if self.worker and hasattr(self.worker, '_engine_info'):
             return self.worker._engine_info.copy()
         return {}
 
     def shutdown(self):
-        """Shutdown the MATLAB connection gracefully"""
-        if self.thread.isRunning():
+        if self.thread and self.thread.isRunning():
             QMetaObject.invokeMethod(self.worker, "shutdown_engine", Qt.QueuedConnection)
             self.thread.quit()
             if not self.thread.wait(5000):
                 logger.warning("MATLAB Engine thread did not quit gracefully. Terminating.")
                 self.thread.terminate()
                 self.thread.wait(2000)
-
 
 class MatlabModelValidator:
     """Utility class for validating Simulink models and FSM definitions"""
@@ -758,33 +625,27 @@ class MatlabModelValidator:
             errors.append("No states defined")
             return False, errors
         
-        # Check for required fields
         state_names = set()
         initial_states = 0
         
         for i, state in enumerate(states):
-            # Check required fields
             if 'name' not in state or not state['name']:
                 errors.append(f"State {i}: Missing or empty name")
                 continue
             
-            # Check for duplicate names
             name = state['name']
             if name in state_names:
                 errors.append(f"Duplicate state name: {name}")
             state_names.add(name)
             
-            # Check initial state count
             if state.get('is_initial', False):
                 initial_states += 1
             
-            # Validate coordinates
             if 'x' in state and not isinstance(state['x'], (int, float)):
                 errors.append(f"State {name}: Invalid x coordinate")
             if 'y' in state and not isinstance(state['y'], (int, float)):
                 errors.append(f"State {name}: Invalid y coordinate")
         
-        # Check initial state count
         if initial_states == 0:
             errors.append("No initial state defined")
         elif initial_states > 1:
@@ -804,7 +665,6 @@ class MatlabModelValidator:
         state_names = {state['name'] for state in states}
         
         for i, trans in enumerate(transitions):
-            # Check required fields
             if 'source' not in trans or not trans['source']:
                 errors.append(f"Transition {i}: Missing or empty source state")
                 continue
@@ -812,7 +672,6 @@ class MatlabModelValidator:
                 errors.append(f"Transition {i}: Missing or empty target state")
                 continue
             
-            # Check state references
             source = trans['source']
             target = trans['target']
             
@@ -832,7 +691,6 @@ class MatlabModelValidator:
             errors.append("Model name cannot be empty")
             return False, errors
         
-        # Check MATLAB identifier rules
         if not model_name[0].isalpha():
             errors.append("Model name must start with a letter")
         
@@ -842,7 +700,6 @@ class MatlabModelValidator:
         if len(model_name) > 63:
             errors.append("Model name cannot exceed 63 characters")
         
-        # Check for reserved MATLAB keywords
         matlab_keywords = {
             'break', 'case', 'catch', 'continue', 'else', 'elseif', 'end',
             'for', 'function', 'global', 'if', 'otherwise', 'persistent',
@@ -875,17 +732,14 @@ class MatlabDiagnostics:
             return result
         
         try:
-            # Try to start a temporary engine for diagnostics
             temp_engine = matlab.engine.start_matlab()
             
-            # Get MATLAB installation info
             matlab_root = temp_engine.eval("matlabroot")
             version = temp_engine.eval("version('-release')")
             
             result['installation_path'] = matlab_root
             result['version'] = version
             
-            # Check available toolboxes
             for toolbox in result['required_toolboxes']:
                 try:
                     available = temp_engine.eval(f"license('test', '{toolbox}')")
@@ -909,13 +763,10 @@ class MatlabDiagnostics:
         diag = MatlabDiagnostics.check_matlab_installation()
         
         report_lines = [
-            "MATLAB Integration Diagnostic Report",
-            "=" * 40,
-            "",
+            "MATLAB Integration Diagnostic Report", "=" * 40, "",
             f"MATLAB Engine Available: {diag['matlab_engine_available']}",
             f"Installation Path: {diag['installation_path'] or 'Not found'}",
-            f"Version: {diag['version'] or 'Unknown'}",
-            "",
+            f"Version: {diag['version'] or 'Unknown'}", "",
             "Required Toolboxes:",
         ]
         
@@ -924,17 +775,11 @@ class MatlabDiagnostics:
             report_lines.append(f"  {status} {toolbox}")
         
         if diag['issues']:
-            report_lines.extend([
-                "",
-                "Issues Found:",
-            ])
+            report_lines.extend(["", "Issues Found:"])
             for issue in diag['issues']:
                 report_lines.append(f"  • {issue}")
         
         if not diag['issues']:
-            report_lines.extend([
-                "",
-                "✓ All checks passed! MATLAB integration should work properly."
-            ])
+            report_lines.extend(["", "✓ All checks passed! MATLAB integration should work properly."])
         
         return "\n".join(report_lines)
