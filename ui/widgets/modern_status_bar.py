@@ -1,4 +1,4 @@
-# fsm_designer_project/modern_status_bar.py
+# fsm_designer_project/ui/widgets/modern_status_bar.py
 """
 Modern status bar with enhanced visuals and information display.
 """

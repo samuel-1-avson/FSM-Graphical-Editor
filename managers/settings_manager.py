@@ -1,5 +1,5 @@
 # fsm_designer_project/managers/settings_manager.py
-
+# (This file is being moved from core/ to managers/)
 import json
 import os
 import logging
@@ -110,6 +110,12 @@ class SettingsManager(QObject):
         ),
         "window_geometry": SettingDefinition("window_geometry", "", SettingCategory.BEHAVIOR),
         "window_state": SettingDefinition("window_state", "", SettingCategory.BEHAVIOR),
+        "quick_access_commands": SettingDefinition(
+            "quick_access_commands",
+            ["Save File", "Undo", "Redo"],
+            SettingCategory.BEHAVIOR,
+            "Commands shown in the Quick Access Toolbar"
+        ),
         
         # Appearance settings
         "appearance_theme": SettingDefinition(
@@ -241,7 +247,7 @@ class SettingsManager(QObject):
     
     QT_PEN_STYLES_MAP = {
         "Solid": Qt.SolidLine, "Dash": Qt.DashLine, "Dot": Qt.DotLine,
-        "DashDot": Qt.DashDotLine, "DashDotDot": Qt.DashDotDotLine,
+                "DashDotDot": Qt.DashDotDotLine,
         "CustomDash": Qt.CustomDashLine,
     }
     STRING_TO_QT_PEN_STYLE = {name: enum_val for name, enum_val in QT_PEN_STYLES_MAP.items()}

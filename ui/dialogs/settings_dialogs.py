@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QPushButton, QSpinBox, QComboBox, QDialogButtonBox,
     QColorDialog, QHBoxLayout, QLabel, QGroupBox, QStyle, QFontComboBox, QDoubleSpinBox, QAction,
     QCheckBox, QTabWidget, QWidget, QGraphicsScene, QGraphicsView, QScrollArea, QLineEdit,
-    QInputDialog, QMessageBox, QFileDialog, QGraphicsItem # <-- ADD THIS IMPORT
+    QInputDialog, QMessageBox, QFileDialog, QGraphicsItem, QApplication
 )
 from PyQt5.QtGui import QColor, QFont, QIcon, QPainter
 from PyQt5.QtCore import Qt, QDir, pyqtSlot
@@ -19,7 +19,7 @@ from ...utils.config import (
     DEFAULT_STATE_SHAPE, DEFAULT_STATE_BORDER_STYLE, DEFAULT_STATE_BORDER_WIDTH,
     DEFAULT_TRANSITION_LINE_STYLE, DEFAULT_TRANSITION_LINE_WIDTH, DEFAULT_TRANSITION_ARROWHEAD,
     COLOR_ACCENT_PRIMARY_LIGHT, COLOR_TEXT_SECONDARY, COLOR_ITEM_STATE_DEFAULT_BG,
-    COLOR_ITEM_TRANSITION_DEFAULT
+    COLOR_ITEM_TRANSITION_DEFAULT, COLOR_ACCENT_SUCCESS
 )
 from ...utils import get_standard_icon
 from ...core.matlab_integration import MatlabConnection
@@ -819,4 +819,4 @@ class ThemeEditDialog(QDialog):
         if not hasattr(self.theme_manager, 'derive_theme_from_palette'): # Guard
             logger.error("ThemeManager is missing 'derive_theme_from_palette' method. Returning core palette.")
             return self.core_palette
-        return self.theme_manager.derive_theme_from_palette(self.core_palette)       
+        return self.theme_manager.derive_theme_from_palette(self.core_palette)

@@ -1,4 +1,5 @@
 # fsm_designer_project/managers/ui_manager.py
+
 import sip 
 import os
 import json
@@ -16,7 +17,8 @@ from ..utils import get_standard_icon, _get_bundled_file_path
 from ..utils.config import (
     APP_VERSION, APP_NAME, FILE_FILTER, MIME_TYPE_BSM_TEMPLATE,
     COLOR_TEXT_SECONDARY, APP_FONT_SIZE_SMALL,
-    COLOR_ACCENT_PRIMARY, COLOR_BORDER_LIGHT, COLOR_BACKGROUND_APP
+    COLOR_ACCENT_PRIMARY, COLOR_BORDER_LIGHT, COLOR_BACKGROUND_APP,
+    COLOR_BACKGROUND_MEDIUM, COLOR_BORDER_LIGHT
 )
 from ..assets.assets import FSM_TEMPLATES_BUILTIN
 from ..assets.target_profiles import TARGET_PROFILES
@@ -25,7 +27,7 @@ from ..utils import config
 from ..ui.graphics.graphics_scene import MinimapView
 from ..ui.widgets.modern_welcome_screen import ModernWelcomeScreen
 from ..ui.widgets.custom_widgets import CollapsibleSection, DraggableToolButton
-from ..ui.widgets.ribbon_toolbar import ModernRibbon, RibbonGroup
+from ..ui.widgets.ribbon_toolbar import ModernRibbon, RibbonGroup # <-- ADD RibbonGroup here
 from ..ui.widgets.global_search import GlobalSearchHandler
 import logging
 
@@ -540,6 +542,7 @@ class UIManager(QObject):
         for key, data in FSM_TEMPLATES_BUILTIN.items():
             icon_resource_path = data.get('icon_resource', ':/icons/default.png')
             icon_to_use = QIcon()
+            # --- FIXED: Use the basename of the resource path for the lookup ---
             actual_path = _get_bundled_file_path(os.path.basename(icon_resource_path), "icons")
             if actual_path:
                 icon_to_use = QIcon(actual_path)
@@ -745,7 +748,7 @@ class UIManager(QObject):
     def _get_multi_edit_schema_for_item_type(self, item_type):
         """Returns a reduced schema of properties suitable for batch editing."""
         from ..ui.graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
-        from ..managers.settings_manager import SettingsManager
+        from ...managers.settings_manager import SettingsManager
 
         if item_type is GraphicsStateItem:
             return {

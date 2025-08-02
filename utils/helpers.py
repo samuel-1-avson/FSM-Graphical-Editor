@@ -104,14 +104,15 @@ def _get_bundled_file_path(filename: str, resource_prefix: str = "") -> str | No
     if getattr(sys, 'frozen', False): # PyInstaller
         base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(sys.executable)
     else: # Running as script
-        # --- FIX: Go up one more directory to get to the project root ---
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # fsm_designer_project directory
+        # --- FIXED: Go up TWO directories to get to the project root ---
+        # __file__ is in utils/, so ../ is fsm_designer_project/, and ../../ is the root
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     # Define a mapping from resource_prefix to actual subdirectory names
     prefix_to_subdir_map = {
-        "examples": "examples",
-        "docs": "docs",
-        "icons": "dependencies/icons" 
+        "examples": "fsm_designer_project/examples",
+        "docs": "fsm_designer_project/docs",
+        "icons": "fsm_designer_project/dependencies/icons" 
         # Add more mappings if needed
     }
     

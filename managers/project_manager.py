@@ -1,4 +1,5 @@
-# fsm_designer_project/managers/project_manager.py (NEW FILE)
+# fsm_designer_project/managers/project_manager.py
+# (This file is being moved from core/ to managers/)
 import os
 import json
 import logging

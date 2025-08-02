@@ -158,6 +158,37 @@ class PerspectiveManager(QObject):
             self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Vertical)
             # --- END FIX ---
 
+        elif name == self.mw.PERSPECTIVE_LOGIC_EDITING:
+            # Layout: Large properties panel on the right, large code preview on the bottom.
+            self.mw.properties_dock.setVisible(True)
+            self.mw.live_preview_dock.setVisible(True)
+            self.mw.log_dock.setVisible(True) # Tabbed with preview
+
+            self.mw.tabifyDockWidget(self.mw.live_preview_dock, self.mw.log_dock)
+            self.mw.tabifyDockWidget(self.mw.live_preview_dock, self.mw.problems_dock)
+
+            self.mw.properties_dock.raise_()
+            self.mw.live_preview_dock.raise_()
+
+            # Give a large area to the properties panel and the code preview
+            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.35)], Qt.Horizontal)
+            self.mw.resizeDocks([self.mw.live_preview_dock], [int(main_height * 0.35)], Qt.Vertical)
+
+        elif name == self.mw.PERSPECTIVE_VALIDATION:
+            # Layout: Problems list is prominent at the bottom, Properties are visible on the right.
+            self.mw.problems_dock.setVisible(True)
+            self.mw.properties_dock.setVisible(True)
+            self.mw.minimap_dock.setVisible(True) # For navigation
+
+            self.mw.tabifyDockWidget(self.mw.properties_dock, self.mw.minimap_dock)
+            self.mw.tabifyDockWidget(self.mw.problems_dock, self.mw.log_dock)
+
+            self.mw.properties_dock.raise_()
+            self.mw.problems_dock.raise_()
+            
+            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.25)], Qt.Horizontal)
+            self.mw.resizeDocks([self.mw.problems_dock], [int(main_height * 0.30)], Qt.Vertical)
+
         elif name == self.mw.PERSPECTIVE_SIMULATION_FOCUS:
             # Layout: Split right dock vertically. Top: Sim controls. Bottom: Properties.
             # Bottom dock shows Log for real-time feedback.
@@ -176,6 +207,10 @@ class PerspectiveManager(QObject):
 
             self.mw.resizeDocks([self.mw.py_sim_dock], [int(main_width * 0.25)], Qt.Horizontal)
             self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.30)], Qt.Vertical)
+
+        elif name == self.mw.PERSPECTIVE_PRESENTATION:
+            # Layout: Zen mode. All docks are hidden by the initial loop.
+            pass
 
         elif name == self.mw.PERSPECTIVE_IDE_FOCUS:
             # Layout: IDE takes up the right side, tabbed with AI Chat. Log visible at bottom.

@@ -15,6 +15,7 @@ from .resource_monitor import ResourceMonitorManager
 from .settings_manager import SettingsManager
 from .theme_manager import ThemeManager
 from .ui_manager import UIManager
+from .matlab_simulation_manager import MatlabSimulationManager # <-- NEW
 
 __all__ = [
     "ActionHandler",
@@ -26,4 +27,5 @@ __all__ = [
     "SettingsManager",
     "ThemeManager",
     "UIManager",
+    "MatlabSimulationManager", # <-- NEW
 ]

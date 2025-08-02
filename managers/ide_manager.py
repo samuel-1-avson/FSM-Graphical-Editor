@@ -1,4 +1,5 @@
 # fsm_designer_project/managers/ide_manager.py
+# (This file is being moved from core/ to managers/)
 import os
 import io
 import contextlib
@@ -213,6 +214,29 @@ class IDEManager(QObject):
                 if self.ide_output_console: self.ide_output_console.clear()
                 logger.info("IDE: Opened script: %s", file_path)
 
+            except Exception as e:
+                QMessageBox.critical(self.mw, "Error Opening Script", f"Could not load script from {file_path}:\n{e}")
+                logger.error("IDE: Failed to open script %s: %s", file_path, e)
+                
+    def open_file(self, file_path: str):
+        """Public method to open a file programmatically."""
+        if file_path and self.ide_code_editor:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    self.ide_code_editor.setPlainText(f.read())
+                
+                self.current_ide_file_path = file_path
+                self.ide_file_path_changed.emit(self.current_ide_file_path)
+                self.ide_editor_is_dirty = False
+
+                if self.ide_language_combo:
+                    ext = os.path.splitext(file_path)[1].lower()
+                    if ext == ".py": self.ide_language_combo.setCurrentText("Python")
+                    elif ext in [".ino", ".c", ".cpp", ".h"]: self.ide_language_combo.setCurrentText("C/C++ (Arduino)")
+                    else: self.ide_language_combo.setCurrentText("Text")
+
+                if self.ide_output_console: self.ide_output_console.clear()
+                logger.info("IDE: Opened script: %s", file_path)
             except Exception as e:
                 QMessageBox.critical(self.mw, "Error Opening Script", f"Could not load script from {file_path}:\n{e}")
                 logger.error("IDE: Failed to open script %s: %s", file_path, e)

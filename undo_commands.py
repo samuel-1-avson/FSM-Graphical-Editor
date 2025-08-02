@@ -1,5 +1,4 @@
 # fsm_designer_project/undo_commands.py
-
 from PyQt5.QtWidgets import QUndoCommand, QGraphicsItem
 from PyQt5.QtCore import QPointF
 

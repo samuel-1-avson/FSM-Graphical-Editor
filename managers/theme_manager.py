@@ -639,7 +639,7 @@ class ThemeManager(QObject):
         QCheckBox::indicator:unchecked {{
             border: 1px solid {theme_data['COLOR_BORDER_MEDIUM']};
             border-radius: 2px;
-            background-color: {QColor(theme_data['COLOR_BACKGROUND_DIALOG']).lighter(102 if QColor(theme_data['COLOR_BACKGROUND_DIALOG']).lightnessF() > 0.5 else 110).name()};
+            background-color: {QColor(theme_data['COLOR_BACKGROUND_DIALOG']).lighter(102 if QColor(theme_data['COLOR_BACKGROUND_DIALOG']).lightnessF() > 0.5 else 115).name()};
         }}
         QCheckBox::indicator:unchecked:hover {{
             border: 1px solid {theme_data['COLOR_ACCENT_PRIMARY']};

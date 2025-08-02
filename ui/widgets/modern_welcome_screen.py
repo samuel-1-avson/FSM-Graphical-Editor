@@ -431,6 +431,5 @@ class ModernWelcomeScreen(QWidget):
                 item.clicked.connect(self.openRecentRequested.emit)
                 self.recent_layout.addWidget(item)
         # --- END FIX ---
-
-# For compatibility with older code that might import WelcomeWidget
+        # For compatibility with older code that might import WelcomeWidget
 WelcomeWidget = ModernWelcomeScreen
