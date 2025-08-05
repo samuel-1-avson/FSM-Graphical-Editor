@@ -81,5 +81,116 @@
                 "width": 200
             }
         ]
+    },
+    "ModeLogic": {
+        "name": "Mode Logic",
+        "description": "A pattern for switching between operational modes like Standby, Manual, and Automatic.",
+        "icon_resource": ":/icons/default.png",
+        "states": [
+            {
+                "name": "Standby",
+                "is_initial": true,
+                "description": "The system is on but idle, waiting for a command.",
+                "entry_action": "status_led = 'BLUE'\nmotors_enabled = False\nprint('System is in Standby.')"
+            },
+            {
+                "name": "Manual_Mode",
+                "description": "A superstate for manual operation.",
+                "is_superstate": true,
+                "entry_action": "status_led = 'YELLOW'\nprint('Switched to Manual Mode.')",
+                "sub_fsm_data": {
+                    "states": [
+                        {
+                            "name": "Joystick_Control",
+                            "is_initial": true,
+                            "entry_action": "motors_enabled = True",
+                            "during_action": "print('Manual: Reading joystick and moving...')",
+                            "exit_action": "motors_enabled = False"
+                        },
+                        {
+                            "name": "Homing",
+                            "entry_action": "print('Manual: Homing sequence initiated...')\nhoming_start_tick = current_tick",
+                            "during_action": "if current_tick >= homing_start_tick + 5:\n    sm.send('homing_complete')"
+                        },
+                        {
+                            "name": "Done",
+                            "is_final": true
+                        }
+                    ],
+                    "transitions": [
+                        { "source": "Joystick_Control", "target": "Homing", "event": "home_button", "action": "print('Homing button pressed.')" },
+                        { "source": "Homing", "target": "Joystick_Control", "event": "homing_complete", "action": "print('Homing complete, returning to joystick control.')" }
+                    ],
+                    "comments": []
+                }
+            },
+            {
+                "name": "Auto_Mode",
+                "description": "The system is running a pre-programmed sequence.",
+                "entry_action": "status_led = 'GREEN'\nmotors_enabled = True\nprint('Starting auto sequence...')",
+                "during_action": "print('Executing auto sequence step...')",
+                "exit_action": "motors_enabled = False"
+            },
+            {
+                "name": "Error",
+                "description": "An error has occurred. System halted.",
+                "entry_action": "status_led = 'RED_BLINKING'\nmotors_enabled = False\nprint('ERROR STATE: System halted due to a fault.')"
+            }
+        ],
+        "transitions": [
+            { "source": "Standby", "target": "Manual_Mode", "event": "manual_button" },
+            { "source": "Standby", "target": "Auto_Mode", "event": "auto_button" },
+            { "source": "Manual_Mode", "target": "Standby", "event": "stop_button", "action": "print('Stop commanded from Manual.')" },
+            { "source": "Auto_Mode", "target": "Standby", "event": "stop_button", "action": "print('Stop commanded from Auto.')" },
+            { "source": "Auto_Mode", "target": "Standby", "event": "sequence_complete" },
+            { "source": "Manual_Mode", "target": "Standby", "event": "stop_button" },
+            { "source": "Standby", "target": "Error", "event": "fault_detected", "condition": "error_code > 0" },
+            { "source": "Manual_Mode", "target": "Error", "event": "fault_detected", "condition": "error_code > 0" },
+            { "source": "Auto_Mode", "target": "Error", "event": "fault_detected", "condition": "error_code > 0" }
+        ],
+        "comments": []
+    },
+    "CyclicCounter": {
+        "name": "Cyclic Counter",
+        "description": "A simple FSM that increments a counter on a 'tick' event until a limit is reached, then resets.",
+        "icon_resource": ":/icons/default.png",
+        "states": [
+            {
+                "name": "Idle",
+                "is_initial": true,
+                "description": "Waiting to start the counting cycle.",
+                "entry_action": "print('Counter is Idle. Waiting for start command.')"
+            },
+            {
+                "name": "Counting",
+                "description": "Incrementing the counter on each 'tick'.",
+                "entry_action": "print(f'Starting count... Current: {counter}')"
+            },
+            {
+                "name": "Resetting",
+                "description": "Resets the counter and immediately returns to Idle.",
+                "entry_action": "counter = 0\nprint(f'Counter reset to {counter}.')\nsm.send('reset_done')"
+            }
+        ],
+        "transitions": [
+            {
+                "source": "Idle", "target": "Counting", "event": "start_counting",
+                "action": "counter = 0"
+            },
+            {
+                "source": "Counting", "target": "Counting", "event": "tick",
+                "condition": "counter < 10",
+                "action": "counter = counter + 1\nprint(f'Count is now: {counter}')"
+            },
+            {
+                "source": "Counting", "target": "Resetting", "event": "tick",
+                "condition": "counter >= 10",
+                "action": "print('Max count reached.')"
+            },
+            {
+                "source": "Resetting", "target": "Idle", "event": "reset_done"
+            }
+        ],
+        "comments": []
     }
 }

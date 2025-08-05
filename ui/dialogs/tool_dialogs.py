@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QPushButton, QDialogButtonBox,
     QHBoxLayout, QLabel, QStyle, QListWidget, QListWidgetItem,
     QGraphicsItem, QLineEdit, QComboBox, QTextEdit, QGraphicsScene, QGraphicsView, QMessageBox, QAction,
-    QTabWidget, QWidget, QTextBrowser
+    QTabWidget, QWidget, QTextBrowser, QInputDialog
 )
 from PyQt5.QtGui import QIcon, QKeyEvent, QPixmap, QPainter, QDesktopServices
 from PyQt5.QtCore import Qt, pyqtSignal, QVariant, QStandardPaths, QUrl
@@ -243,7 +243,6 @@ class SnippetManagerDialog(QDialog):
         main_layout.addWidget(right_panel, 1)
         
         self.template_list_widget.currentItemChanged.connect(self.on_template_selection_changed)
-        self.on_template_selection_changed()
         
         return container
 

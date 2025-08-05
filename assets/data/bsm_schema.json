@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BSM Designer Diagram Schema",
+  "description": "Defines the structure for a valid .bsm file.",
+  "type": "object",
+  "properties": {
+    "states": {
+      "description": "An array of state objects.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/state" }
+    },
+    "transitions": {
+      "description": "An array of transition objects.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/transition" }
+    },
+    "comments": {
+      "description": "An array of comment objects.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/comment" }
+    }
+  },
+  "required": ["states", "transitions"],
+  "definitions": {
+    "state": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "is_initial": { "type": "boolean", "default": false },
+        "is_final": { "type": "boolean", "default": false },
+        "is_superstate": { "type": "boolean", "default": false },
+        "entry_action": { "type": "string" },
+        "during_action": { "type": "string" },
+        "exit_action": { "type": "string" },
+        "description": { "type": "string" },
+        "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" }
+      },
+      "required": ["name", "x", "y"]
+    },
+    "transition": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "event": { "type": "string" },
+        "condition": { "type": "string" },
+        "action": { "type": "string" }
+      },
+      "required": ["source", "target"]
+    },
+    "comment": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "required": ["text", "x", "y"]
+    }
+  }
+}

@@ -223,6 +223,7 @@ class EnhancedQTextEditHandler(logging.Handler, QObject):
         self.widget = text_edit_widget
         self.theme = theme or LogTheme.create_dark_theme()
         
+        self._is_closed = False
         # Enhanced formatter
         self.html_formatter = AdvancedHtmlFormatter(self.theme)
         self.setFormatter(self.html_formatter)
@@ -276,11 +277,28 @@ class EnhancedQTextEditHandler(logging.Handler, QObject):
         self._auto_scroll = (value >= maximum - 10)  # Near bottom
     
     @pyqtSlot(object)
+    def close(self):
+        """Safely closes the handler, disconnecting from Qt resources."""
+        if self._is_closed:
+            return
+        self._is_closed = True
+        # Disconnect signals to prevent further calls to a potentially deleted widget
+        try:
+            self.log_signal_emitter.log_received.disconnect(self._append_log_entry)
+        except (TypeError, RuntimeError):
+            pass # Already disconnected or object gone, which is fine
+        # Nullify the widget reference
+        self.widget = None
+        # Call the parent class's close method
+        super().close()
+
     def _append_log_entry(self, entry: LogEntry):
         """Append a single log entry to the widget"""
+        if self._is_closed or not self.widget:
+            return
         html = self.html_formatter._format_html(entry)
         self.widget.append(html)
-        
+
         if self._auto_scroll:
             scrollbar = self.widget.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
@@ -303,6 +321,8 @@ class EnhancedQTextEditHandler(logging.Handler, QObject):
     def emit(self, record):
         """Handle log record emission with batching"""
         try:
+            if self._is_closed or not self.widget:
+                return
             # Create enhanced log entry
             entry = self.html_formatter._create_log_entry(record)
             

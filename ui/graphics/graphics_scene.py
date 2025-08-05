@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QGraphicsScene, QGraphicsView, QGraphicsItem, QGraphicsLineItem,
     QMenu, QMessageBox, QDialog, QStyle, QGraphicsSceneMouseEvent,
     QGraphicsSceneDragDropEvent, QApplication, QGraphicsSceneContextMenuEvent,QMainWindow,
-    QGraphicsRectItem
+    QGraphicsRectItem, QInputDialog
 )
 from PyQt5.QtGui import QWheelEvent,QMouseEvent, QDrag, QDropEvent, QPixmap
 from PyQt5.QtGui import QKeyEvent, QKeySequence, QCursor, QPainter, QColor, QPen, QBrush, QTransform
@@ -314,6 +314,36 @@ class DiagramScene(QGraphicsScene):
             for s_init in initial_states:
                 self._mark_item_as_problematic(s_init, "Multiple Initials")
 
+        # --- NEW VALIDATION CHECK ---
+        defined_variables = set()
+        if self.parent_window and self.parent_window.project_manager.is_project_open():
+            defined_variables = set(self.parent_window.data_dictionary_manager.variables.keys())
+
+        if defined_variables:
+            all_code = []
+            for state in states:
+                all_code.append(state.entry_action)
+                all_code.append(state.during_action)
+                all_code.append(state.exit_action)
+            for trans in transitions:
+                all_code.append(trans.condition_str)
+                all_code.append(trans.action_str)
+
+            # A simple regex to find potential variable names (identifiers)
+            variable_pattern = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\b')
+            used_variables = set()
+            for code_block in filter(None, all_code):
+                used_variables.update(variable_pattern.findall(code_block))
+
+            # Find variables used in the diagram but not defined in the dictionary
+            undefined_vars = used_variables - defined_variables - {'sm', 'current_tick'} # Exclude built-ins
+
+            if undefined_vars:
+                issue_msg = f"Undeclared Variables: The following variables are used but not defined in the Data Dictionary: {', '.join(sorted(list(undefined_vars)))}"
+                current_validation_issues.append((issue_msg, None))
+                # This is a general error, so we don't mark a specific item
+        
+        
         for state in states:
             if state.is_final:
                 outgoing_transitions = [t for t in transitions if t.start_item == state]
@@ -510,11 +540,28 @@ class DiagramScene(QGraphicsScene):
         menu.addAction(get_standard_icon(QStyle.SP_FileDialogNewFolder, "St"), "Add State Here", lambda: self._add_item_interactive(event.scenePos(), "State"))
         menu.addAction(get_standard_icon(QStyle.SP_MessageBoxInformation, "Cm"), "Add Comment Here", lambda: self._add_item_interactive(event.scenePos(), "Comment"))
         
+        # --- NEW: Add actions for Frame and Display items ---
+        menu.addSeparator()
+        menu.addAction(get_standard_icon(QStyle.SP_FileDialogListView, "Frame"), "Add Frame Here...", lambda: self._add_item_interactive(event.scenePos(), "Frame"))
+        menu.addAction(get_standard_icon(QStyle.SP_FileDialogInfoView, "Disp"), "Add Variable Display Here...", lambda: self._add_display_item_at_pos(event.scenePos()))
+        
         if self.parent_window and hasattr(self.parent_window, 'ai_chatbot_manager') and self.parent_window.ai_chatbot_manager.is_configured():
             menu.addSeparator()
             menu.addAction(get_standard_icon(QStyle.SP_ArrowRight, "AIGen"), "Generate FSM from Description (AI)...", lambda: self.parent_window.ai_chat_ui_manager.on_ask_ai_to_generate_fsm())
 
         menu.exec_(event.screenPos())
+
+
+    def _add_display_item_at_pos(self, pos: QPointF):
+        """Prompts for a variable name and adds a Display item."""
+        from .graphics_items import GraphicsDisplayItem
+        from ...undo_commands import AddItemCommand
+
+        var_name, ok = QInputDialog.getText(self.parent_window, "Add Variable Display", "Enter variable name to monitor:")
+        if ok and var_name.strip():
+            new_display = GraphicsDisplayItem(pos.x(), pos.y(), var_name.strip())
+            cmd = AddItemCommand(self, new_display, f"Add Display for '{var_name}'")
+            self.undo_stack.push(cmd)
 
     def _explain_item_with_ai(self, item):
         from .graphics_items import GraphicsStateItem, GraphicsTransitionItem
@@ -763,11 +810,8 @@ class DiagramScene(QGraphicsScene):
             self.delete_selected_items()
 
     def _add_item_interactive(self, pos: QPointF, item_type: str, name_prefix:str="Item", initial_data:dict=None):
-        # --- FIX: Local import ---
         from ..dialogs import StatePropertiesDialog, CommentPropertiesDialog
-        # --- FIX: Local import ---
-        from .graphics_items import GraphicsStateItem, GraphicsCommentItem
-        # --- DEFERRED IMPORT ---
+        from .graphics_items import GraphicsStateItem, GraphicsCommentItem, GraphicsFrameItem
         from ...undo_commands import AddItemCommand
         from ...managers.settings_manager import SettingsManager
 
@@ -866,6 +910,16 @@ class DiagramScene(QGraphicsScene):
         else:
             self._log_to_parent("WARNING", f"Unknown item type for addition: {item_type}")
             return
+
+
+        # --- NEW: Handle Frame item creation ---
+        if item_type == "Frame":
+            title, ok = QInputDialog.getText(self.parent_window, "New Frame", "Enter title for the frame:")
+            if ok and title.strip():
+                current_item = GraphicsFrameItem(pos.x(), pos.y(), 400, 300, title.strip())
+            else:
+                return # User cancelled or entered empty title
+        
 
         if current_item:
             cmd = AddItemCommand(self, current_item, f"Add {item_type}")
@@ -1068,7 +1122,7 @@ class DiagramScene(QGraphicsScene):
                 event.ignore()
             return
 
-        elif mime_data.hasFormat("application/x-bsm-tool"):
+        if mime_data.hasFormat("application/x-bsm-tool"):
             item_type_data_str = mime_data.text() 
 
             grid_x = round(pos.x() / self.grid_size) * self.grid_size
@@ -1081,6 +1135,10 @@ class DiagramScene(QGraphicsScene):
             initial_props_for_add = {}
             actual_item_type_to_add = "Item" 
             name_prefix_for_add = "Item"
+
+            # --- NEW: Handle Frame drop ---
+            if item_type_data_str == "Frame":
+                actual_item_type_to_add = "Frame"; name_prefix_for_add = "Group"
 
             if item_type_data_str == "State":
                 actual_item_type_to_add = "State"; name_prefix_for_add = "State"
@@ -1104,8 +1162,8 @@ class DiagramScene(QGraphicsScene):
 
     def get_diagram_data(self):
         # --- FIX: Local import ---
-        from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
-        data = {'states': [], 'transitions': [], 'comments': []}
+        from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem, GraphicsFrameItem, GraphicsDisplayItem
+        data = {'states': [], 'transitions': [], 'comments': [], 'frames': [], 'displays': []} # Add new keys
         for item in self.items():
             if isinstance(item, GraphicsStateItem):
                 data['states'].append(item.get_data())
@@ -1114,13 +1172,19 @@ class DiagramScene(QGraphicsScene):
                     data['transitions'].append(item.get_data())
                 else:
                     self._log_to_parent("WARNING", f"Skipping save of orphaned/invalid transition: '{item._compose_label_string()}'.")
+            
+            elif isinstance(item, GraphicsFrameItem):
+                data['frames'].append(item.get_data())
+            elif isinstance(item, GraphicsDisplayItem):
+                data['displays'].append(item.get_data())
+                    
             elif isinstance(item, GraphicsCommentItem):
                 data['comments'].append(item.get_data())
         return data
 
     def load_diagram_data(self, data):
         # --- FIX: Local import ---
-        from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
+        from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem, GraphicsFrameItem, GraphicsDisplayItem
         # --- DEFERRED IMPORT ---
         from ...managers.settings_manager import SettingsManager
         
@@ -1204,6 +1268,14 @@ class DiagramScene(QGraphicsScene):
             )
             comment_item.setTextWidth(comment_data.get('width', 150))
             self.addItem(comment_item)
+
+        for frame_data in data.get('frames', []): # Assuming you add 'frames' to your JSON
+            frame = GraphicsFrameItem(...)
+            self.addItem(frame)
+        
+        for display_data in data.get('displays', []): # Assuming 'displays' in JSON
+            display = GraphicsDisplayItem(...)
+            self.addItem(display)    
 
         self.set_dirty(False) 
         if self.undo_stack: self.undo_stack.clear()
@@ -1562,6 +1634,9 @@ class ZoomableView(QGraphicsView):
         self._is_panning_with_mouse_button = False
         self._last_pan_point = QPoint()
         self._emit_current_zoom() 
+        # --- NEW: Marquee Zoom state ---
+        self._is_in_marquee_zoom_mode = False
+        self._rubber_band_origin = QPoint()
 
     def _emit_current_zoom(self): 
         current_scale_factor = self.transform().m11() 
@@ -1626,6 +1701,15 @@ class ZoomableView(QGraphicsView):
             self._last_pan_point = self.mapFromGlobal(QCursor.pos()) 
             self.setCursor(Qt.OpenHandCursor)
             event.accept()
+        # --- NEW: Add 'Z' key for Marquee Zoom ---
+        if event.key() == Qt.Key_Z and not self._is_panning_with_space and not self.scene().current_mode == "transition":
+            self._is_in_marquee_zoom_mode = True
+            # We don't change drag mode here, but use a custom rubber band
+            self.setCursor(Qt.CrossCursor)
+            event.accept()
+            return
+        
+            
         elif event.key() == Qt.Key_Plus or event.key() == Qt.Key_Equal: 
             self.zoom_in()
         elif event.key() == Qt.Key_Minus: 
@@ -1641,10 +1725,26 @@ class ZoomableView(QGraphicsView):
             if not self._is_panning_with_mouse_button: 
                 self._restore_cursor_to_scene_mode()
             event.accept()
+        # --- NEW: Handle 'Z' key release ---
+        if event.key() == Qt.Key_Z and self._is_in_marquee_zoom_mode:
+            self._is_in_marquee_zoom_mode = False
+            self._restore_cursor_to_scene_mode()
+            event.accept()
+            return    
         else:
             super().keyReleaseEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent):
+        # --- NEW: Handle Marquee Zoom press ---
+        if self._is_in_marquee_zoom_mode and event.button() == Qt.LeftButton:
+            self._rubber_band_origin = event.pos()
+            if not self.rubberBandRect().isNull():
+                self.setRubberBand(QRect(self._rubber_band_origin, QSize()))
+            self.setRubberBand(self._rubber_band_origin, QPoint())
+            self.setRubberBandVisible(True)
+            event.accept()
+            return
+        # --- END NEW ---
         if event.button() == Qt.MiddleButton or \
            (self._is_panning_with_space and event.button() == Qt.LeftButton):
             self._last_pan_point = event.pos()
@@ -1656,6 +1756,12 @@ class ZoomableView(QGraphicsView):
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent):
+        # --- NEW: Handle Marquee Zoom move ---
+        if self._is_in_marquee_zoom_mode and event.buttons() & Qt.LeftButton:
+            self.setRubberBand(QRect(self._rubber_band_origin, event.pos()).normalized())
+            event.accept()
+            return
+        # --- END NEW ---
         if self._is_panning_with_mouse_button:
             delta_view = event.pos() - self._last_pan_point 
             self._last_pan_point = event.pos()
@@ -1666,6 +1772,19 @@ class ZoomableView(QGraphicsView):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
+        # --- NEW: Handle Marquee Zoom release ---
+        if self._is_in_marquee_zoom_mode and event.button() == Qt.LeftButton:
+            if self.rubberBandRect().isValid():
+                zoom_rect_view = self.rubberBandRect().normalized()
+                # Only zoom if the rect is a meaningful size
+                if zoom_rect_view.width() > 10 and zoom_rect_view.height() > 10:
+                    zoom_rect_scene = self.mapToScene(zoom_rect_view).boundingRect()
+                    self.fitInView(zoom_rect_scene, Qt.KeepAspectRatio)
+            self.setRubberBandVisible(False)
+            event.accept()
+            # We don't call super() here to prevent the selection from happening
+            return
+        # --- END NEW ---
         if self._is_panning_with_mouse_button and \
            (event.button() == Qt.MiddleButton or (self._is_panning_with_space and event.button() == Qt.LeftButton)):
             self._is_panning_with_mouse_button = False

@@ -51,3 +51,8 @@ FSM_TEMPLATES_BUILTIN = _load_json_asset('templates.json', fallback_data={
 TARGET_PROFILES = _load_json_asset('profiles.json', fallback_data={
     "FallbackDevice": {"name": "Loading Failed", "sram_b": 1, "flash_kb": 1}
 })
+
+# Load the BSM file schema for validation
+BSM_SCHEMA = _load_json_asset('bsm_schema.json', fallback_data={
+    "title": "Schema Loading Failed"
+})

@@ -1,4 +1,3 @@
-
 # fsm_designer_project/managers/resource_monitor.py
 import logging
 from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTime, pyqtSlot, QMetaObject, Qt, QTimer
@@ -16,8 +15,6 @@ logger = logging.getLogger(__name__)
 class ResourceMonitorWorker(QObject):
     resourceUpdate = pyqtSignal(float, float, float, str)
     finished_signal = pyqtSignal()
-    MAX_NVML_REINIT_ATTEMPTS = 3
-    NVML_REINIT_BACKOFF_SECONDS = 30
 
     def __init__(self, interval_ms=2000, parent=None):
         super().__init__(parent)
@@ -26,8 +23,10 @@ class ResourceMonitorWorker(QObject):
         self._gpu_handle = None
         self._gpu_name_cache = "N/A"
         self._nvml_reinit_attempts = 0
-        self._last_nvml_reinit_attempt_time = 0 
+        self._last_nvml_reinit_attempt_time = 0
         self._stop_requested = False
+        self.MAX_NVML_REINIT_ATTEMPTS = 3
+        self.NVML_REINIT_BACKOFF_SECONDS = 30
 
         if PYNVML_AVAILABLE and pynvml:
             self._attempt_nvml_init()
@@ -86,12 +85,15 @@ class ResourceMonitorWorker(QObject):
     def start_monitoring(self):
         logger.info("ResourceMonitorWorker: start_monitoring called.")
         self._stop_requested = False
-        
-        # The timer is created here, so it belongs to the worker thread's event loop.
-        self.monitor_timer = QTimer()
-        self.monitor_timer.setInterval(self.data_collection_interval_ms)
-        self.monitor_timer.timeout.connect(self._monitor_resources)
-        self.monitor_timer.start()
+
+        # FIX: Ensure timer is created and started in this thread's context
+        if not hasattr(self, 'monitor_timer'):
+            self.monitor_timer = QTimer()
+            self.monitor_timer.setInterval(self.data_collection_interval_ms)
+            self.monitor_timer.timeout.connect(self._monitor_resources)
+
+        if not self.monitor_timer.isActive():
+            self.monitor_timer.start()
 
         # Perform the first check immediately without waiting for the first interval.
         self._monitor_resources()
@@ -100,7 +102,8 @@ class ResourceMonitorWorker(QObject):
     def stop_monitoring(self):
         logger.info("ResourceMonitorWorker: stop_monitoring_slot called.")
         self._stop_requested = True
-        if hasattr(self, 'monitor_timer'):
+        # FIX: Stop the timer from its own thread context
+        if hasattr(self, 'monitor_timer') and self.monitor_timer.isActive():
             self.monitor_timer.stop()
         self.finished_signal.emit()
 
