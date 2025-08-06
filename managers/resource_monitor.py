@@ -1,6 +1,6 @@
 # fsm_designer_project/managers/resource_monitor.py
 import logging
-from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTime, pyqtSlot, QMetaObject, Qt, QTimer
+from PyQt6.QtCore import QObject, pyqtSignal, QThread, QTime, pyqtSlot, QMetaObject, Qt, QTimer
 
 import psutil
 try:

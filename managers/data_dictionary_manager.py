@@ -3,7 +3,7 @@
 import logging
 import os
 import json
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 from .project_manager import ProjectManager
 
 logger = logging.getLogger(__name__)

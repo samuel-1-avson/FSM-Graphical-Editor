@@ -1,14 +1,14 @@
 # fsm_designer_project/ui/widgets/custom_widgets.py
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QToolButton, QApplication, QWidget, QFrame, QVBoxLayout, QHBoxLayout,
     QLabel, QCheckBox, QSizePolicy, QGraphicsDropShadowEffect
 )
-from PyQt5.QtGui import (
+from PyQt6.QtGui import (
     QMouseEvent, QDrag, QPixmap, QPainter, QColor, QRegion, QFont,
     QPaintEvent, QLinearGradient, QPen, QBrush, QIcon
 )
-from PyQt5.QtCore import (
+from PyQt6.QtCore import (
     Qt, QPoint, QMimeData, QSize, QPropertyAnimation, QEasingCurve,
     pyqtSignal, QTimer, QRect, QParallelAnimationGroup, QAbstractAnimation
 )
@@ -62,12 +62,12 @@ class CollapsibleSection(QFrame):
         # Set initial state
         if start_collapsed:
             self.content_widget.setMaximumHeight(0)
-            self.header.setArrowType(Qt.RightArrow)
+            self.header.setArrowType(Qt.ArrowType.RightArrow)
         
     def _init_ui(self, title):
         """Initialize the user interface."""
-        self.setFrameStyle(QFrame.NoFrame)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.setFrameStyle(QFrame.Shape.NoFrame)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
@@ -85,11 +85,11 @@ class CollapsibleSection(QFrame):
         self.header.setObjectName("CollapsibleSectionHeader")
         self.header.setCheckable(self.is_collapsible)
         self.header.setChecked(not self.is_collapsed)
-        self.header.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.header.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
         if self.is_collapsible:
-            self.header.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-            self.header.setArrowType(Qt.DownArrow if not self.is_collapsed else Qt.RightArrow)
+            self.header.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            self.header.setArrowType(Qt.ArrowType.DownArrow if not self.is_collapsed else Qt.ArrowType.RightArrow)
             self.header.clicked.connect(self._toggle_collapsed)
         else:
             self.header.setEnabled(False)
@@ -100,7 +100,7 @@ class CollapsibleSection(QFrame):
         """Create the content widget container."""
         self.content_widget = QWidget()
         self.content_widget.setObjectName("CollapsibleContentWidget")
-        self.content_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.content_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(8, 8, 8, 8)
@@ -113,7 +113,7 @@ class CollapsibleSection(QFrame):
         # Height animation
         self.height_animation = QPropertyAnimation(self.content_widget, b"maximumHeight")
         self.height_animation.setDuration(250)
-        self.height_animation.setEasingCurve(QEasingCurve.InOutCubic)
+        self.height_animation.setEasingCurve(QEasingCurve.Type.InOutCubic)
         
         # Opacity animation for smoother effect
         self.opacity_effect = QGraphicsDropShadowEffect()
@@ -230,7 +230,7 @@ class CollapsibleSection(QFrame):
         
     def _collapse(self):
         """Animate collapsing the section."""
-        self.header.setArrowType(Qt.RightArrow)
+        self.header.setArrowType(Qt.ArrowType.RightArrow)
         
         start_height = self.content_widget.height()
         self.height_animation.setStartValue(start_height)
@@ -240,7 +240,7 @@ class CollapsibleSection(QFrame):
         
     def _expand(self):
         """Animate expanding the section."""
-        self.header.setArrowType(Qt.DownArrow)
+        self.header.setArrowType(Qt.ArrowType.DownArrow)
         
         # Calculate content height
         self.content_widget.setMaximumHeight(16777215)  # Remove height constraint temporarily
@@ -270,17 +270,17 @@ class CollapsibleSection(QFrame):
             
         if not animated:
             # Stop any running animation
-            if self.animation_group.state() == QAbstractAnimation.Running:
+            if self.animation_group.state() == QAbstractAnimation.State.Running:
                 self.animation_group.stop()
                 
             self.is_collapsed = collapsed
             if collapsed:
                 self.content_widget.setMaximumHeight(0)
-                self.header.setArrowType(Qt.RightArrow)
+                self.header.setArrowType(Qt.ArrowType.RightArrow)
                 self.header.setChecked(False)
             else:
                 self.content_widget.setMaximumHeight(16777215)
-                self.header.setArrowType(Qt.DownArrow)
+                self.header.setArrowType(Qt.ArrowType.DownArrow)
                 self.header.setChecked(True)
             
             self.collapsed_changed.emit(self.is_collapsed)
@@ -385,27 +385,27 @@ class DraggableToolButton(QToolButton):
         self.setMinimumHeight(42)
         self.setMinimumWidth(120)
         self.setIconSize(QSize(24, 24))
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
         if icon:
             self.setIcon(icon)
-            self.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         else:
-            self.setToolButtonStyle(Qt.ToolButtonTextOnly)
+            self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
             
         # Enable mouse tracking for better hover effects
         self.setMouseTracking(True)
         
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press events."""
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.drag_start_position = event.pos()
             self.is_dragging = False
         super().mousePressEvent(event)
         
     def mouseMoveEvent(self, event: QMouseEvent):
         """Handle mouse move events for drag initiation."""
-        if not (event.buttons() & Qt.LeftButton):
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
             return
             
         if self.is_dragging:
@@ -433,7 +433,7 @@ class DraggableToolButton(QToolButton):
             drag.setHotSpot(event.pos())
             
             # Execute drag
-            drop_action = drag.exec_(Qt.CopyAction | Qt.MoveAction, Qt.CopyAction)
+            drop_action = drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction, Qt.DropAction.CopyAction)
             
             self.drag_finished.emit()
             
@@ -484,23 +484,23 @@ class DraggableToolButton(QToolButton):
         try:
             # Create pixmap with better quality
             pixmap = QPixmap(self.size() * 2)  # Higher resolution
-            pixmap.fill(Qt.transparent)
+            pixmap.fill(Qt.GlobalColor.transparent)
             
             # Render the button
             painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.scale(2.0, 2.0)  # Scale for higher resolution
             
             # Render the button content
-            self.render(painter, QPoint(), QRegion(), QWidget.DrawChildren)
+            self.render(painter, QPoint(), QRegion(), QWidget.RenderFlag.DrawChildren)
             
             # Apply transparency effect
-            painter.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationIn)
             painter.fillRect(pixmap.rect(), QColor(0, 0, 0, 180))
             
             painter.end()
             
-            return pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            return pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             
         except Exception as e:
             logging.error(f"Error creating drag pixmap: {e}")
@@ -530,7 +530,7 @@ class DraggableToolButton(QToolButton):
         if not enabled:
             self.setStyleSheet(self.styleSheet() + "\nQToolButton { cursor: default; }")
         else:
-            self.setCursor(Qt.OpenHandCursor)
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
             
     def get_drag_data(self) -> Dict[str, Any]:
         """Get drag data information."""

@@ -1,17 +1,16 @@
-
 # fsm_designer_project/ui/dialogs/property_dialogs.py
 
 import json
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QCheckBox, QPushButton, QTextEdit,
     QSpinBox, QComboBox, QDialogButtonBox, QColorDialog, QHBoxLayout,
     QLabel, QGroupBox, QStyle, QMainWindow, QFontComboBox, QDoubleSpinBox,
-    QGraphicsScene, QUndoStack, QToolBar, QActionGroup, QApplication,
-    QMessageBox, QAction, QFileDialog, QInputDialog, QTabWidget, QWidget,
+    QGraphicsScene, QGraphicsView, QScrollArea, QFrame,
+    QMessageBox, QTabWidget, QWidget,
     QVBoxLayout, QMenu
 )
-from PyQt5.QtGui import QColor, QFont, QIcon, QPixmap, QPen
-from PyQt5.QtCore import Qt, QSize, QPointF, QDir
+from PyQt6.QtGui import QColor, QFont, QIcon, QPixmap, QPen, QUndoStack, QAction
+from PyQt6.QtCore import Qt, QSize, QPointF, QDir
 
 from ...managers.settings_manager import SettingsManager
 from ...utils.config import (
@@ -44,7 +43,7 @@ class AiHelperMixin:
     def _create_ai_helper_button(self, target_widget, code_type="action"):
         """Creates a styled QPushButton to trigger an AI code generation request."""
         button = QPushButton()
-        button.setIcon(get_standard_icon(QStyle.SP_MessageBoxQuestion, "AI"))
+        button.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxQuestion, "AI"))
         button.setToolTip(f"Generate {code_type} code with AI")
         button.clicked.connect(lambda: self._on_ai_helper_clicked(target_widget, code_type))
         return button
@@ -73,7 +72,7 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
     def __init__(self, settings_manager, custom_snippet_manager, parent=None, current_properties=None, is_new_state=False, scene_ref=None):
         super().__init__(parent)
         self.setWindowTitle("State Properties")
-        self.setWindowIcon(get_standard_icon(QStyle.SP_DialogApplyButton, "Props"))
+        self.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_DialogApplyButton, "Props"))
         self.setMinimumWidth(650) 
         self.setStyleSheet(f"QDialog {{ background-color: {COLOR_BACKGROUND_DIALOG}; }} QLabel#SafetyNote, QLabel#HardwareHintLabel {{ font-size: {APP_FONT_SIZE_SMALL}; color: {COLOR_TEXT_SECONDARY}; }} QGroupBox {{ background-color: {QColor(COLOR_BACKGROUND_LIGHT).lighter(102).name()}; }}")
         
@@ -106,7 +105,7 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
         self.is_superstate_cb = QCheckBox("Is Superstate (Composite State)")
         self.is_superstate_cb.setChecked(p.get('is_superstate', False))
         self.is_superstate_cb.toggled.connect(self._on_superstate_toggled)
-        self.edit_sub_fsm_button = QPushButton(get_standard_icon(QStyle.SP_FileDialogDetailedView, "Sub"), "Edit Sub-Machine...")
+        self.edit_sub_fsm_button = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogDetailedView, "Sub"), "Edit Sub-Machine...")
         self.edit_sub_fsm_button.clicked.connect(self._on_edit_sub_fsm)
         self.edit_sub_fsm_button.setEnabled(self.is_superstate_cb.isChecked())
         cb_layout_super = QHBoxLayout(); cb_layout_super.addWidget(self.is_superstate_cb); cb_layout_super.addSpacing(8); cb_layout_super.addWidget(self.edit_sub_fsm_button); cb_layout_super.addStretch()
@@ -171,12 +170,12 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
         icon_layout = QFormLayout(icon_group)
         self.icon_path_edit = QLineEdit(p.get('icon_path', ''))
         self.icon_path_edit.setPlaceholderText("Path to icon image (e.g., .png, .svg)")
-        self.icon_browse_button = QPushButton(get_standard_icon(QStyle.SP_DirOpenIcon), "Browse...")
+        self.icon_browse_button = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_DirOpenIcon), "Browse...")
         self.icon_browse_button.clicked.connect(self._browse_for_icon)
         icon_file_layout = QHBoxLayout(); icon_file_layout.addWidget(self.icon_path_edit, 1); icon_file_layout.addWidget(self.icon_browse_button)
         icon_layout.addRow("Icon File:", icon_file_layout)
         self.icon_preview_label = QLabel("<i>No icon selected</i>")
-        self.icon_preview_label.setFixedSize(32,32); self.icon_preview_label.setAlignment(Qt.AlignCenter)
+        self.icon_preview_label.setFixedSize(32,32); self.icon_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.icon_preview_label.setStyleSheet(f"border: 1px solid {COLOR_BORDER_MEDIUM}; background-color: {QColor(COLOR_BACKGROUND_LIGHT).lighter(105).name()};")
         self._update_icon_preview(p.get('icon_path', ''))
         self.icon_path_edit.textChanged.connect(self._update_icon_preview)
@@ -273,7 +272,7 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
         hardware_layout.addWidget(hw_group)
         tabs.addTab(hardware_tab, "Hardware Mapping")
 
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         btns.accepted.connect(self.accept); btns.rejected.connect(self.reject)
         main_layout.addWidget(btns)
 
@@ -288,11 +287,12 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
         if path_text and os.path.exists(path_text):
             pixmap = QPixmap(path_text)
             if not pixmap.isNull():
-                self.icon_preview_label.setPixmap(pixmap.scaled(32,32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                self.icon_preview_label.setPixmap(pixmap.scaled(32,32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             else:
                 self.icon_preview_label.setText("<i>Invalid</i>")
         else:
             self.icon_preview_label.setText("<i>No icon</i>")
+        self.icon_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter) # <--- CORRECTED (Was missing from previous update)    
 
     def _update_snippet_button_menu(self, button: QPushButton, target_widget: CodeEditor, language_mode: str, snippet_category: str):
         menu = button.menu()
@@ -340,7 +340,7 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
     def _create_insert_snippet_button(self, target_widget: CodeEditor, snippet_category: str, button_text="Insert...", icon_size_px=16):
         button = QPushButton(button_text); button.setObjectName("SnippetButton")
         button.setToolTip(f"Insert common {snippet_category[:-1] if snippet_category.endswith('s') else snippet_category} snippets");
-        button.setIcon(get_standard_icon(QStyle.SP_FileDialogContentsView, "InsSnip"))
+        button.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogContentsView, "InsSnip"))
         button.setIconSize(QSize(icon_size_px, icon_size_px))
         button.setMenu(QMenu(self))
         return button
@@ -352,8 +352,8 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
                (self.current_sub_fsm_data.get('states') or self.current_sub_fsm_data.get('transitions')):
                 reply = QMessageBox.question(self, "Discard Sub-Machine?",
                                              "Unchecking 'Is Superstate' will clear its internal diagram data. Continue?",
-                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                if reply == QMessageBox.Yes:
+                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                if reply == QMessageBox.StandardButton.Yes:
                     self.current_sub_fsm_data = {'states': [], 'transitions': [], 'comments': []}
                 else:
                     self.is_superstate_cb.blockSignals(True)
@@ -369,7 +369,7 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
             dialog_parent = dialog_parent.parent()
         if not dialog_parent: dialog_parent = self
         sub_editor_dialog = SubFSMEditorDialog(self.current_sub_fsm_data, parent_state_name, dialog_parent)
-        if sub_editor_dialog.exec() == QDialog.Accepted:
+        if sub_editor_dialog.exec() == QDialog.DialogCode.Accepted:
             updated_data = sub_editor_dialog.get_updated_sub_fsm_data()
             self.current_sub_fsm_data = updated_data
             QMessageBox.information(self, "Sub-Machine Updated", "Sub-machine data has been updated in this dialog. Click OK to save these changes to the state.")
@@ -382,6 +382,7 @@ class StatePropertiesDialog(QDialog, AiHelperMixin):
         luminance = self.current_color.lightnessF()
         text_color_name = COLOR_TEXT_ON_ACCENT if luminance < 0.5 else COLOR_TEXT_PRIMARY
         self.color_button.setStyleSheet(f"background-color: {self.current_color.name()}; color: {text_color_name}; border: 1px solid {self.current_color.darker(130).name()};")
+
 
     def get_properties(self):
         sub_data_to_return = {'states': [], 'transitions': [], 'comments': []}

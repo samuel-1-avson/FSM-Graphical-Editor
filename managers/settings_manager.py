@@ -6,8 +6,8 @@ import logging
 from typing import Any, Dict, List, Optional, Union, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from PyQt5.QtCore import QObject, QStandardPaths, pyqtSignal, QDir, Qt, QSettings, QTimer
-from PyQt5.QtGui import QColor
+from PyQt6.QtCore import QObject, QStandardPaths, pyqtSignal, QDir, Qt, QSettings, QTimer
+from PyQt6.QtGui import QColor
 
 logger = logging.getLogger(__name__)
 
@@ -248,9 +248,9 @@ class SettingsManager(QObject):
                 for key, definition in SETTING_DEFINITIONS.items()}
     
     QT_PEN_STYLES_MAP = {
-        "Solid": Qt.SolidLine, "Dash": Qt.DashLine, "Dot": Qt.DotLine,
-                "DashDotDot": Qt.DashDotDotLine,
-        "CustomDash": Qt.CustomDashLine,
+        "Solid": Qt.PenStyle.SolidLine, "Dash": Qt.PenStyle.DashLine, "Dot": Qt.PenStyle.DotLine,
+        "DashDotDot": Qt.PenStyle.DashDotDotLine,
+        "CustomDash": Qt.PenStyle.CustomDashLine,
     }
     STRING_TO_QT_PEN_STYLE = {name: enum_val for name, enum_val in QT_PEN_STYLES_MAP.items()}
     QT_PEN_STYLE_TO_STRING = {enum_val: name for name, enum_val in QT_PEN_STYLES_MAP.items()}
@@ -258,7 +258,7 @@ class SettingsManager(QObject):
     def __init__(self, app_name="BSMDesigner", parent=None):
         super().__init__(parent)
         self.app_name = app_name
-        self.settings = QSettings(QSettings.IniFormat, QSettings.UserScope, "BSM-Devs", app_name)
+        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "BSM-Devs", app_name)
         
         # Cache for frequently accessed settings
         self._cache = {}
@@ -277,6 +277,7 @@ class SettingsManager(QObject):
         logger.info(f"Settings will be loaded/saved at: {self.settings.fileName()}")
         self._init_defaults()
         self.settingsLoaded.emit()
+
 
     def _init_defaults(self):
         """Initialize settings with defaults if they don't exist."""

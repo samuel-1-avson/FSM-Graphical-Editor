@@ -5,13 +5,13 @@ import io
 import contextlib
 import html
 import logging
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QToolBar, QComboBox, QLabel,
     QTextEdit, QFileDialog, QMessageBox, QInputDialog, QStyle,
     QHBoxLayout, QMenu
 )
-from PyQt5.QtCore import QObject, pyqtSlot, QSize, QTime, QDir, Qt, pyqtSignal 
-from PyQt5.QtGui import QIcon, QColor
+from PyQt6.QtCore import QObject, pyqtSlot, QSize, QTime, QDir, Qt, pyqtSignal 
+from PyQt6.QtGui import QIcon, QColor, QAction
 
 from ..ui.widgets.code_editor import CodeEditor
 from ..utils import get_standard_icon
@@ -70,7 +70,7 @@ class IDEManager(QObject):
 
         ide_toolbar = QToolBar("IDE Tools")
         ide_toolbar.setIconSize(QSize(18,18)) 
-        ide_toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        ide_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
         ide_toolbar.addAction(self.mw.ide_new_file_action)
         ide_toolbar.addAction(self.mw.ide_open_file_action)
@@ -106,7 +106,7 @@ class IDEManager(QObject):
         self.ide_code_editor.setStyleSheet(f"QPlainTextEdit#StandaloneCodeEditor {{ border-top: 1px solid {COLOR_BORDER_LIGHT}; border-bottom: 1px solid {COLOR_BORDER_LIGHT}; border-left: none; border-right: none; border-radius: 0px; }}")
         
         # --- AI IMPROVEMENT: Add Context Menu ---
-        self.ide_code_editor.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ide_code_editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.ide_code_editor.customContextMenuRequested.connect(self._show_ide_context_menu)
         
         ide_main_layout.addWidget(self.ide_code_editor, 1)
@@ -158,11 +158,11 @@ class IDEManager(QObject):
         file_desc = os.path.basename(self.current_ide_file_path) if self.current_ide_file_path else "Untitled Script"
         reply = QMessageBox.question(self.mw, "Save IDE Script?",
                                      f"The script '{file_desc}' in the IDE has unsaved changes. Do you want to save them?",
-                                     QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-                                     QMessageBox.Save)
-        if reply == QMessageBox.Save:
+                                     QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+                                     QMessageBox.StandardButton.Save)
+        if reply == QMessageBox.StandardButton.Save:
             return self.on_ide_save_file()
-        elif reply == QMessageBox.Cancel:
+        elif reply == QMessageBox.StandardButton.Cancel:
             return False
         return True
 

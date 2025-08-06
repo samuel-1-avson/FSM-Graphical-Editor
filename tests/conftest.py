@@ -1,6 +1,6 @@
 # tests/conftest.py
 import pytest
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication
 
 @pytest.fixture(scope="session")
 def qapp_args():

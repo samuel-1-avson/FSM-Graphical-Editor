@@ -13,9 +13,9 @@ from typing import Dict, List, Tuple
 from .ai_providers.base import AIProvider
 from .ai_providers import get_available_providers
 
-from PyQt5.QtGui import QMovie, QIcon, QColor, QDesktopServices
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTextBrowser, QHBoxLayout, QLineEdit,
-                             QPushButton, QLabel, QStyle, QMessageBox, QInputDialog, QAction, QApplication,
+from PyQt6.QtGui import QMovie, QIcon, QColor, QDesktopServices, QAction
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTextBrowser, QHBoxLayout, QLineEdit,
+                             QPushButton, QLabel, QStyle, QMessageBox, QInputDialog, QApplication,
                              QDialog, QFormLayout, QDialogButtonBox, QGroupBox, QComboBox, QTextEdit, QCheckBox)
 
 from markdown_it import MarkdownIt
@@ -31,9 +31,10 @@ from ...utils.config import (
 )
 from ...utils import get_standard_icon 
 from ...managers.settings_manager import SettingsManager
-from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTime, QTimer, Qt, QMetaObject, pyqtSlot, Q_ARG, QSize, QUrl
+from PyQt6.QtCore import QObject, pyqtSignal, QThread, QTime, QTimer, Qt, QMetaObject, pyqtSlot, Q_ARG, QSize, QUrl
 
 logger = logging.getLogger(__name__)
+
 
 class AIStatus(Enum):
     INITIALIZING = auto()
@@ -267,7 +268,7 @@ class AISettingsDialog(QDialog):
 
         # Key editor and note label
         self.api_key_edit = QLineEdit()
-        self.api_key_edit.setEchoMode(QLineEdit.Password)
+        self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_key_edit.setPlaceholderText("Enter the API Key for the selected provider")
         layout.addRow("API Key:", self.api_key_edit)
 
@@ -275,7 +276,7 @@ class AISettingsDialog(QDialog):
         self.note_label.setWordWrap(True)
         layout.addRow("", self.note_label)
 
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         main_layout.addWidget(button_box)
@@ -392,8 +393,8 @@ class AIChatUIManager(QObject):
 
         self.ai_chat_display = QTextBrowser()
         self.ai_chat_display.setReadOnly(True)
-        self.ai_chat_display.setAcceptRichText(True)
-        self.ai_chat_display.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.TextSelectableByKeyboard)
+        self.ai_chat_display.setAcceptRichText(True)        
+        self.ai_chat_display.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         self.ai_chat_display.setOpenLinks(False) 
 
         self.ai_chat_display.setObjectName("AIChatDisplay");
@@ -409,7 +410,7 @@ class AIChatUIManager(QObject):
         input_layout.addWidget(self.ai_chat_input, 1)
 
         self.ai_chat_send_button = QPushButton()
-        self.original_send_button_icon = get_standard_icon(QStyle.SP_ArrowRight, "SndAI")
+        self.original_send_button_icon = get_standard_icon(QStyle.StandardPixmap.SP_ArrowRight, "SndAI")
         self.ai_chat_send_button.setIcon(self.original_send_button_icon)
         self.ai_chat_send_button.setIconSize(QSize(16,16))
 
@@ -605,7 +606,7 @@ class AIChatUIManager(QObject):
         current_provider = self.mw.settings_manager.get("ai_provider", "Gemini (Google AI)")
         dialog = AISettingsDialog(self.mw.settings_manager, current_provider, self.mw)
 
-        if dialog.exec_():
+        if dialog.exec():
             provider_name = dialog.get_selected_provider()
             api_key = dialog.get_key()
             logger.info(f"AIChatUI: AI Settings dialog accepted. Provider: '{provider_name}'")
@@ -681,12 +682,12 @@ class AIChatUIManager(QObject):
                  self.mw.ai_chatbot_manager._update_current_ai_status(AIStatus.ERROR, "Status: AI returned no FSM data.")
             return
 
-        msg_box = QMessageBox(self.mw); msg_box.setIcon(QMessageBox.Question); msg_box.setWindowTitle("Add AI Generated FSM")
+        msg_box = QMessageBox(self.mw); msg_box.setIcon(QMessageBox.Icon.Question); msg_box.setWindowTitle("Add AI Generated FSM")
         msg_box.setText("AI has generated an FSM. Do you want to clear the current diagram before adding the new FSM, or add to the existing one?")
-        clear_btn = msg_box.addButton("Clear and Add", QMessageBox.YesRole)
-        add_btn = msg_box.addButton("Add to Existing", QMessageBox.NoRole)
-        cancel_btn = msg_box.addButton("Cancel", QMessageBox.RejectRole); msg_box.setDefaultButton(cancel_btn)
-        msg_box.exec_()
+        clear_btn = msg_box.addButton("Clear and Add", QMessageBox.ButtonRole.YesRole)
+        add_btn = msg_box.addButton("Add to Existing", QMessageBox.ButtonRole.NoRole)
+        cancel_btn = msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole); msg_box.setDefaultButton(cancel_btn)
+        msg_box.exec()
 
         clicked_button = msg_box.clickedButton()
         if clicked_button == cancel_btn:
@@ -765,8 +766,8 @@ class AIChatUIManager(QObject):
         if self.mw.ai_chatbot_manager:
             reply = QMessageBox.question(self, "Clear Chat History",
                                          "Are you sure you want to clear the entire AI chat history?",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.Yes:
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
                 self.mw.ai_chatbot_manager.clear_conversation_history()
                 if self.ai_chat_display:
                     self.ai_chat_display.clear()
@@ -799,23 +800,23 @@ class AIChatUIManager(QObject):
         # Create a human-readable summary of the action
         summary = f"<b>Action:</b> {action_type}<br>"
         for key, value in details.items():
-            summary += f"  <b>{key.capitalize()}:</b> {html.escape(str(value))}<br>"
+            summary += f"&nbsp;&nbsp;<b>{key.capitalize()}:</b> {html.escape(str(value))}<br>"
         
         # Use a QMessageBox for confirmation
         msg_box = QMessageBox(self.mw)
         msg_box.setWindowTitle("AI Action Proposed")
         msg_box.setText("The AI assistant has proposed the following change to your diagram:")
         msg_box.setInformativeText(summary)
-        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setIcon(QMessageBox.Icon.Question)
         
-        approve_button = msg_box.addButton("Approve", QMessageBox.YesRole)
-        reject_button = msg_box.addButton("Reject", QMessageBox.RejectRole)
+        approve_button = msg_box.addButton("Approve", QMessageBox.ButtonRole.YesRole)
+        reject_button = msg_box.addButton("Reject", QMessageBox.ButtonRole.RejectRole)
         msg_box.setDefaultButton(reject_button)
 
         # Append a message to the chat log
         self._append_to_chat_display("AI", f"I have a suggestion to modify the diagram:\n{summary.replace('<br>', '\n')}")
 
-        ret = msg_box.exec_()
+        ret = msg_box.exec()
 
         if msg_box.clickedButton() == approve_button:
             logger.info(f"User approved AI action: {action_data}")
@@ -833,7 +834,7 @@ class AIChatUIManager(QObject):
         
         # Generate a unique ID for this request so we can find the target widget later
         request_id = f"inline_req_{uuid.uuid4()}"
-        self._inline_request_targets[request_id] = request_id
+        self._inline_request_targets[request_id] = target_widget
 
         if self.mw.ai_chatbot_manager:
             self.mw.ai_chatbot_manager.generate_inline_code_snippet(prompt, request_id)
@@ -920,7 +921,7 @@ class AIChatbotManager(QObject):
         if self.chatbot_thread and self.chatbot_thread.isRunning():
             logger.debug("MGR_CLEANUP: Attempting to quit existing thread...")
             if self.chatbot_worker:
-                QMetaObject.invokeMethod(self.chatbot_worker, "stop_processing_slot", Qt.BlockingQueuedConnection if QThread.currentThread() != self.chatbot_thread else Qt.DirectConnection)
+                QMetaObject.invokeMethod(self.chatbot_worker, "stop_processing_slot", Qt.ConnectionType.BlockingQueuedConnection if QThread.currentThread() != self.chatbot_thread else Qt.ConnectionType.DirectConnection)
                 logger.debug("MGR_CLEANUP: stop_processing_slot invoked on worker.")
 
             self.chatbot_thread.quit()
@@ -983,7 +984,7 @@ class AIChatbotManager(QObject):
             is_configured = self.current_provider.configure(api_key)
             if is_configured:
                 # Pass the configured provider instance to the worker
-                QMetaObject.invokeMethod(self.chatbot_worker, "set_provider_slot", Qt.QueuedConnection, Q_ARG(AIProvider, self.current_provider))
+                QMetaObject.invokeMethod(self.chatbot_worker, "set_provider_slot", Qt.ConnectionType.QueuedConnection, Q_ARG(AIProvider, self.current_provider))
             else:
                 self._update_current_ai_status(AIStatus.API_KEY_REQUIRED, f"Status: API Key required for {provider_name}.")
                 # Note: Do not emit an error here, it's just a state of needing a key
@@ -1003,7 +1004,7 @@ class AIChatbotManager(QObject):
             QTimer.singleShot(50, lambda: self.configure_api(api_key))
             return
             
-        QMetaObject.invokeMethod(self.chatbot_worker, "configure_api_key_slot", Qt.QueuedConnection,
+        QMetaObject.invokeMethod(self.chatbot_worker, "configure_api_key_slot", Qt.ConnectionType.QueuedConnection,
                                   Q_ARG(str, api_key or ""))
         
     @pyqtSlot(str, bool)
@@ -1085,7 +1086,7 @@ class AIChatbotManager(QObject):
 
         # Send the result back to the worker to continue the loop
         if self.chatbot_worker:
-            QMetaObject.invokeMethod(self.chatbot_worker, "process_tool_response_slot", Qt.QueuedConnection,
+            QMetaObject.invokeMethod(self.chatbot_worker, "process_tool_response_slot", Qt.ConnectionType.QueuedConnection,
                                      Q_ARG(str, message_id),
                                      Q_ARG(str, tool_result))
 
@@ -1147,12 +1148,12 @@ class AIChatbotManager(QObject):
 
         if self.chatbot_worker:
             effective_diagram_json_str = diagram_json_str if diagram_json_str is not None else ""
-            QMetaObject.invokeMethod(self.chatbot_worker, "set_diagram_context_slot", Qt.QueuedConnection,
+            QMetaObject.invokeMethod(self.chatbot_worker, "set_diagram_context_slot", Qt.ConnectionType.QueuedConnection,
                                      Q_ARG(str, effective_diagram_json_str))
             
             is_fsm_attempt_for_worker = is_fsm_gen_specific and not is_inline_code_request
 
-            QMetaObject.invokeMethod(self.chatbot_worker, "process_message_slot", Qt.QueuedConnection,
+            QMetaObject.invokeMethod(self.chatbot_worker, "process_message_slot", Qt.ConnectionType.QueuedConnection,
                                      Q_ARG(str, user_message_text),
                                      Q_ARG(bool, is_fsm_attempt_for_worker))
             logger.debug("MGR_PREP_SEND: Methods queued for worker.")
@@ -1177,12 +1178,12 @@ class AIChatbotManager(QObject):
         """Sets whether the AI is in conversational agent mode."""
         if self.chatbot_worker:
             tools_json = self.get_available_tools_json() if is_agent_mode else ""
-            QMetaObject.invokeMethod(self.chatbot_worker, "set_agent_mode_slot", Qt.QueuedConnection, Q_ARG(bool, is_agent_mode), Q_ARG(str, tools_json))
+            QMetaObject.invokeMethod(self.chatbot_worker, "set_agent_mode_slot", Qt.ConnectionType.QueuedConnection, Q_ARG(bool, is_agent_mode), Q_ARG(str, tools_json))
 
     def clear_conversation_history(self):
         logger.info("MGR: clear_conversation_history CALLED.")
         if self.chatbot_worker and self.chatbot_thread and self.chatbot_thread.isRunning():
-            QMetaObject.invokeMethod(self.chatbot_worker, "clear_history_slot", Qt.QueuedConnection)
+            QMetaObject.invokeMethod(self.chatbot_worker, "clear_history_slot", Qt.ConnectionType.QueuedConnection)
             logger.debug("MGR: clear_history invoked on worker.")
             if self.parent_window and hasattr(self.parent_window, 'ai_chat_ui_manager'):
                 self.parent_window.ai_chat_ui_manager._code_snippet_cache.clear()

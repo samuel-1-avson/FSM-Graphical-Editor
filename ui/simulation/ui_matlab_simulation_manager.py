@@ -2,12 +2,12 @@
 
 import os
 import logging
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QTabWidget
 )
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import pyqtSlot, QObject, Qt
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import pyqtSlot, QObject, Qt
 
 # Import the necessary data classes and enums for type hinting
 from ...managers.matlab_simulation_manager import MatlabSimulationManager, SimulationState, SimulationData

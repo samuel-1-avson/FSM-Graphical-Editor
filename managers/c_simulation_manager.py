@@ -15,18 +15,18 @@ from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QTextEdit, QGroupBox,
     QHeaderView, QTableWidget, QTableWidgetItem, QComboBox,
     QStyle, QMessageBox, QHBoxLayout, QLabel, QInputDialog,
     QProgressBar, QSplitter, QTreeWidget, QTreeWidgetItem,
     QCheckBox, QSpinBox, QFrame
 )
-from PyQt5.QtCore import (
+from PyQt6.QtCore import (
     QObject, pyqtSlot, pyqtSignal, QThread, QMetaObject, 
     Q_ARG, Qt, QStandardPaths, QDir, QTimer
 )
-from PyQt5.QtGui import QFont, QColor, QPalette
+from PyQt6.QtGui import QFont, QColor, QPalette
 
 from ..utils import get_standard_icon
 from ..utils.c_code_generator import generate_c_code_content, sanitize_c_identifier
@@ -213,7 +213,7 @@ class CCompilerWorker(QObject):
         self.compile_started.emit()
         start_time = time.time()
         
-        build_dir_path = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation)) / "build"
+        build_dir_path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)) / "build"
         
         try:
             build_dir_path.mkdir(parents=True, exist_ok=True)
@@ -372,7 +372,7 @@ class CSimulationManager(QObject):
 
     def _cleanup_old_builds(self):
         """Cleans up old build files to prevent conflicts."""
-        build_dir_path = Path(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation)) / "build"
+        build_dir_path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)) / "build"
         if build_dir_path.exists():
             logger.info(f"Cleaning up old build directory: {build_dir_path}")
             try:
@@ -401,7 +401,7 @@ class CSimulationManager(QObject):
         container = QWidget()
         layout = QVBoxLayout(container)
         
-        splitter = QSplitter(Qt.Vertical)
+        splitter = QSplitter(Qt.Orientation.Vertical)
         
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
@@ -411,7 +411,7 @@ class CSimulationManager(QObject):
         compile_group = QGroupBox("Compilation")
         compile_layout = QVBoxLayout(compile_group)
         compile_controls = QHBoxLayout()
-        self.compile_btn = QPushButton("Compile FSM", icon=get_standard_icon(QStyle.SP_CommandLink))
+        self.compile_btn = QPushButton("Compile FSM", icon=get_standard_icon(QStyle.StandardPixmap.SP_CommandLink))
         self.compile_btn.clicked.connect(self.on_compile_fsm)
         self.optimize_cb = QCheckBox("Optimize (-O2)"); self.optimize_cb.setChecked(True)
         compile_controls.addWidget(self.compile_btn); compile_controls.addWidget(self.optimize_cb); compile_controls.addStretch()
@@ -423,9 +423,9 @@ class CSimulationManager(QObject):
         # Simulation
         sim_group = QGroupBox("Simulation Control")
         sim_layout = QHBoxLayout(sim_group)
-        self.init_btn = QPushButton("Initialize", icon=get_standard_icon(QStyle.SP_MediaPlay))
+        self.init_btn = QPushButton("Initialize", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay))
         self.init_btn.clicked.connect(self.on_initialize_fsm)
-        self.reset_btn = QPushButton("Reset", icon=get_standard_icon(QStyle.SP_MediaSkipBackward))
+        self.reset_btn = QPushButton("Reset", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaSkipBackward))
         self.reset_btn.clicked.connect(self.on_initialize_fsm)
         self.auto_refresh_cb = QCheckBox("Auto Refresh"); self.auto_refresh_cb.setChecked(True)
         self.auto_refresh_cb.toggled.connect(self._toggle_auto_refresh)
@@ -448,7 +448,7 @@ class CSimulationManager(QObject):
         self.status_label = QLabel("Status: Uncompiled"); self.status_label.setWordWrap(True)
         self.compilation_info = QLabel(""); self.compilation_info.setFont(QFont("Consolas", 8)); self.compilation_info.setStyleSheet("QLabel { color: gray; }")
         status_info.addWidget(self.status_label, 1); status_layout.addLayout(status_info); status_layout.addWidget(self.compilation_info)
-        self.state_tree = QTreeWidget(); self.state_tree.setHeaderLabels(["State/Event", "ID", "Status"]); self.state_tree.header().setSectionResizeMode(QHeaderView.ResizeToContents); self.state_tree.setMaximumHeight(150)
+        self.state_tree = QTreeWidget(); self.state_tree.setHeaderLabels(["State/Event", "ID", "Status"]); self.state_tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents); self.state_tree.setMaximumHeight(150)
         status_layout.addWidget(self.state_tree)
         top_layout.addWidget(status_group);
         splitter.addWidget(top_widget)
@@ -546,7 +546,7 @@ class CSimulationManager(QObject):
             code_dict = generate_c_code_content(diagram_data, fsm_name, "Generic C (Header/Source Pair)")
             self._parse_fsm_structure(code_dict['h'], diagram_data)
             self.compiler_output.append("Code generated successfully. Starting compilation...\n")
-            QMetaObject.invokeMethod(self.compile_worker, "run_compile", Qt.QueuedConnection,
+            QMetaObject.invokeMethod(self.compile_worker, "run_compile", Qt.ConnectionType.QueuedConnection,
                 Q_ARG(str, code_dict['c']), Q_ARG(str, code_dict['h']), Q_ARG(str, fsm_name), 
                 Q_ARG(bool, self.optimize_cb.isChecked()))
         except Exception as e:
@@ -631,8 +631,16 @@ class CSimulationManager(QObject):
         handle = self.c_library._handle
         self.c_library = self.c_fsm_init = self.c_fsm_run = self.c_fsm_get_current_state = None
         try:
-            if sys.platform == "win32": ctypes.windll.kernel32.FreeLibrary(handle)
-            else: ctypes.CDLL("libdl.so" if sys.platform.startswith("linux") else "libdl.dylib").dlclose(handle)
+            if sys.platform == "win32":
+                ctypes.windll.kernel32.FreeLibrary(handle)
+            else:
+                # Use ctypes.util.find_library to find the dl library
+                from ctypes.util import find_library
+                libdl_path = find_library("dl")
+                if libdl_path:
+                    ctypes.CDLL(libdl_path).dlclose(handle)
+                else:
+                    logger.warning("Could not find libdl to unload C library.")
         except Exception as e: logger.warning(f"Could not properly unload library: {e}")
         logger.info("Unloaded previous C FSM library.")
 
@@ -651,7 +659,7 @@ class CSimulationManager(QObject):
         for name, state in sorted(self.fsm_states.items(), key=lambda item: item[1].id):
             status = "CURRENT" if state.id == self.current_state_id else ""
             item = QTreeWidgetItem(states_root, [name, str(state.id), status])
-            if status: item.setBackground(0, QColor("#1E3A8A")); item.setForeground(0, Qt.white)
+            if status: item.setBackground(0, QColor("#1E3A8A")); item.setForeground(0, Qt.GlobalColor.white)
         events_root = QTreeWidgetItem(self.state_tree, ["Events"])
         for name, event in sorted(self.fsm_events.items()):
             QTreeWidgetItem(events_root, [name, str(event.id), ""]); self.event_combo.addItem(name)

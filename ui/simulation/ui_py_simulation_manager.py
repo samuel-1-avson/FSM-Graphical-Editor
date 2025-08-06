@@ -2,16 +2,16 @@
 import html
 import re
 import os
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QLabel, QTextEdit, QComboBox, QLineEdit, QPushButton, QTableWidget,
-    QTableWidgetItem, QAction, QMessageBox, QGroupBox, QHBoxLayout, QVBoxLayout,
+    QTableWidgetItem, QMessageBox, QGroupBox, QHBoxLayout, QVBoxLayout,
     QToolButton, QHeaderView, QAbstractItemView, QWidget, QStyle, QSlider,
     QGraphicsItem, QFrame, QSplitter, QScrollArea, QGridLayout, QSizePolicy,
     QSpacerItem, QTabWidget, QProgressBar, QMainWindow, QDoubleSpinBox, QFormLayout,
     QSpinBox
 )
-from PyQt5.QtGui import QIcon, QColor, QPalette, QFont, QPainter, QLinearGradient
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QSize, Qt, QTime, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QIcon, QColor, QPalette, QFont, QPainter, QLinearGradient, QAction
+from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal, QSize, Qt, QTime, QTimer, QPropertyAnimation, QEasingCurve
 
 from ...core.fsm_simulator import FSMSimulator, FSMError
 from ..graphics.graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem, GraphicsDisplayItem
@@ -52,7 +52,7 @@ class ModernButton(QPushButton):
         # Styling is now handled by the main application stylesheet
 
 class ModernSlider(QSlider):
-    def __init__(self, orientation=Qt.Horizontal, parent=None):
+    def __init__(self, orientation=Qt.Orientation.Horizontal, parent=None): # <--- CORRECTED
         super().__init__(orientation, parent)
         # Styling is now handled by the main application stylesheet
 # --- END STYLED WIDGETS ---
@@ -136,7 +136,7 @@ class PySimulationUIManager(QObject):
         if editor:
             for item in editor.scene.items():
                 if isinstance(item, (GraphicsStateItem, GraphicsCommentItem)):
-                    item.setFlag(QGraphicsItem.ItemIsMovable, enable and editor.scene.current_mode == "select")
+                    item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, enable and editor.scene.current_mode == "select")
             
             if not enable and editor.scene.current_mode != "select":
                 editor.scene.set_mode("select")
@@ -147,14 +147,14 @@ class PySimulationUIManager(QObject):
         main_window = self.parent()
         main_container = QWidget()
         
-        main_splitter = QSplitter(Qt.Vertical)
+        main_splitter = QSplitter(Qt.Orientation.Vertical)
         main_splitter.setChildrenCollapsible(False)
         
         # --- NEW: Scroll Area for the top controls ---
         top_scroll_area = QScrollArea()
         top_scroll_area.setWidgetResizable(True)
-        top_scroll_area.setFrameShape(QFrame.NoFrame)
-        top_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        top_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        top_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
         top_widget = QWidget()
         top_scroll_area.setWidget(top_widget)
@@ -169,21 +169,21 @@ class PySimulationUIManager(QObject):
         self.py_sim_start_btn = QToolButton()
         if hasattr(main_window, 'start_py_sim_action'):
             self.py_sim_start_btn.setDefaultAction(main_window.start_py_sim_action)
-        self.py_sim_start_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.py_sim_start_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         main_window.start_py_sim_action.setText("Initialize")
         main_window.start_py_sim_action.setToolTip("Initialize the Python simulator engine with the current diagram")
 
         self.py_sim_stop_btn = QToolButton()
         if hasattr(main_window, 'stop_py_sim_action'):
             self.py_sim_stop_btn.setDefaultAction(main_window.stop_py_sim_action)
-        self.py_sim_stop_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.py_sim_stop_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
         self.py_sim_reset_btn = QToolButton()
         if hasattr(main_window, 'reset_py_sim_action'):
             self.py_sim_reset_btn.setDefaultAction(main_window.reset_py_sim_action)
-        self.py_sim_reset_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.py_sim_reset_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         
-        self.matlab_sim_start_stop_btn = ModernButton("Run Live Simulink", get_standard_icon(QStyle.SP_ComputerIcon, "Simulink"))
+        self.matlab_sim_start_stop_btn = ModernButton("Run Live Simulink", get_standard_icon(QStyle.StandardPixmap.SP_ComputerIcon, "Simulink"))
         self.matlab_sim_start_stop_btn.setCheckable(True)
         self.matlab_sim_start_stop_btn.setToolTip("Run the exported Simulink model with live feedback on the canvas")
         self.matlab_sim_start_stop_btn.clicked.connect(self.on_toggle_matlab_simulation)
@@ -220,15 +220,15 @@ class PySimulationUIManager(QObject):
         execution_layout = QVBoxLayout(execution_group)
         
         exec_row1 = QHBoxLayout()
-        self.py_sim_run_pause_btn = ModernButton("Run", get_standard_icon(QStyle.SP_MediaPlay, "Run"))
+        self.py_sim_run_pause_btn = ModernButton("Run", get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay, "Run"))
         self.py_sim_run_pause_btn.clicked.connect(self.on_toggle_real_time_simulation)
         exec_row1.addWidget(self.py_sim_run_pause_btn)
         
-        self.py_sim_step_btn = ModernButton("Step", get_standard_icon(QStyle.SP_MediaSeekForward, "Step"))
+        self.py_sim_step_btn = ModernButton("Step", get_standard_icon(QStyle.StandardPixmap.SP_MediaSeekForward, "Step"))
         self.py_sim_step_btn.clicked.connect(lambda: self.on_step_py_simulation(internal=False))
         exec_row1.addWidget(self.py_sim_step_btn)
 
-        self.py_sim_continue_btn = ModernButton("Continue", get_standard_icon(QStyle.SP_MediaSkipForward, "Cont"))
+        self.py_sim_continue_btn = ModernButton("Continue", get_standard_icon(QStyle.StandardPixmap.SP_MediaSkipForward, "Cont"))
         self.py_sim_continue_btn.setToolTip("Continue execution from breakpoint")
         self.py_sim_continue_btn.clicked.connect(self.on_continue_py_simulation)
         exec_row1.addWidget(self.py_sim_continue_btn)
@@ -237,7 +237,7 @@ class PySimulationUIManager(QObject):
         speed_layout = QHBoxLayout()
         speed_layout.addWidget(QLabel("Speed:"))
         
-        self.py_sim_speed_slider = ModernSlider(Qt.Horizontal)
+        self.py_sim_speed_slider = ModernSlider(Qt.Orientation.Horizontal)
         self.py_sim_speed_slider.setRange(100, 2000)
         self.py_sim_speed_slider.setValue(1000)
         self.py_sim_speed_slider.setInvertedAppearance(True)
@@ -270,7 +270,7 @@ class PySimulationUIManager(QObject):
         self.py_sim_event_combo.lineEdit().setPlaceholderText("Select or enter event")
         event_layout.addWidget(self.py_sim_event_combo)
         
-        self.py_sim_trigger_event_btn = ModernButton("Trigger", get_standard_icon(QStyle.SP_ArrowRight, "Trg"))
+        self.py_sim_trigger_event_btn = ModernButton("Trigger", get_standard_icon(QStyle.StandardPixmap.SP_ArrowRight, "Trg"))
         self.py_sim_trigger_event_btn.clicked.connect(self._on_trigger_button_clicked)
         event_layout.addWidget(self.py_sim_trigger_event_btn)
         
@@ -290,9 +290,9 @@ class PySimulationUIManager(QObject):
         self.py_sim_variables_table = QTableWidget()
         self.py_sim_variables_table.setColumnCount(2)
         self.py_sim_variables_table.setHorizontalHeaderLabels(["Variable", "Value"])
-        self.py_sim_variables_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.py_sim_variables_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.py_sim_variables_table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.SelectedClicked | QAbstractItemView.EditKeyPressed)
+        self.py_sim_variables_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.py_sim_variables_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.py_sim_variables_table.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked | QAbstractItemView.EditTrigger.SelectedClicked | QAbstractItemView.EditTrigger.EditKeyPressed)
         self.py_sim_variables_table.itemChanged.connect(self.on_sim_variable_changed)
         self.py_sim_variables_table.setAlternatingRowColors(True)
         variables_layout.addWidget(self.py_sim_variables_table)
@@ -432,10 +432,10 @@ class PySimulationUIManager(QObject):
         
         if is_running_real_time:
             self.py_sim_run_pause_btn.setText("Pause")
-            self.py_sim_run_pause_btn.setIcon(get_standard_icon(QStyle.SP_MediaPause, "Pause"))
+            self.py_sim_run_pause_btn.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_MediaPause, "Pause"))
         else:
             self.py_sim_run_pause_btn.setText("Run")
-            self.py_sim_run_pause_btn.setIcon(get_standard_icon(QStyle.SP_MediaPlay, "Run"))
+            self.py_sim_run_pause_btn.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay, "Run"))
             
         manual_controls_enabled = sim_active and not is_running_real_time and not is_paused_at_bp
         self.py_sim_step_btn.setEnabled(manual_controls_enabled)
@@ -461,20 +461,29 @@ class PySimulationUIManager(QObject):
             return
             
         if self._py_sim_currently_highlighted_item:
-            self._py_sim_currently_highlighted_item.set_py_sim_active_style(False)
+            try:
+                self._py_sim_currently_highlighted_item.set_py_sim_active_style(False)
+            except RuntimeError: # Object might be deleted
+                pass
             self._py_sim_currently_highlighted_item = None
 
         if state_name_to_highlight and editor.py_fsm_engine:
             leaf_state = editor.py_fsm_engine.get_current_leaf_state_name()
             for item in editor.scene.items():
                 if isinstance(item, GraphicsStateItem) and item.text_label == leaf_state:
-                    item.set_py_sim_active_style(True)
-                    self._py_sim_currently_highlighted_item = item
-                    if editor.view:
-                        editor.view.ensureVisible(item, 50, 50)
+                    try:
+                        item.set_py_sim_active_style(True)
+                        self._py_sim_currently_highlighted_item = item
+                        if editor.view:
+                            editor.view.ensureVisible(item, 50, 50)
+                    except RuntimeError: # Object might be deleted
+                        self._py_sim_currently_highlighted_item = None
                     break
         
-        editor.scene.update()
+        try:
+            editor.scene.update()
+        except RuntimeError: # Scene might be deleted
+            pass
 
     def update_dock_ui_contents(self):
         main_window = self.parent()
@@ -534,7 +543,7 @@ class PySimulationUIManager(QObject):
         
         for r, (name, val) in enumerate(all_vars):
             name_item = QTableWidgetItem(name)
-            name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+            name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.py_sim_variables_table.setItem(r, 0, name_item)
             
             val_item = QTableWidgetItem(str(val))
@@ -691,10 +700,10 @@ class PySimulationUIManager(QObject):
                 main_window,
                 "Unsaved Changes",
                 "The diagram has unsaved changes. Initialize simulation anyway?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes
             )
-            if reply == QMessageBox.No:
+            if reply == QMessageBox.StandardButton.No:
                 return
         
         diagram_data = editor.scene.get_diagram_data()
@@ -725,12 +734,6 @@ class PySimulationUIManager(QObject):
                 self.animation_manager.register_graphics_items(state_items_map, transition_items_map)
                 logger.info("Registered scene items with AnimationManager for simulation.")
 
-            editor.py_fsm_engine = FSMSimulator(
-                diagram_data['states'],
-                diagram_data['transitions'],
-                halt_on_action_error=True
-            )
-            
             # --- NEW: Set initial variables from Data Dictionary ---
             if main_window.project_manager.is_project_open():
                 initial_vars = {

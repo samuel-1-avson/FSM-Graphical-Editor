@@ -1,7 +1,7 @@
 # bsm_designer_project/code_editor.py
-from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QTextEdit # Import QTextEdit
-from PyQt5.QtCore import Qt, QRect, QSize, QRegExp 
-from PyQt5.QtGui import (
+from PyQt6.QtWidgets import QPlainTextEdit, QWidget, QTextEdit # Import QTextEdit
+from PyQt6.QtCore import Qt, QRect, QSize, QRegularExpression
+from PyQt6.QtGui import (
     QColor, QPainter, QTextFormat, QFont, QSyntaxHighlighter, QTextCharFormat, QFontMetrics,
     QPalette, QTextCursor 
 )
@@ -40,12 +40,12 @@ class CodeEditor(QPlainTextEdit):
             pass 
             
         font = QFont("Consolas, 'Courier New', monospace", editor_font_size)
-        font.setStyleHint(QFont.Monospace)
+        font.setStyleHint(QFont.StyleHint.Monospace)
         self.setFont(font)
         
         fm = QFontMetrics(self.font()) 
         self.setTabStopDistance(fm.horizontalAdvance(' ') * 4) 
-        self.setLineWrapMode(QPlainTextEdit.NoWrap)
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
 
         self.current_highlighter = None 
 
@@ -59,8 +59,8 @@ class CodeEditor(QPlainTextEdit):
         self.set_language("Python") 
         
         palette = self.palette()
-        palette.setColor(QPalette.Base, QColor(COLOR_BACKGROUND_EDITOR_DARK))
-        palette.setColor(QPalette.Text, QColor(COLOR_TEXT_EDITOR_DARK_PRIMARY))
+        palette.setColor(QPalette.ColorRole.Base, QColor(COLOR_BACKGROUND_EDITOR_DARK))
+        palette.setColor(QPalette.ColorRole.Text, QColor(COLOR_TEXT_EDITOR_DARK_PRIMARY))
         self.setPalette(palette)
 
 
@@ -131,7 +131,7 @@ class CodeEditor(QPlainTextEdit):
                 
                 painter.drawText(0, int(top), self.lineNumberArea.width() - right_padding,
                                  int(fm.height()),
-                                 Qt.AlignRight | Qt.AlignVCenter, number)
+                                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, number)
 
             block = block.next()
             top = bottom
@@ -144,7 +144,7 @@ class CodeEditor(QPlainTextEdit):
             selection = QTextEdit.ExtraSelection() 
             lineColor = QColor(COLOR_BACKGROUND_EDITOR_DARK).lighter(120)
             selection.format.setBackground(lineColor)
-            selection.format.setProperty(QTextFormat.FullWidthSelection, True)
+            selection.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
             selection.cursor = self.textCursor()
             selection.cursor.clearSelection()
             extraSelections.append(selection)
@@ -247,7 +247,7 @@ class PythonHighlighter(QSyntaxHighlighter):
 
         definitionFormat = QTextCharFormat() 
         definitionFormat.setForeground(QColor("#DCDCAA")) 
-        definitionFormat.setFontWeight(QFont.Bold) 
+        definitionFormat.setFontWeight(QFont.Weight.Bold) 
         self.highlightingRules.append(HighlightingRule("\\bdef\\s+([A-Za-z_][A-Za-z0-9_]*)", definitionFormat, 1, True))
         self.highlightingRules.append(HighlightingRule("\\bclass\\s+([A-Za-z_][A-Za-z0-9_]*)", definitionFormat, 1, True))
         
@@ -265,113 +265,93 @@ class PythonHighlighter(QSyntaxHighlighter):
 
 
         self.triSingleQuoteFormat = QTextCharFormat()
-        self.triSingleQuoteFormat.setForeground(QColor("#CE9178")) 
+        self.triSingleQuoteFormat.setForeground(QColor("#CE9178"))
         self.triDoubleQuoteFormat = QTextCharFormat()
-        self.triDoubleQuoteFormat.setForeground(QColor("#CE9178")) 
+        self.triDoubleQuoteFormat.setForeground(QColor("#CE9178"))
 
-        self.triSingleStartExpression = QRegExp("'''")
-        self.triSingleEndExpression = QRegExp("'''")
-        self.triDoubleStartExpression = QRegExp("\"\"\"")
-        self.triDoubleEndExpression = QRegExp("\"\"\"")
+        self.triSingleStartExpression = QRegularExpression("'''")
+        self.triSingleEndExpression = QRegularExpression("'''")
+        self.triDoubleStartExpression = QRegularExpression("\"\"\"")
+        self.triDoubleEndExpression = QRegularExpression("\"\"\"")
 
 
     def highlightBlock(self, text):
         for rule in self.highlightingRules:
-            expression = rule.pattern
-            expression.setMinimal(rule.minimal)
-            
-            offset = 0
-            if rule.nth > 0:
-                index = expression.indexIn(text, offset)
-                while index >= 0:
-                    capture_start = expression.pos(rule.nth) 
-                    capture_text = expression.cap(rule.nth)
-                    capture_length = len(capture_text)
+            expression = rule.pattern # Now QRegularExpression
+            iterator = expression.globalMatch(text)
+            while iterator.hasNext():
+                match = iterator.next()
+                if rule.nth > 0:
+                    # Handle capture groups
+                    start = match.capturedStart(rule.nth)
+                    length = match.capturedLength(rule.nth)
+                    if start >= 0:
+                        self.setFormat(start, length, rule.format)
+                else:
+                    # Handle full match
+                    start = match.capturedStart()
+                    length = match.capturedLength()
+                    self.setFormat(start, length, rule.format)
 
-                    if capture_start != -1 and capture_length > 0:
-                        self.setFormat(capture_start, capture_length, rule.format)
-                    
-                    new_offset = index + expression.matchedLength()
-                    if new_offset <= offset : 
-                        new_offset = offset + 1 
-                    offset = new_offset
-                    if offset >= len(text) or expression.matchedLength() == 0 : 
-                        break 
-                    index = expression.indexIn(text, offset)
-            else: 
-                index = expression.indexIn(text, offset)
-                while index >= 0:
-                    length = expression.matchedLength()
-                    if length > 0:
-                        self.setFormat(index, length, rule.format)
-                    
-                    new_offset = index + length
-                    if new_offset <= offset : 
-                        new_offset = offset + 1
-                    offset = new_offset
-                    if offset >= len(text) or length == 0: 
-                        break
-                    index = expression.indexIn(text, offset)
-
-        self.setCurrentBlockState(0) 
-        
+        self.setCurrentBlockState(0)
         startIndex = 0
-        if self.previousBlockState() == 1: 
-            startIndex = self.triSingleEndExpression.indexIn(text)
-            if startIndex == -1: 
+        if self.previousBlockState() == 1:
+            end_match = self.triSingleEndExpression.match(text)
+            if not end_match.hasMatch():
                 self.setCurrentBlockState(1)
                 self.setFormat(0, len(text), self.triSingleQuoteFormat)
-            else: 
-                length = startIndex + self.triSingleEndExpression.matchedLength()
+            else:
+                length = end_match.capturedStart() + end_match.capturedLength()
                 self.setFormat(0, length, self.triSingleQuoteFormat)
-                self.process_remaining_text_for_multiline(text, length)
-        elif self.previousBlockState() == 2: 
-            startIndex = self.triDoubleEndExpression.indexIn(text)
-            if startIndex == -1: 
+        elif self.previousBlockState() == 2:
+            end_match = self.triDoubleEndExpression.match(text)
+            if not end_match.hasMatch():
                 self.setCurrentBlockState(2)
                 self.setFormat(0, len(text), self.triDoubleQuoteFormat)
-            else: 
-                length = startIndex + self.triDoubleEndExpression.matchedLength()
+            else:
+                length = end_match.capturedStart() + end_match.capturedLength()
                 self.setFormat(0, length, self.triDoubleQuoteFormat)
-                self.process_remaining_text_for_multiline(text, length)
-        else: 
-            self.process_remaining_text_for_multiline(text, 0)
+
+        # Handle starting new multi-line strings
+        if self.currentBlockState() == 0:
+            self.process_remaining_text_for_multiline(text, startIndex)
 
     def process_remaining_text_for_multiline(self, text, offset):
-        startIndex_single = self.triSingleStartExpression.indexIn(text, offset)
-        startIndex_double = self.triDoubleStartExpression.indexIn(text, offset)
+        match_single = self.triSingleStartExpression.match(text, offset)
+        startIndex_single = match_single.capturedStart() if match_single.hasMatch() else -1
+
+        match_double = self.triDoubleStartExpression.match(text, offset)
+        startIndex_double = match_double.capturedStart() if match_double.hasMatch() else -1
 
         start_expression_used = None
         end_expression_to_use = None
         format_to_use = None
         state_to_set_if_unterminated = 0
         first_start_index = -1
+        match_len_start = 0
 
         if startIndex_single != -1 and (startIndex_double == -1 or startIndex_single < startIndex_double):
             first_start_index = startIndex_single
-            start_expression_used = self.triSingleStartExpression
+            match_len_start = match_single.capturedLength()
             end_expression_to_use = self.triSingleEndExpression
             format_to_use = self.triSingleQuoteFormat
             state_to_set_if_unterminated = 1
         elif startIndex_double != -1:
             first_start_index = startIndex_double
-            start_expression_used = self.triDoubleStartExpression
+            match_len_start = match_double.capturedLength()
             end_expression_to_use = self.triDoubleEndExpression
             format_to_use = self.triDoubleQuoteFormat
             state_to_set_if_unterminated = 2
         
         if first_start_index != -1:
-            match_len_start = start_expression_used.matchedLength()
-            endIndex = end_expression_to_use.indexIn(text, first_start_index + match_len_start)
-
-            if endIndex == -1: 
+            end_match = end_expression_to_use.match(text, first_start_index + match_len_start)
+            if not end_match.hasMatch():
                 self.setCurrentBlockState(state_to_set_if_unterminated)
                 self.setFormat(first_start_index, len(text) - first_start_index, format_to_use)
-            else: 
-                match_len_end = end_expression_to_use.matchedLength()
-                length = endIndex - first_start_index + match_len_end
+            else:
+                length = end_match.capturedStart() - first_start_index + end_match.capturedLength()
                 self.setFormat(first_start_index, length, format_to_use)
-                self.setCurrentBlockState(0) 
+                self.setCurrentBlockState(0)
                 self.process_remaining_text_for_multiline(text, first_start_index + length)
         else:
             if self.currentBlockState() != 1 and self.currentBlockState() != 2:
@@ -380,12 +360,12 @@ class PythonHighlighter(QSyntaxHighlighter):
 
 class HighlightingRule:
     def __init__(self, pattern_str, text_format, nth_capture_group=0, minimal=False):
-        self.pattern = QRegExp(pattern_str)
+        self.pattern = QRegularExpression(pattern_str)
+        if minimal:
+            self.pattern.setPatternOptions(QRegularExpression.PatternOption.InvertedGreedinessOption)
         self.format = text_format
-        self.nth = nth_capture_group 
-        self.minimal = minimal
-        if self.minimal:
-            self.pattern.setMinimal(True)
+        self.nth = nth_capture_group
+
 
 class CSyntaxHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
@@ -394,7 +374,7 @@ class CSyntaxHighlighter(QSyntaxHighlighter):
 
         keywordFormat = QTextCharFormat()
         keywordFormat.setForeground(QColor("#569CD6")) 
-        keywordFormat.setFontWeight(QFont.Bold)
+        keywordFormat.setFontWeight(QFont.Weight.Bold)
         keywords = [
             "\\bchar\\b", "\\bclass\\b", "\\bconst\\b", "\\bdouble\\b", "\\benum\\b",
             "\\bexplicit\\b", "\\bextern\\b", "\\bfloat\\b", "\\bfriend\\b", "\\binline\\b",
@@ -433,8 +413,8 @@ class CSyntaxHighlighter(QSyntaxHighlighter):
         self.multiLineCommentFormat = QTextCharFormat()
         self.multiLineCommentFormat.setForeground(QColor("#6A9955")) 
         self.multiLineCommentFormat.setFontItalic(True)
-        self.commentStartExpression = QRegExp("/\\*")
-        self.commentEndExpression = QRegExp("\\*/")
+        self.commentStartExpression = QRegularExpression("/\\*")
+        self.commentEndExpression = QRegularExpression("\\*/")
 
         stringFormat = QTextCharFormat()
         stringFormat.setForeground(QColor("#CE9178")) 
@@ -464,56 +444,45 @@ class CSyntaxHighlighter(QSyntaxHighlighter):
 
     def highlightBlock(self, text):
         for rule in self.highlightingRules:
-            expression = rule.pattern 
-            expression.setMinimal(rule.minimal) 
-            
-            offset = 0
-            if rule.nth > 0:
-                index = expression.indexIn(text, offset)
-                while index >= 0:
-                    capture_start = expression.pos(rule.nth)
-                    capture_text = expression.cap(rule.nth)
-                    capture_length = len(capture_text)
+            expression = rule.pattern # Now QRegularExpression
+            iterator = expression.globalMatch(text)
+            while iterator.hasNext():
+                match = iterator.next()
+                if rule.nth > 0:
+                    # Handle capture groups
+                    start = match.capturedStart(rule.nth)
+                    length = match.capturedLength(rule.nth)
+                    if start >= 0:
+                        self.setFormat(start, length, rule.format)
+                else:
+                    # Handle full match
+                    start = match.capturedStart()
+                    length = match.capturedLength()
+                    self.setFormat(start, length, rule.format)
 
-                    if capture_start != -1 and capture_length > 0:
-                        self.setFormat(capture_start, capture_length, rule.format)
-                    
-                    new_offset = index + expression.matchedLength()
-                    if new_offset <= offset : 
-                        new_offset = offset + 1
-                    offset = new_offset
-                    if offset >= len(text) or expression.matchedLength() == 0 : 
-                        break 
-                    index = expression.indexIn(text, offset)
-            else: 
-                index = expression.indexIn(text, offset)
-                while index >= 0:
-                    length = expression.matchedLength()
-                    if length > 0:
-                        self.setFormat(index, length, rule.format)
-                    
-                    new_offset = index + length
-                    if new_offset <= offset : 
-                        new_offset = offset + 1
-                    offset = new_offset
-                    if offset >= len(text) or length == 0: 
-                        break
-                    index = expression.indexIn(text, offset)
-
-        self.setCurrentBlockState(0) 
-
-        startIndex = 0
-        if self.previousBlockState() != 1: 
-            startIndex = self.commentStartExpression.indexIn(text)
+        self.setCurrentBlockState(0)
         
-        while startIndex >= 0:
-            endIndex = self.commentEndExpression.indexIn(text, startIndex + self.commentStartExpression.matchedLength()) 
+        startIndex = 0
+        if self.previousBlockState() != 1:
+            match_start = self.commentStartExpression.match(text)
+            startIndex = match_start.capturedStart() if match_start.hasMatch() else -1
+        
+        offset = 0
+        while True:
+            match_start = self.commentStartExpression.match(text, offset)
+            if not match_start.hasMatch():
+                break
+            startIndex = match_start.capturedStart()
+
+            end_match = self.commentEndExpression.match(text, startIndex + match_start.capturedLength())
+            endIndex = end_match.capturedStart() if end_match.hasMatch() else -1
+            
             commentLength = 0
-            if endIndex == -1: 
+            if endIndex == -1:
                 self.setCurrentBlockState(1)
                 commentLength = len(text) - startIndex
-            else: 
-                commentLength = endIndex - startIndex + self.commentEndExpression.matchedLength()
+            else:
+                commentLength = endIndex - startIndex + end_match.capturedLength()
             
             self.setFormat(startIndex, commentLength, self.multiLineCommentFormat)
-            startIndex = self.commentStartExpression.indexIn(text, startIndex + commentLength)
+            offset = startIndex + commentLength

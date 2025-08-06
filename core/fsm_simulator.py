@@ -11,7 +11,7 @@ import logging
 import re
 from typing import List, Dict, Any, Set, Tuple, Optional
 # --- NEW: Import QObject and pyqtSignal for the data logging feature ---
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 # --- MODIFIED: Import the IR classes ---
 from .fsm_ir import FsmModel, State
 logger = logging.getLogger(__name__)
@@ -266,11 +266,12 @@ class FSMSimulator(QObject):
         """Returns the full hierarchical path of the current state."""
         if not self.current_state_path:
             return "Halted"
-        return " (".join(s['name'] for s in self.current_state_path) + ")" * (len(self.current_state_path) - 1)
+        return " (".join(s.name for s in self.current_state_path) + ")" * (len(self.current_state_path) - 1)
+
 
     def get_current_leaf_state_name(self) -> str:
         """Returns the name of the innermost active state."""
-        return self.current_state_path[-1]['name'] if self.current_state_path else "Halted"
+        return self.current_state_path[-1].name if self.current_state_path else "Halted"
 
     def get_variables(self) -> Dict[str, Any]:
         """Returns a copy of the current simulation variables."""
@@ -294,10 +295,11 @@ class FSMSimulator(QObject):
         
         possible_events = set()
         for state in self.current_state_path:
-            for t in self.transitions:
-                if t['source'] == state['name'] and t.get('event'):
-                    possible_events.add(t['event'])
+            for t in self.model.transitions:
+                if t.source_name == state.name and t.event:
+                    possible_events.add(t.event)
         return sorted(list(possible_events))
+
 
     def add_state_breakpoint(self, state_name: str) -> None:
         """Adds a breakpoint for a specific state."""

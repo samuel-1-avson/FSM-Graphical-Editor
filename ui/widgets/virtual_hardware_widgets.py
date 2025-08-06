@@ -1,8 +1,8 @@
 # fsm_designer_project/virtual_hardware_widgets.py
 
-from PyQt5.QtWidgets import QWidget, QPushButton, QSlider, QLabel, QProgressBar
-from PyQt5.QtGui import QPainter, QColor, QBrush, QPixmap
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import QWidget, QPushButton, QSlider, QLabel, QProgressBar
+from PyQt6.QtGui import QPainter, QColor, QBrush, QPixmap
+from PyQt6.QtCore import Qt
 
 class VirtualLedWidget(QLabel):
     """A simple widget that draws a colored circle to represent an LED by using a pixmap."""
@@ -24,15 +24,15 @@ class VirtualLedWidget(QLabel):
     def _update_pixmap(self):
         """Paints the LED circle onto a QPixmap and sets it on the label."""
         pixmap = QPixmap(self.size())
-        pixmap.fill(Qt.transparent)
+        pixmap.fill(Qt.GlobalColor.transparent)
         
         painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         color = self.on_color if self._is_on else self.off_color
         
         painter.setBrush(QBrush(color))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         # Adjust rect to have a small margin
         painter.drawEllipse(self.rect().adjusted(2, 2, -2, -2))
         painter.end()
@@ -58,7 +58,7 @@ class VirtualGaugeWidget(QProgressBar):
         self.setValue(0)
         self.setTextVisible(True)
         self.setFormat("%v") # Show the numeric value
-        self.setOrientation(Qt.Horizontal)
+        self.setOrientation(Qt.Orientation.Horizontal)
         self.setMinimumHeight(24)
         self.setToolTip("Virtual Analog Output (e.g., PWM)")
         # Style the progress bar to look like a gauge

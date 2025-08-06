@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple, Any, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from contextlib import contextmanager
-from PyQt5.QtCore import QObject, pyqtSignal, QThread, QMetaObject, Q_ARG, pyqtSlot, Qt, QTimer
+from PyQt6.QtCore import QObject, pyqtSignal, QThread, QMetaObject, Q_ARG, pyqtSlot, Qt, QTimer
 from jinja2 import Environment, FileSystemLoader
 # --- NEW: Import the IR classes ---
 from .fsm_ir import FsmModel
@@ -861,7 +861,8 @@ class MatlabConnection(QObject):
         self.worker.health_update.connect(self.healthUpdated)
         
         self.thread.start()
-        QMetaObject.invokeMethod(self.worker, "start_engine", Qt.QueuedConnection)
+        # --- CORRECTED ENUM ---
+        QMetaObject.invokeMethod(self.worker, "start_engine", Qt.ConnectionType.QueuedConnection)
         
     @pyqtSlot(EngineState, str)
     def _on_engine_status_changed(self, state: EngineState, message: str):
@@ -966,7 +967,8 @@ class MatlabConnection(QObject):
                                     command.command_type, metadata)
             return
         
-        QMetaObject.invokeMethod(self.worker, "execute_command", Qt.QueuedConnection,
+        # --- CORRECTED ENUM ---
+        QMetaObject.invokeMethod(self.worker, "execute_command", Qt.ConnectionType.QueuedConnection,
                                Q_ARG(MatlabCommand, command))
 
     def generate_simulink_model(self, fsm_model: FsmModel, 
@@ -1868,7 +1870,8 @@ end
         
         # Shutdown worker
         if self.thread.isRunning():
-            QMetaObject.invokeMethod(self.worker, "shutdown_engine", Qt.QueuedConnection)
+            # --- CORRECTED ENUM ---
+            QMetaObject.invokeMethod(self.worker, "shutdown_engine", Qt.ConnectionType.QueuedConnection)
             
             # Wait for graceful shutdown
             if not self.thread.wait(10000):  # 10 second timeout

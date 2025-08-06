@@ -1,6 +1,7 @@
 # fsm_designer_project/undo_commands.py
-from PyQt5.QtWidgets import QUndoCommand, QGraphicsItem
-from PyQt5.QtCore import QPointF
+from PyQt6.QtGui import QUndoCommand
+from PyQt6.QtWidgets import QGraphicsItem
+from PyQt6.QtCore import QPointF
 
 from .utils.config import DEFAULT_EXECUTION_ENV # Import default
 import logging
@@ -247,6 +248,7 @@ class RemoveItemsCommand(QUndoCommand):
         logger.debug(f"RemoveItemsCommand: Undo - Total items re-added: {len(newly_re_added_instances)}")
 
 
+# --- NEWLY RESTORED CLASS ---
 class MoveItemsCommand(QUndoCommand):
     def __init__(self, items_and_positions_info, description="Move Items"):
         super().__init__(description)
@@ -272,11 +274,10 @@ class MoveItemsCommand(QUndoCommand):
         self._apply_positions(use_new_positions=True)
         logger.debug(f"MoveItemsCommand: Redo - Moved {len(self.items_and_positions_info)} items.")
 
-
     def undo(self):
         self._apply_positions(use_new_positions=False)
         logger.debug(f"MoveItemsCommand: Undo - Moved {len(self.items_and_positions_info)} items back.")
-
+# --- END RESTORED CLASS ---
 
 class EditItemPropertiesCommand(QUndoCommand):
     def __init__(self, items, old_props_data, new_props_data, description="Edit Properties"):

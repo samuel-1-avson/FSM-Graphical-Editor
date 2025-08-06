@@ -4,7 +4,7 @@ Provides a globally accessible singleton-like object for theme configuration.
 This object is populated at runtime by the ThemeManager and serves as the
 single source of truth for all dynamic color and style values in the application.
 """
-from PyQt5.QtGui import QColor
+from PyQt6.QtGui import QColor
 
 class ThemeConfig:
     """A class to hold all dynamic theme configuration values."""

@@ -2,7 +2,7 @@
 import logging
 import serial
 import serial.tools.list_ports
-from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QTimer
+from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QTimer
 
 logger = logging.getLogger(__name__)
 

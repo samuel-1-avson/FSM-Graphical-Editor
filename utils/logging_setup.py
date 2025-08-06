@@ -11,14 +11,14 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from PyQt5.QtCore import QObject, pyqtSignal, QTimer, QThread, pyqtSlot
-from PyQt5.QtWidgets import (QTextEdit, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QThread, pyqtSlot
+from PyQt6.QtWidgets import (QTextEdit, QWidget, QVBoxLayout, QHBoxLayout, 
                            QPushButton, QComboBox, QLineEdit, QLabel, 
                            QCheckBox, QSpinBox, QGroupBox, QSplitter,
                            QTreeWidget, QTreeWidgetItem, QTabWidget,
                            QProgressBar, QSlider, QApplication)
-from PyQt5.QtGui import QColor, QPalette, QFont, QIcon, QPixmap, QPainter
-from PyQt5.QtCore import Qt
+from PyQt6.QtGui import QColor, QPalette, QFont, QIcon, QPixmap, QPainter
+from PyQt6.QtCore import Qt
 
 from .config import (
     COLOR_ACCENT_ERROR, COLOR_ACCENT_WARNING, COLOR_TEXT_SECONDARY,
@@ -257,15 +257,15 @@ class EnhancedQTextEditHandler(logging.Handler, QObject):
     def _setup_widget_appearance(self):
         """Configure the widget's appearance"""
         palette = self.widget.palette()
-        palette.setColor(QPalette.Base, QColor(self.theme.colors['background']))
-        palette.setColor(QPalette.Text, QColor(self.theme.colors['text_primary']))
+        palette.setColor(QPalette.ColorRole.Base, QColor(self.theme.colors['background']))
+        palette.setColor(QPalette.ColorRole.Text, QColor(self.theme.colors['text_primary']))
         self.widget.setPalette(palette)
         
         # Set font
         self.widget.setFont(self.theme.fonts['log_text'])
         
         # Configure scrolling
-        self.widget.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         
         # Connect scroll events
         scrollbar = self.widget.verticalScrollBar()

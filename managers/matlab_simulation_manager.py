@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from PyQt5.QtCore import QObject, pyqtSignal, QThread, QTimer, QMetaObject, Q_ARG, pyqtSlot, Qt
+from PyQt6.QtCore import QObject, pyqtSignal, QThread, QTimer, QMetaObject, Q_ARG, pyqtSlot, Qt
 
 try:
     import matlab.engine

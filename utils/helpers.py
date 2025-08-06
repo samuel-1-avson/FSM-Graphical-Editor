@@ -1,9 +1,9 @@
 # fsm_designer_project/utils/helpers.py
 import os 
 import sys 
-from PyQt5.QtWidgets import QApplication, QStyle
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QFile, QDir, QIODevice, QFileInfo 
+from PyQt6.QtWidgets import QApplication, QStyle
+from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QFile, QDir, QIODevice, QFileInfo 
 
 import logging
 

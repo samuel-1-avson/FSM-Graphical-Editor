@@ -1,7 +1,8 @@
 # fsm_designer_project/managers/perspective_manager.py
 import logging
-from PyQt5.QtCore import QObject, pyqtSlot, Qt
-from PyQt5.QtWidgets import QActionGroup, QMessageBox, QInputDialog, QLineEdit, QMainWindow, QDockWidget
+from PyQt6.QtCore import QObject, pyqtSlot, Qt
+from PyQt6.QtWidgets import QMessageBox, QInputDialog, QLineEdit, QMainWindow, QDockWidget
+from PyQt6.QtGui import QActionGroup
 
 logger = logging.getLogger(__name__)
 
@@ -110,21 +111,21 @@ class PerspectiveManager(QObject):
                 dock.setVisible(False)
 
         # 1. Place all docks in their primary areas. This prevents them from appearing floating.
-        self.mw.addDockWidget(Qt.LeftDockWidgetArea, self.mw.project_explorer_dock)
-        self.mw.addDockWidget(Qt.LeftDockWidgetArea, self.mw.elements_palette_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.mw.project_explorer_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.mw.elements_palette_dock)
         
-        self.mw.addDockWidget(Qt.RightDockWidgetArea, self.mw.properties_dock)
-        self.mw.addDockWidget(Qt.RightDockWidgetArea, self.mw.minimap_dock)
-        self.mw.addDockWidget(Qt.RightDockWidgetArea, self.mw.py_sim_dock)
-        self.mw.addDockWidget(Qt.RightDockWidgetArea, self.mw.hardware_sim_dock)
-        self.mw.addDockWidget(Qt.RightDockWidgetArea, self.mw.ide_dock)
-        self.mw.addDockWidget(Qt.RightDockWidgetArea, self.mw.ai_chatbot_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.mw.properties_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.mw.minimap_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.mw.py_sim_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.mw.hardware_sim_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.mw.ide_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.mw.ai_chatbot_dock)
 
-        self.mw.addDockWidget(Qt.BottomDockWidgetArea, self.mw.log_dock)
-        self.mw.addDockWidget(Qt.BottomDockWidgetArea, self.mw.problems_dock)
-        self.mw.addDockWidget(Qt.BottomDockWidgetArea, self.mw.live_preview_dock)
-        self.mw.addDockWidget(Qt.BottomDockWidgetArea, self.mw.resource_estimation_dock)
-        self.mw.addDockWidget(Qt.BottomDockWidgetArea, self.mw.serial_monitor_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.mw.log_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.mw.problems_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.mw.live_preview_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.mw.resource_estimation_dock)
+        self.mw.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.mw.serial_monitor_dock)
 
         # 2. Configure visibility, tabbing, and splitting for the chosen perspective
         main_width = self.mw.width()
@@ -151,9 +152,9 @@ class PerspectiveManager(QObject):
             # Give ~15% to left dock, ~18% to right dock, leaving ~67% for the center.
             self.mw.resizeDocks([self.mw.project_explorer_dock, self.mw.properties_dock], 
                                 [int(main_width * 0.15), int(main_width * 0.18)], 
-                                Qt.Horizontal)
+                                Qt.Orientation.Horizontal)
             # Give 25% of the remaining vertical space to the bottom dock
-            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Vertical)
+            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Orientation.Vertical)
 
         elif name == self.mw.PERSPECTIVE_LOGIC_EDITING:
             # Layout: Large properties panel on the right, large code preview on the bottom.
@@ -168,8 +169,8 @@ class PerspectiveManager(QObject):
             self.mw.live_preview_dock.raise_()
 
             # Give a large area to the properties panel and the code preview
-            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.35)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.live_preview_dock], [int(main_height * 0.35)], Qt.Vertical)
+            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.35)], Qt.Orientation.Horizontal)
+            self.mw.resizeDocks([self.mw.live_preview_dock], [int(main_height * 0.35)], Qt.Orientation.Vertical)
 
         elif name == self.mw.PERSPECTIVE_VALIDATION:
             # Layout: Problems list is prominent at the bottom, Properties are visible on the right.
@@ -183,8 +184,8 @@ class PerspectiveManager(QObject):
             self.mw.properties_dock.raise_()
             self.mw.problems_dock.raise_()
             
-            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.25)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.problems_dock], [int(main_height * 0.30)], Qt.Vertical)
+            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.25)], Qt.Orientation.Horizontal)
+            self.mw.resizeDocks([self.mw.problems_dock], [int(main_height * 0.30)], Qt.Orientation.Vertical)
 
         elif name == self.mw.PERSPECTIVE_SIMULATION_FOCUS:
             # Layout: Split right dock vertically. Top: Sim controls. Bottom: Properties.
@@ -193,7 +194,7 @@ class PerspectiveManager(QObject):
             self.mw.properties_dock.setVisible(True)
             self.mw.log_dock.setVisible(True)
             
-            self.mw.splitDockWidget(self.mw.py_sim_dock, self.mw.properties_dock, Qt.Vertical)
+            self.mw.splitDockWidget(self.mw.py_sim_dock, self.mw.properties_dock, Qt.Orientation.Vertical)
             self.mw.tabifyDockWidget(self.mw.py_sim_dock, self.mw.hardware_sim_dock)
             self.mw.tabifyDockWidget(self.mw.properties_dock, self.mw.minimap_dock)
             self.mw.tabifyDockWidget(self.mw.log_dock, self.mw.serial_monitor_dock)
@@ -202,8 +203,8 @@ class PerspectiveManager(QObject):
             self.mw.properties_dock.raise_()
             self.mw.log_dock.raise_()
 
-            self.mw.resizeDocks([self.mw.py_sim_dock], [int(main_width * 0.25)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.30)], Qt.Vertical)
+            self.mw.resizeDocks([self.mw.py_sim_dock], [int(main_width * 0.25)], Qt.Orientation.Horizontal)
+            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.30)], Qt.Orientation.Vertical)
 
         elif name == self.mw.PERSPECTIVE_PRESENTATION:
             # Layout: Zen mode. All docks are hidden by the initial loop.
@@ -220,8 +221,8 @@ class PerspectiveManager(QObject):
             self.mw.ide_dock.raise_()
             self.mw.log_dock.raise_()
 
-            self.mw.resizeDocks([self.mw.ide_dock], [int(main_width * 0.40)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Vertical)
+            self.mw.resizeDocks([self.mw.ide_dock], [int(main_width * 0.40)], Qt.Orientation.Horizontal)
+            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Orientation.Vertical)
 
         elif name == self.mw.PERSPECTIVE_AI_FOCUS:
             # Layout: AI Chat prominent on the right, Log visible at the bottom.
@@ -231,8 +232,8 @@ class PerspectiveManager(QObject):
             self.mw.tabifyDockWidget(self.mw.ai_chatbot_dock, self.mw.ide_dock)
             self.mw.ai_chatbot_dock.raise_()
 
-            self.mw.resizeDocks([self.mw.ai_chatbot_dock], [int(main_width * 0.30)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.30)], Qt.Vertical)
+            self.mw.resizeDocks([self.mw.ai_chatbot_dock], [int(main_width * 0.30)], Qt.Orientation.Horizontal)
+            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.30)], Qt.Orientation.Vertical)
         
         elif name == self.mw.PERSPECTIVE_DEVELOPER_VIEW:
             # Show everything in a logical tabbed layout
@@ -256,16 +257,16 @@ class PerspectiveManager(QObject):
             self.mw.properties_dock.raise_()
             self.mw.log_dock.raise_()
             
-            self.mw.resizeDocks([self.mw.elements_palette_dock], [int(main_width * 0.15)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.25)], Qt.Horizontal)
-            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Vertical)
+            self.mw.resizeDocks([self.mw.elements_palette_dock], [int(main_width * 0.15)], Qt.Orientation.Horizontal)
+            self.mw.resizeDocks([self.mw.properties_dock], [int(main_width * 0.25)], Qt.Orientation.Horizontal)
+            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Orientation.Vertical)
 
         else: # Fallback to a safe default
             self._apply_default_layout(self.mw.PERSPECTIVE_DESIGN_FOCUS)
             
     @pyqtSlot()
     def save_current_as(self):
-        name, ok = QInputDialog.getText(self.mw, "Save Perspective", "Enter name:", QLineEdit.Normal, self.current_perspective_name)
+        name, ok = QInputDialog.getText(self.mw, "Save Perspective", "Enter name:", QLineEdit.EchoMode.Normal, self.current_perspective_name)
         if not (ok and name): return
         
         is_default = name in self.mw.DEFAULT_PERSPECTIVES_ORDER
@@ -282,8 +283,8 @@ class PerspectiveManager(QObject):
     
     @pyqtSlot()
     def reset_all(self):
-        reply = QMessageBox.question(self.mw, "Reset All Perspectives", "This will delete all custom layouts and reset default ones. Are you sure?", QMessageBox.Yes | QMessageBox.No)
-        if reply != QMessageBox.Yes: return
+        reply = QMessageBox.question(self.mw, "Reset All Perspectives", "This will delete all custom layouts and reset default ones. Are you sure?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply != QMessageBox.StandardButton.Yes: return
             
         all_names = self.settings_manager.get("user_perspective_names", []) + self.mw.DEFAULT_PERSPECTIVES_ORDER
         for name in all_names:

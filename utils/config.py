@@ -1,4 +1,3 @@
-
 # fsm_designer_project/utils/config.py
 """
 Central configuration file for the FSM Designer application.
@@ -6,8 +5,8 @@ Central configuration file for the FSM Designer application.
 Contains static application settings, UI defaults, and dynamically populated
 theme colors.
 """
-from PyQt5.QtGui import QColor
-from PyQt5.QtCore import Qt
+from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt
 
 # ==============================================================================
 # STATIC APPLICATION CONFIGURATION
@@ -46,10 +45,10 @@ APP_FONT_SIZE_EDITOR = "10pt"
 
 # --- Default Item Properties ---
 DEFAULT_STATE_SHAPE = "rectangle"
-DEFAULT_STATE_BORDER_STYLE = Qt.SolidLine
+DEFAULT_STATE_BORDER_STYLE = Qt.PenStyle.SolidLine
 DEFAULT_STATE_BORDER_WIDTH = 1.8
 
-DEFAULT_TRANSITION_LINE_STYLE = Qt.SolidLine
+DEFAULT_TRANSITION_LINE_STYLE = Qt.PenStyle.SolidLine
 DEFAULT_TRANSITION_LINE_WIDTH = 2.2
 DEFAULT_TRANSITION_ARROWHEAD = "filled"
 
@@ -90,7 +89,7 @@ for key in _INITIAL_THEME_DATA:
 COLOR_ITEM_STATE_SELECTION_BG = ""
 COLOR_ITEM_STATE_SELECTION_BORDER = ""
 COLOR_ITEM_TRANSITION_SELECTION = ""
-COLOR_SNAP_GUIDELINE = QColor(Qt.red) # This one is static for now
+COLOR_SNAP_GUIDELINE = QColor(Qt.GlobalColor.red) # This one is static for now
 COLOR_PY_SIM_STATE_ACTIVE = QColor("#4CAF50") # This will be updated by the theme manager
 COLOR_PY_SIM_STATE_ACTIVE_PEN_WIDTH = 2.5
 
@@ -110,11 +109,12 @@ def DYNAMIC_UPDATE_COLORS_FROM_THEME(theme_data: dict):
     COLOR_PY_SIM_STATE_ACTIVE = QColor(globals().get("COLOR_ACCENT_SUCCESS"))
     
     accent_secondary_color = QColor(globals().get("COLOR_ACCENT_SECONDARY", "#FF8F00"))
-    COLOR_ITEM_STATE_SELECTION_BG = accent_secondary_color.lighter(180 if accent_secondary_color.lightnessF() < 0.5 else 130).name()
-    COLOR_ITEM_STATE_SELECTION_BORDER = accent_secondary_color.name()
+    # --- FIX: Changed self. to direct global variable assignment ---
+    globals()['COLOR_ITEM_STATE_SELECTION_BG'] = accent_secondary_color.lighter(180 if accent_secondary_color.lightnessF() < 0.5 else 130).name()
+    globals()['COLOR_ITEM_STATE_SELECTION_BORDER'] = accent_secondary_color.name()
     
     accent_primary_color = QColor(globals().get("COLOR_ACCENT_PRIMARY", "#0277BD"))
-    COLOR_ITEM_TRANSITION_SELECTION = accent_primary_color.lighter(160 if accent_primary_color.lightnessF() < 0.5 else 130).name()
+    globals()['COLOR_ITEM_TRANSITION_SELECTION'] = accent_primary_color.lighter(160 if accent_primary_color.lightnessF() < 0.5 else 130).name()
 
 # Initial population to ensure variables are not empty before the ThemeManager takes over.
 DYNAMIC_UPDATE_COLORS_FROM_THEME(_INITIAL_THEME_DATA)

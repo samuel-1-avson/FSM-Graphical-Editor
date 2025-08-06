@@ -3,15 +3,14 @@
 Modern welcome screen with enhanced visuals and animations.
 """
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QGraphicsDropShadowEffect, QScrollArea, QGridLayout
 )
-from PyQt5.QtCore import Qt, QSize, pyqtSignal, QPropertyAnimation, QEasingCurve, QTimer
-from PyQt5.QtGui import QFont, QIcon, QPixmap, QPainter, QBrush, QColor, QPen, QLinearGradient
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QPropertyAnimation, QEasingCurve, QTimer, PYQT_VERSION_STR
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter, QBrush, QColor, QPen, QLinearGradient
 import os
-import sip
-from PyQt5.QtWidgets import QStyle
+from PyQt6.QtWidgets import QStyle
 from ...utils import get_standard_icon
 from ...utils.config import (
     APP_NAME, APP_VERSION, COLOR_ACCENT_PRIMARY, COLOR_BACKGROUND_LIGHT,
@@ -32,8 +31,8 @@ class ActionCard(QFrame):
         
     def init_ui(self, title, description, icon):
         """Initialize the UI."""
-        self.setFrameStyle(QFrame.StyledPanel)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setFrameStyle(QFrame.Shape.StyledPanel)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedSize(280, 120)
         
         # Layout
@@ -77,10 +76,10 @@ class ActionCard(QFrame):
     def create_gradient_icon(self):
         """Create a gradient icon."""
         pixmap = QPixmap(48, 48)
-        pixmap.fill(Qt.transparent)
+        pixmap.fill(Qt.GlobalColor.transparent)
         
         painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Create gradient
         gradient = QLinearGradient(0, 0, 48, 48)
@@ -88,7 +87,7 @@ class ActionCard(QFrame):
         gradient.setColorAt(1, QColor(COLOR_ACCENT_SECONDARY))
         
         painter.setBrush(QBrush(gradient))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(0, 0, 48, 48, 8, 8)
         
         painter.end()
@@ -122,17 +121,17 @@ class ActionCard(QFrame):
             
     def enterEvent(self, event):
         """Handle mouse enter."""
-        self.update_styles(True)
         super().enterEvent(event)
+        self.update_styles(True)
         
     def leaveEvent(self, event):
         """Handle mouse leave."""
-        self.update_styles(False)
         super().leaveEvent(event)
+        self.update_styles(False)
         
     def mousePressEvent(self, event):
         """Handle mouse press."""
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)
 
@@ -150,8 +149,8 @@ class RecentFileItem(QFrame):
         
     def init_ui(self):
         """Initialize the UI."""
-        self.setFrameStyle(QFrame.StyledPanel)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setFrameStyle(QFrame.Shape.StyledPanel)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedHeight(60)
         
         layout = QHBoxLayout(self)
@@ -160,7 +159,7 @@ class RecentFileItem(QFrame):
         # File icon
         icon_label = QLabel()
         # --- MODIFICATION: Use a folder/dir icon for projects ---
-        icon_label.setPixmap(get_standard_icon(QStyle.SP_DirIcon).pixmap(32, 32))
+        icon_label.setPixmap(get_standard_icon(QStyle.StandardPixmap.SP_DirIcon).pixmap(32, 32))
         layout.addWidget(icon_label)
         
         # File info
@@ -198,9 +197,10 @@ class RecentFileItem(QFrame):
 
     def mousePressEvent(self, event):
         """Handle mouse press."""
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.file_path)
         super().mousePressEvent(event)
+
 
 
 class ModernWelcomeScreen(QWidget):
@@ -230,7 +230,7 @@ class ModernWelcomeScreen(QWidget):
         # Scroll area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         main_layout.addWidget(self.scroll_area)
         
         # Content widget
@@ -312,16 +312,16 @@ class ModernWelcomeScreen(QWidget):
         title_font.setPointSize(32)
         title_font.setBold(True)
         self.title_label.setFont(title_font)
-        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header_layout.addWidget(self.title_label)
         
         # Version and tagline
         self.version_label = QLabel(f"Version {APP_VERSION}")
-        self.version_label.setAlignment(Qt.AlignCenter)
+        self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header_layout.addWidget(self.version_label)
         
         self.tagline_label = QLabel("Design, Simulate, and Generate Finite State Machines")
-        self.tagline_label.setAlignment(Qt.AlignCenter)
+        self.tagline_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header_layout.addWidget(self.tagline_label)
         
         layout.addWidget(header_widget)
@@ -336,7 +336,7 @@ class ModernWelcomeScreen(QWidget):
         new_card = ActionCard(
             "New Project",
             "Start a new FSM project",
-            get_standard_icon(QStyle.SP_FileIcon)
+            get_standard_icon(QStyle.StandardPixmap.SP_FileIcon)
         )
         new_card.clicked.connect(self.newFileRequested.emit)
         cards_layout.addWidget(new_card, 0, 0)
@@ -345,7 +345,7 @@ class ModernWelcomeScreen(QWidget):
         open_card = ActionCard(
             "Open Project",
             "Open an existing .bsmproj file",
-            get_standard_icon(QStyle.SP_DialogOpenButton)
+            get_standard_icon(QStyle.StandardPixmap.SP_DialogOpenButton)
         )
         open_card.clicked.connect(self.openProjectRequested.emit)
         cards_layout.addWidget(open_card, 0, 1)
@@ -354,7 +354,7 @@ class ModernWelcomeScreen(QWidget):
         guide_card = ActionCard(
             "Quick Start Guide",
             "Learn the basics in minutes",
-            get_standard_icon(QStyle.SP_MessageBoxInformation)
+            get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxInformation)
         )
         guide_card.clicked.connect(self.showGuideRequested.emit)
         cards_layout.addWidget(guide_card, 1, 0)
@@ -362,7 +362,7 @@ class ModernWelcomeScreen(QWidget):
         examples_card = ActionCard(
             "Browse Examples",
             "Explore sample FSM designs",
-            get_standard_icon(QStyle.SP_DirIcon)
+            get_standard_icon(QStyle.StandardPixmap.SP_DirIcon)
         )
         examples_card.clicked.connect(self.showExamplesRequested.emit)
         cards_layout.addWidget(examples_card, 1, 1)
@@ -399,21 +399,20 @@ class ModernWelcomeScreen(QWidget):
         
         # Placeholder
         self.no_recent_label = QLabel("No recent projects")
-        self.no_recent_label.setAlignment(Qt.AlignCenter)
+        self.no_recent_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.recent_layout.addWidget(self.no_recent_label)
         
         layout.addWidget(self.recent_container)
         
     def create_footer(self, layout):
         """Create footer section."""
-        self.footer_label = QLabel("© 2024 FSM Designer | Built with PyQt5")
-        self.footer_label.setAlignment(Qt.AlignCenter)
+        self.footer_label = QLabel(f"© 2024 FSM Designer | Built with PyQt{PYQT_VERSION_STR}")
+        self.footer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.footer_label)
         
     def update_recent_files(self, recent_files):
         """Update recent files list, filtering for projects."""
-        # --- FIX: Add safety checks ---
-        if sip.isdeleted(self) or not hasattr(self, 'recent_layout'):
+        if not hasattr(self, 'recent_layout'):
             return
             
         # Clear existing items
@@ -422,21 +421,20 @@ class ModernWelcomeScreen(QWidget):
             if item.widget():
                 item.widget().deleteLater()
         
-        # --- FIX: Filter the list to only show project files ---
+        # Filter the list to only show project files
         project_files = [p for p in recent_files if p.endswith(PROJECT_FILE_EXTENSION)]
         
         if not project_files:
-            if not sip.isdeleted(self.no_recent_label):
+            if hasattr(self, 'no_recent_label'):
                 self.recent_layout.addWidget(self.no_recent_label)
                 self.no_recent_label.show()
         else:
-            if not sip.isdeleted(self.no_recent_label):
+            if hasattr(self, 'no_recent_label'):
                 self.no_recent_label.hide()
             # Show up to 5 recent projects
             for file_path in project_files[:5]:
                 item = RecentFileItem(file_path)
                 item.clicked.connect(self.openRecentRequested.emit)
                 self.recent_layout.addWidget(item)
-        # --- END FIX ---
 # For compatibility with older code that might import WelcomeWidget
 WelcomeWidget = ModernWelcomeScreen

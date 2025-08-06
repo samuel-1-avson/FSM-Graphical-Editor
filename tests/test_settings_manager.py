@@ -1,6 +1,6 @@
 # tests/test_settings_manager.py
 import pytest
-from PyQt5.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication
 from fsm_designer_project.settings_manager import SettingsManager
 
 @pytest.fixture

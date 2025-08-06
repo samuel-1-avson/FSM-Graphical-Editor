@@ -1,12 +1,12 @@
-
 # fsm_designer_project/ui/widgets/data_dictionary_widget.py
 
 import logging
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, 
-    QToolBar, QAction, QInputDialog, QMessageBox, QStyle
+    QToolBar, QInputDialog, QMessageBox, QStyle
 )
-from PyQt5.QtCore import pyqtSlot, Qt
+from PyQt6.QtGui import QAction
+from PyQt6.QtCore import pyqtSlot, Qt
 from ...managers.data_dictionary_manager import DataDictionaryManager
 from ...utils import get_standard_icon
 
@@ -28,8 +28,10 @@ class DataDictionaryWidget(QWidget):
 
         # Toolbar for actions
         toolbar = QToolBar("Data Dictionary Tools")
-        add_action = toolbar.addAction(get_standard_icon(QStyle.SP_DialogApplyButton, "Add"), "Add Variable")
-        remove_action = toolbar.addAction(get_standard_icon(QStyle.SP_TrashIcon, "Remove"), "Remove Selected")
+        add_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogApplyButton, "Add"), "Add Variable", self)
+        remove_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_TrashIcon, "Remove"), "Remove Selected", self)
+        toolbar.addAction(add_action)
+        toolbar.addAction(remove_action)
         add_action.triggered.connect(self.on_add_variable)
         remove_action.triggered.connect(self.on_remove_variable)
         layout.addWidget(toolbar)
@@ -38,7 +40,7 @@ class DataDictionaryWidget(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Name", "Initial Value", "Type"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.itemChanged.connect(self.on_item_changed)
         layout.addWidget(self.table)
         
@@ -59,7 +61,7 @@ class DataDictionaryWidget(QWidget):
             for row, (name, props) in enumerate(sorted_vars):
                 name_item = QTableWidgetItem(name)
                 # Make the name column non-editable after creation
-                name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+                name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.table.setItem(row, 0, name_item)
                 
                 initial_value = props.get("initial_value", "")
@@ -100,9 +102,9 @@ class DataDictionaryWidget(QWidget):
         
         reply = QMessageBox.question(self, "Remove Variables", 
                                      f"Are you sure you want to remove {len(rows_to_remove)} variable(s)?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             for row in rows_to_remove:
                 var_name = self.table.item(row, 0).text()
                 if var_name in self.manager.variables:

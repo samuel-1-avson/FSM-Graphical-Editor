@@ -4,7 +4,7 @@
 import os
 import json
 import logging
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 from ..utils.config import PROJECT_FILE_EXTENSION, PROJECT_FILE_FILTER
 
 logger = logging.getLogger(__name__)

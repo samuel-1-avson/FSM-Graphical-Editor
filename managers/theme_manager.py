@@ -3,8 +3,8 @@ import os
 import json
 import logging
 from typing import Dict, List, Optional, Any, Union
-from PyQt5.QtCore import QObject, pyqtSignal, QStandardPaths, QDir, QFileSystemWatcher, pyqtSlot
-from PyQt5.QtGui import QColor
+from PyQt6.QtCore import QObject, pyqtSignal, QStandardPaths, QDir, QFileSystemWatcher, pyqtSlot
+from PyQt6.QtGui import QColor
 
 # --- NEW: Local import of config for dynamic modification ---
 from ..utils import config
@@ -29,7 +29,7 @@ class ThemeManager(QObject):
     themeModified = pyqtSignal(str)   # theme_name
     loadError = pyqtSignal(str)       # error_message
 
-    # Professional Theme Definitions
+    # ... (THEME_DATA dictionaries are unchanged) ...
     THEME_DATA_LIGHT = {
         "COLOR_BACKGROUND_APP": "#FAFAFA", "COLOR_BACKGROUND_LIGHT": "#FFFFFF",
         "COLOR_BACKGROUND_MEDIUM": "#F5F5F5", "COLOR_BACKGROUND_DARK": "#EEEEEE",
@@ -48,7 +48,6 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_BORDER": "#E1E8ED", "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#EBF3FD",
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#3498DB", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#D6EAF8"
     }
-
     THEME_DATA_DARK = {
         "COLOR_BACKGROUND_APP": "#1E1E1E", "COLOR_BACKGROUND_LIGHT": "#2D2D30",
         "COLOR_BACKGROUND_MEDIUM": "#3E3E42", "COLOR_BACKGROUND_DARK": "#4D4D50",
@@ -67,8 +66,6 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_BORDER": "#3E3E42", "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#1E3A5F",
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#007ACC", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#1A334D"
     }
-    
-    # Professional Monochrome Theme
     THEME_DATA_MONOCHROME = {
         "COLOR_BACKGROUND_APP": "#FFFFFF", "COLOR_BACKGROUND_LIGHT": "#FFFFFF",
         "COLOR_BACKGROUND_MEDIUM": "#F8F9FA", "COLOR_BACKGROUND_DARK": "#E9ECEF",
@@ -87,8 +84,6 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_BORDER": "#DEE2E6", "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#F8F9FA",
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#495057", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#E9ECEF"
     }
-
-    # Professional Blue Theme
     THEME_DATA_PROFESSIONAL_BLUE = {
         "COLOR_BACKGROUND_APP": "#F7F9FC", "COLOR_BACKGROUND_LIGHT": "#FFFFFF",
         "COLOR_BACKGROUND_MEDIUM": "#F1F5F9", "COLOR_BACKGROUND_DARK": "#E2E8F0",
@@ -107,8 +102,6 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_BORDER": "#E2E8F0", "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#EFF6FF",
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#2563EB", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#DBEAFE"
     }
-
-    # Professional Dark Blue Theme  
     THEME_DATA_PROFESSIONAL_DARK = {
         "COLOR_BACKGROUND_APP": "#0F172A", "COLOR_BACKGROUND_LIGHT": "#1E293B",
         "COLOR_BACKGROUND_MEDIUM": "#334155", "COLOR_BACKGROUND_DARK": "#475569",
@@ -127,8 +120,6 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_BORDER": "#334155", "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#1E3A8A",
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#3B82F6", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#1E40AF"
     }
-
-    # Minimal Gray Theme
     THEME_DATA_MINIMAL_GRAY = {
         "COLOR_BACKGROUND_APP": "#FAFAFA", "COLOR_BACKGROUND_LIGHT": "#FFFFFF",
         "COLOR_BACKGROUND_MEDIUM": "#F5F5F5", "COLOR_BACKGROUND_DARK": "#EEEEEE",
@@ -147,8 +138,6 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_BORDER": "#E0E0E0", "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#F5F5F5",
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#616161", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#EEEEEE"
     }
-
-    # Corporate Theme
     THEME_DATA_CORPORATE = {
         "COLOR_BACKGROUND_APP": "#F8F9FA", "COLOR_BACKGROUND_LIGHT": "#FFFFFF",
         "COLOR_BACKGROUND_MEDIUM": "#F1F3F4", "COLOR_BACKGROUND_DARK": "#E8EAED",
@@ -167,7 +156,6 @@ class ThemeManager(QObject):
         "COLOR_DRAGGABLE_BUTTON_BORDER": "#DADCE0", "COLOR_DRAGGABLE_BUTTON_HOVER_BG": "#E8F0FE",
         "COLOR_DRAGGABLE_BUTTON_HOVER_BORDER": "#1A73E8", "COLOR_DRAGGABLE_BUTTON_PRESSED_BG": "#D2E3FC"
     }
-
     THEME_KEYS = list(THEME_DATA_LIGHT.keys())
 
     def __init__(self, app_name: str = "BSMDesigner", parent: Optional[QObject] = None):
@@ -196,18 +184,21 @@ class ThemeManager(QObject):
 
     def _get_config_path(self) -> str:
         """Get the appropriate configuration path with fallbacks."""
-        config_path = QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)
+        # --- CORRECTED ENUMS ---
+        config_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppConfigLocation)
         
         if not config_path:
-            config_path = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+            config_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
             if config_path and self.app_name:
                 config_path = os.path.join(config_path, self.app_name)
+        # --- END CORRECTION ---
         
         if not config_path:
             config_path = os.path.join(os.getcwd(), ".config", self.app_name)
             logger.warning(f"Using fallback config path: {config_path}")
         
         return config_path
+
 
     def _setup_file_watcher(self) -> None:
         """Set up file system watcher for automatic theme reloading."""

@@ -1,5 +1,5 @@
 # fsm_designer_project/ui/dialogs/ai_mixin.py
-from PyQt5.QtWidgets import QWidget, QPushButton, QInputDialog, QMessageBox, QMainWindow, QStyle
+from PyQt6.QtWidgets import QWidget, QPushButton, QInputDialog, QMessageBox, QMainWindow, QStyle
 from ...utils import get_standard_icon
 
 class AiHelperMixin:
@@ -7,7 +7,7 @@ class AiHelperMixin:
     
     def _create_ai_helper_button(self, target_widget, code_type="action"):
         button = QPushButton()
-        button.setIcon(get_standard_icon(QStyle.SP_MessageBoxQuestion, "AI"))
+        button.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxQuestion, "AI"))
         button.setToolTip(f"Generate {code_type} code with AI")
         button.clicked.connect(lambda: self._on_ai_helper_clicked(target_widget, code_type))
         return button

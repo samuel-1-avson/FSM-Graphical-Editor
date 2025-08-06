@@ -1,10 +1,9 @@
-
-# fsm_designer_project/ui/dialogs/new_project_dialog.py (NEW FILE)
+# fsm_designer_project/ui/dialogs/new_project_dialog.py
 import os
 import re
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit, 
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit, 
                              QPushButton, QDialogButtonBox, QHBoxLayout, QFileDialog)
-from PyQt5.QtCore import QDir
+from PyQt6.QtCore import QDir
 
 class NewProjectDialog(QDialog):
     def __init__(self, parent=None):
@@ -32,7 +31,7 @@ class NewProjectDialog(QDialog):
 
         layout.addLayout(form_layout)
 
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)

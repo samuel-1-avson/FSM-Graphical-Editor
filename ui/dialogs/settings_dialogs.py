@@ -2,14 +2,14 @@
 
 import sys
 # At the top of fsm_designer_project/ui/dialogs/settings_dialogs.py
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QPushButton, QSpinBox, QComboBox, QDialogButtonBox,
-    QColorDialog, QHBoxLayout, QLabel, QGroupBox, QStyle, QFontComboBox, QDoubleSpinBox, QAction,
+    QColorDialog, QHBoxLayout, QLabel, QGroupBox, QStyle, QFontComboBox, QDoubleSpinBox,
     QCheckBox, QTabWidget, QWidget, QGraphicsScene, QGraphicsView, QScrollArea, QLineEdit,
     QInputDialog, QMessageBox, QFileDialog, QGraphicsItem, QApplication
 )
-from PyQt5.QtGui import QColor, QFont, QIcon, QPainter
-from PyQt5.QtCore import Qt, QDir, pyqtSlot
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QAction
+from PyQt6.QtCore import Qt, QDir, pyqtSlot
 
 from ...managers.settings_manager import SettingsManager
 from ...utils.config import (
@@ -40,7 +40,7 @@ class SettingsDialog(QDialog):
         self.settings_manager = settings_manager
         self.theme_manager = theme_manager
         self.setWindowTitle(f"{APP_NAME} - Preferences")
-        self.setWindowIcon(get_standard_icon(QStyle.SP_FileDialogDetailedView, "Prefs"))
+        self.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogDetailedView, "Prefs"))
         self.setMinimumWidth(600)
         self.setStyleSheet(f"QDialog {{ background-color: {COLOR_BACKGROUND_DIALOG}; }} QLabel#RestartNote {{ color: {COLOR_ACCENT_ERROR}; font-style:italic; }} QGraphicsView.previewView {{ border: 1px solid {COLOR_BORDER_MEDIUM}; background-color: {QColor(COLOR_BACKGROUND_LIGHT).lighter(103).name()}; }}")
 
@@ -156,9 +156,9 @@ class SettingsDialog(QDialog):
         state_defaults_outer_layout.addLayout(state_defaults_form_layout, 2)
         self.state_preview_scene = QGraphicsScene(self)
         self.state_preview_view = QGraphicsView(self.state_preview_scene)
-        self.state_preview_view.setFixedSize(self.PREVIEW_WIDTH, self.PREVIEW_HEIGHT)
-        self.state_preview_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); self.state_preview_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.state_preview_view.setRenderHint(QPainter.Antialiasing); self.state_preview_view.setObjectName("previewView")
+        self.state_preview_view.setFixedSize(self.PREVIEW_WIDTH, self.PREVIEW_HEIGHT)        
+        self.state_preview_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff); self.state_preview_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.state_preview_view.setRenderHint(QPainter.RenderHint.Antialiasing); self.state_preview_view.setObjectName("previewView")
         state_defaults_outer_layout.addWidget(self.state_preview_view, 1) 
         item_visuals_layout.addWidget(state_defaults_group)
 
@@ -182,9 +182,9 @@ class SettingsDialog(QDialog):
         transition_defaults_outer_layout.addLayout(transition_defaults_form_layout, 2)
         self.transition_preview_scene = QGraphicsScene(self)
         self.transition_preview_view = QGraphicsView(self.transition_preview_scene)
-        self.transition_preview_view.setFixedSize(self.PREVIEW_WIDTH, self.PREVIEW_TRANSITION_HEIGHT)
-        self.transition_preview_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); self.transition_preview_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.transition_preview_view.setRenderHint(QPainter.Antialiasing); self.transition_preview_view.setObjectName("previewView")
+        self.transition_preview_view.setFixedSize(self.PREVIEW_WIDTH, self.PREVIEW_TRANSITION_HEIGHT)        
+        self.transition_preview_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff); self.transition_preview_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.transition_preview_view.setRenderHint(QPainter.RenderHint.Antialiasing); self.transition_preview_view.setObjectName("previewView")
         transition_defaults_outer_layout.addWidget(self.transition_preview_view, 1)
         item_visuals_layout.addWidget(transition_defaults_group)
 
@@ -202,9 +202,9 @@ class SettingsDialog(QDialog):
         comment_defaults_outer_layout.addLayout(comment_defaults_form_layout, 2)
         self.comment_preview_scene = QGraphicsScene(self)
         self.comment_preview_view = QGraphicsView(self.comment_preview_scene)
-        self.comment_preview_view.setFixedSize(self.PREVIEW_WIDTH, self.PREVIEW_COMMENT_HEIGHT)
-        self.comment_preview_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); self.comment_preview_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.comment_preview_view.setRenderHint(QPainter.Antialiasing); self.comment_preview_view.setObjectName("previewView")
+        self.comment_preview_view.setFixedSize(self.PREVIEW_WIDTH, self.PREVIEW_COMMENT_HEIGHT)        
+        self.comment_preview_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff); self.comment_preview_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.comment_preview_view.setRenderHint(QPainter.RenderHint.Antialiasing); self.comment_preview_view.setObjectName("previewView")
         comment_defaults_outer_layout.addWidget(self.comment_preview_view, 1)
         item_visuals_layout.addWidget(comment_defaults_group)
 
@@ -238,13 +238,13 @@ class SettingsDialog(QDialog):
         self.reset_defaults_button.clicked.connect(self.on_reset_to_defaults)
         button_layout.addWidget(self.reset_defaults_button)
         button_layout.addStretch()
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply)
-        self.button_box.button(QDialogButtonBox.Ok).setText("OK & Save")
-        self.button_box.button(QDialogButtonBox.Apply).clicked.connect(self.apply_settings)
+        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Apply)
+        self.button_box.button(QDialogButtonBox.StandardButton.Ok).setText("OK & Save")
+        self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(self.apply_settings)
         self.button_box.accepted.connect(self.accept_settings); self.button_box.rejected.connect(self.reject)
         button_layout.addWidget(self.button_box)
         main_layout.addLayout(button_layout)
-        
+
         self._create_preview_items() 
         self.load_settings_to_ui() 
         self._connect_change_signals_for_apply_button()
@@ -262,10 +262,10 @@ class SettingsDialog(QDialog):
         path_form_layout.addRow("Path:", self.matlab_path_edit)
 
         btn_layout = QHBoxLayout(); btn_layout.setSpacing(6)
-        auto_detect_btn = QPushButton(get_standard_icon(QStyle.SP_BrowserReload,"Det"), " Auto-detect")
+        auto_detect_btn = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_BrowserReload,"Det"), " Auto-detect")
         auto_detect_btn.clicked.connect(self._matlab_auto_detect)
         auto_detect_btn.setToolTip("Attempt to find MATLAB installations.")
-        browse_btn = QPushButton(get_standard_icon(QStyle.SP_DirOpenIcon, "Brw"), " Browse...")
+        browse_btn = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_DirOpenIcon, "Brw"), " Browse...")
         browse_btn.clicked.connect(self._matlab_browse)
         browse_btn.setToolTip("Browse for MATLAB executable.")
         btn_layout.addWidget(auto_detect_btn); btn_layout.addWidget(browse_btn); btn_layout.addStretch()
@@ -276,8 +276,8 @@ class SettingsDialog(QDialog):
 
         test_group = QGroupBox("Connection Test"); test_layout = QVBoxLayout(); test_layout.setSpacing(8)
         self.matlab_test_status_label = QLabel("Status: Unknown"); self.matlab_test_status_label.setObjectName("TestStatusLabel")
-        self.matlab_test_status_label.setWordWrap(True); self.matlab_test_status_label.setTextInteractionFlags(Qt.TextSelectableByMouse); self.matlab_test_status_label.setMinimumHeight(30)
-        test_btn = QPushButton(get_standard_icon(QStyle.SP_CommandLink,"Test"), " Test Connection")
+        self.matlab_test_status_label.setWordWrap(True); self.matlab_test_status_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse); self.matlab_test_status_label.setMinimumHeight(30)
+        test_btn = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_CommandLink,"Test"), " Test Connection")
         test_btn.clicked.connect(self._matlab_test_connection)
         test_btn.setToolTip("Test connection to the specified MATLAB path.")
         test_layout.addWidget(test_btn); test_layout.addWidget(self.matlab_test_status_label, 1)
@@ -325,7 +325,7 @@ class SettingsDialog(QDialog):
         base_theme_name, ok = QInputDialog.getItem(self, "New Theme", "Create from:", self.theme_manager.get_theme_names(), 0, False)
         if not ok: return
         
-        new_name, ok = QInputDialog.getText(self, "New Theme Name", "Enter name for the new theme:", QLineEdit.Normal, f"Custom {base_theme_name}")
+        new_name, ok = QInputDialog.getText(self, "New Theme Name", "Enter name for the new theme:", QLineEdit.EchoMode.Normal, f"Custom {base_theme_name}")
         if not ok or not new_name.strip(): return
         
         if new_name in self.theme_manager.get_theme_names():
@@ -336,7 +336,7 @@ class SettingsDialog(QDialog):
         if not base_data: return
 
         dialog = ThemeEditDialog(base_data, new_name, self)
-        if dialog.exec_():
+        if dialog.exec():
             new_theme_data = dialog.get_theme_data()
             if self.theme_manager.save_theme(new_name, new_theme_data):
                 self.theme_combo.setCurrentText(new_name)
@@ -349,7 +349,7 @@ class SettingsDialog(QDialog):
         if not theme_data: return
         
         dialog = ThemeEditDialog(theme_data, theme_name, self)
-        if dialog.exec_():
+        if dialog.exec():
             updated_data = dialog.get_theme_data()
             if self.theme_manager.save_theme(theme_name, updated_data):
                 self.settings_manager.set("appearance_theme", theme_name)
@@ -360,8 +360,8 @@ class SettingsDialog(QDialog):
         theme_name = self.theme_combo.currentText()
         if self.theme_manager.is_default_theme(theme_name): return
 
-        reply = QMessageBox.question(self, "Delete Theme", f"Are you sure you want to delete the theme '{theme_name}'?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+        reply = QMessageBox.question(self, "Delete Theme", f"Are you sure you want to delete the theme '{theme_name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
             if self.theme_manager.delete_theme(theme_name):
                 # Fallback to a safe default if the current theme was deleted
                 if self.settings_manager.get("appearance_theme") == theme_name:
@@ -375,28 +375,28 @@ class SettingsDialog(QDialog):
 
         # State Preview Item
         self._preview_state_item = GraphicsStateItem(0, 0, 100, 50, "State") # Dimensions are relative, fitInView handles scaling
-        self._preview_state_item.setFlag(QGraphicsItem.ItemIsMovable, False); self._preview_state_item.setFlag(QGraphicsItem.ItemIsSelectable, False)
+        self._preview_state_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False); self._preview_state_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
         self.state_preview_scene.addItem(self._preview_state_item)
         self.state_preview_scene.setSceneRect(self._preview_state_item.boundingRect().adjusted(-10, -10, 10, 10))
-        self.state_preview_view.fitInView(self.state_preview_scene.sceneRect(), Qt.KeepAspectRatio)
+        self.state_preview_view.fitInView(self.state_preview_scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
 
         # Transition Preview Items
-        self._preview_transition_item_start = GraphicsStateItem(0, 0, 10, 10, "S"); self._preview_transition_item_start.setFlag(QGraphicsItem.ItemIsMovable, False)
-        self._preview_transition_item_end = GraphicsStateItem(100, 0, 10, 10, "T"); self._preview_transition_item_end.setFlag(QGraphicsItem.ItemIsMovable, False)
+        self._preview_transition_item_start = GraphicsStateItem(0, 0, 10, 10, "S"); self._preview_transition_item_start.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        self._preview_transition_item_end = GraphicsStateItem(100, 0, 10, 10, "T"); self._preview_transition_item_end.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
         self._preview_transition_item = GraphicsTransitionItem(self._preview_transition_item_start, self._preview_transition_item_end, "Event")
-        self._preview_transition_item.setFlag(QGraphicsItem.ItemIsSelectable, False)
+        self._preview_transition_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
         self.transition_preview_scene.addItem(self._preview_transition_item_start); self.transition_preview_scene.addItem(self._preview_transition_item_end); self.transition_preview_scene.addItem(self._preview_transition_item)
-        self.transition_preview_view.fitInView(self.transition_preview_scene.itemsBoundingRect().adjusted(-10,-20,10,20), Qt.KeepAspectRatio) # More vertical padding for label
+        self.transition_preview_view.fitInView(self.transition_preview_scene.itemsBoundingRect().adjusted(-10,-20,10,20), Qt.AspectRatioMode.KeepAspectRatio) # More vertical padding for label
 
 
         # Comment Preview Item
         self._preview_comment_item = GraphicsCommentItem(0, 0, "Comment...")
         self._preview_comment_item.setTextWidth(120) # A fixed width for predictable preview
-        self._preview_comment_item.setFlag(QGraphicsItem.ItemIsMovable, False); self._preview_comment_item.setFlag(QGraphicsItem.ItemIsSelectable, False)
+        self._preview_comment_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False); self._preview_comment_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
         self.comment_preview_scene.addItem(self._preview_comment_item)
         self.comment_preview_scene.setSceneRect(self._preview_comment_item.boundingRect().adjusted(-10, -10, 10, 10))
-        self.comment_preview_view.fitInView(self.comment_preview_scene.sceneRect(), Qt.KeepAspectRatio)
+        self.comment_preview_view.fitInView(self.comment_preview_scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
 
     def _update_default_item_previews(self):
@@ -416,7 +416,7 @@ class SettingsDialog(QDialog):
                 border_style_str=self.state_default_border_style_combo.currentText(),
                 border_width=self.state_default_border_width_spin.value()
             )
-            self.state_preview_view.fitInView(self.state_preview_scene.itemsBoundingRect().adjusted(-10, -10, 10, 10), Qt.KeepAspectRatio)
+            self.state_preview_view.fitInView(self.state_preview_scene.itemsBoundingRect().adjusted(-10, -10, 10, 10), Qt.AspectRatioMode.KeepAspectRatio)
 
 
         # Transition Preview
@@ -432,7 +432,7 @@ class SettingsDialog(QDialog):
                 label_font_family=self.transition_default_font_family_combo.currentFont().family(),
                 label_font_size=self.transition_default_font_size_spin.value()
             )
-            self.transition_preview_view.fitInView(self.transition_preview_scene.itemsBoundingRect().adjusted(-10, -20, 10, 20), Qt.KeepAspectRatio)
+            self.transition_preview_view.fitInView(self.transition_preview_scene.itemsBoundingRect().adjusted(-10, -20, 10, 20), Qt.AspectRatioMode.KeepAspectRatio)
 
 
         # Comment Preview
@@ -443,7 +443,7 @@ class SettingsDialog(QDialog):
                 font_size=self.comment_default_font_size_spin.value(),
                 font_italic=self.comment_default_font_italic_cb.isChecked()
             )
-            self.comment_preview_view.fitInView(self.comment_preview_scene.itemsBoundingRect().adjusted(-10, -10, 10, 10), Qt.KeepAspectRatio)
+            self.comment_preview_view.fitInView(self.comment_preview_scene.itemsBoundingRect().adjusted(-10, -10, 10, 10), Qt.AspectRatioMode.KeepAspectRatio)
         
         self._on_setting_ui_changed() 
 
@@ -492,7 +492,7 @@ class SettingsDialog(QDialog):
 
 
     def _on_setting_ui_changed(self, *args):
-        self.button_box.button(QDialogButtonBox.Apply).setEnabled(True)
+        self.button_box.button(QDialogButtonBox.StandardButton.Apply).setEnabled(True)
 
 
     def _pick_color_for_button(self, button: QPushButton, setting_key: str):
@@ -503,7 +503,7 @@ class SettingsDialog(QDialog):
         
         dialog = QColorDialog(self)
         dialog.setCurrentColor(initial_color)
-        if dialog.exec_():
+        if dialog.exec():
             new_color = dialog.selectedColor()
             if new_color.isValid() and new_color.name() != initial_color.name(): 
                 self._update_color_button_display(button, new_color)
@@ -615,7 +615,7 @@ class SettingsDialog(QDialog):
         self._update_default_item_previews() 
 
         for widget in all_widgets_with_signals: widget.blockSignals(False)
-        self.button_box.button(QDialogButtonBox.Apply).setEnabled(False) 
+        self.button_box.button(QDialogButtonBox.StandardButton.Apply).setEnabled(False) 
 
 
     def apply_settings(self):
@@ -665,7 +665,7 @@ class SettingsDialog(QDialog):
 
 
     def accept_settings(self):
-        if self.button_box.button(QDialogButtonBox.Apply).isEnabled(): 
+        if self.button_box.button(QDialogButtonBox.StandardButton.Apply).isEnabled(): 
             self.apply_settings()
         self.accept()
 
@@ -673,18 +673,18 @@ class SettingsDialog(QDialog):
         reply = QMessageBox.question(self, "Reset Settings",
                                      "Are you sure you want to reset all settings to their default values? "
                                      "This cannot be undone and may require an application restart.",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
             self.settings_manager.reset_to_defaults()
             self.load_settings_to_ui() 
             QMessageBox.information(self, "Settings Reset", "All settings have been reset to defaults. Please restart the application if necessary.")
 
     def reject(self):
-        if self.button_box.button(QDialogButtonBox.Apply).isEnabled():
+        if self.button_box.button(QDialogButtonBox.StandardButton.Apply).isEnabled():
             reply = QMessageBox.question(self, "Discard Changes?",
                                          "You have unsaved changes in the preferences. Discard them?",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.No:
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.No:
                 return 
         super().reject()
     
@@ -749,7 +749,7 @@ class ThemeEditDialog(QDialog):
 
         self.setWindowTitle(f"Edit Theme: {theme_name}")
         self.setMinimumSize(500, 450)
-        self.setWindowIcon(get_standard_icon(QStyle.SP_DesktopIcon, "Palette"))
+        self.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_DesktopIcon, "Palette"))
 
         layout = QVBoxLayout(self)
         form_layout = QFormLayout()
@@ -773,7 +773,7 @@ class ThemeEditDialog(QDialog):
         layout.addWidget(preview_group)
         self._update_preview()
 
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
@@ -804,8 +804,8 @@ class ThemeEditDialog(QDialog):
         accent_color = derived_theme.get("COLOR_ACCENT_PRIMARY", "#0000ff")
         
         palette = self.preview_label.palette()
-        palette.setColor(QPalette.Window, QColor(bg_color))
-        palette.setColor(QPalette.WindowText, QColor(text_color))
+        palette.setColor(QPalette.ColorRole.Window, QColor(bg_color))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(text_color))
         self.preview_label.setPalette(palette)
         self.preview_label.setText(f"This is <b style='color:{accent_color};'>accented text.</b>")
     
@@ -822,4 +822,3 @@ class ThemeEditDialog(QDialog):
             logger.error("ThemeManager is missing 'derive_theme_from_palette' method. Returning core palette.")
             return self.core_palette
         return self.theme_manager.derive_theme_from_palette(self.core_palette)
-

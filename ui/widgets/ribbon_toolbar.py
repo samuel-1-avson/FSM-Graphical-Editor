@@ -1,15 +1,15 @@
-# fsm_designer_project/ui/widgets/ribbon_toolbar.py
-
-from PyQt5.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QToolButton, 
+from PyQt6.QtWidgets import (
+    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QToolButton,
     QLabel, QFrame, QButtonGroup, QSizePolicy, QMenu, QComboBox,
     QLineEdit, QSpacerItem, QGraphicsDropShadowEffect, QApplication,
     QGraphicsOpacityEffect
 )
-from PyQt5.QtCore import Qt, QSize, pyqtSignal, QPropertyAnimation, QEasingCurve, QRect, QTimer, QParallelAnimationGroup, QAbstractAnimation
-from PyQt5.QtGui import QIcon, QColor, QFont, QPainter, QPalette, QFontMetrics, QPixmap, QPainterPath
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QPropertyAnimation, QEasingCurve, QRect, QTimer, QParallelAnimationGroup, QAbstractAnimation
+from PyQt6.QtGui import QIcon, QColor, QFont, QPainter, QPalette, QFontMetrics, QPixmap, QPainterPath, QAction
 
 from ...utils import get_standard_icon
+
+
 
 # Enhanced Professional Stylesheet
 PROFESSIONAL_STYLESHEET = """
@@ -303,24 +303,24 @@ class ProfessionalButton(QToolButton):
     def _setup_button(self):
         """Configure button properties with professional styling"""
         if self.is_large:
-            self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
             self.setIconSize(QSize(32, 32))  # Larger, clearer icons
             self.setMinimumSize(QSize(80, 76))
             self.setMaximumSize(QSize(90, 76))
         else:
-            self.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             self.setIconSize(QSize(16, 16))
             self.setMinimumSize(QSize(80, 26))
             self.setMaximumHeight(26)
         
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         
         # Enhanced tooltips
         if hasattr(self.defaultAction(), 'toolTip') and self.defaultAction().toolTip():
             self.setToolTip(self.defaultAction().toolTip())
         
         # Professional cursor
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def _setup_animations(self):
         """Setup hover animations"""
@@ -329,7 +329,7 @@ class ProfessionalButton(QToolButton):
         
         self.animation = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.animation.setDuration(200)
-        self.animation.setEasingCurve(QEasingCurve.OutCubic)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
     def enterEvent(self, event):
         """Enhanced hover effect"""
@@ -354,7 +354,7 @@ class ProfessionalSplitButton(QWidget):
         super().__init__(parent)
         self._setup_layout()
         self._create_buttons(main_action, menu_actions)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def _setup_layout(self):
         """Setup the layout with proper spacing"""
@@ -367,18 +367,18 @@ class ProfessionalSplitButton(QWidget):
         # Main button with better styling
         self.main_button = QToolButton()
         self.main_button.setDefaultAction(main_action)
-        self.main_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.main_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         self.main_button.setIconSize(QSize(32, 32))
         self.main_button.setMinimumSize(QSize(64, 76))
-        self.main_button.setCursor(Qt.PointingHandCursor)
+        self.main_button.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Modern dropdown button
         self.dropdown_button = QToolButton()
         self.dropdown_button.setText("⌄")  # Better dropdown arrow
         self.dropdown_button.setMaximumWidth(18)
         self.dropdown_button.setMinimumHeight(76)
-        self.dropdown_button.setPopupMode(QToolButton.InstantPopup)
-        self.dropdown_button.setCursor(Qt.PointingHandCursor)
+        self.dropdown_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.dropdown_button.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Enhanced menu styling
         menu = QMenu(self)
@@ -387,7 +387,7 @@ class ProfessionalSplitButton(QWidget):
         
         # Add subtle visual separation
         separator = QFrame()
-        separator.setFrameStyle(QFrame.VLine | QFrame.Plain)
+        separator.setFrameStyle(QFrame.Shape.VLine | QFrame.Shadow.Plain)
         separator.setMaximumWidth(1)
         separator.setStyleSheet("color: #dee2e6; margin: 8px 0px;")
         
@@ -401,7 +401,7 @@ class ProfessionalGroup(QFrame):
     def __init__(self, title, parent=None):
         super().__init__(parent)
         self.setObjectName("RibbonGroup")
-        self.setFrameStyle(QFrame.NoFrame)
+        self.setFrameStyle(QFrame.Shape.NoFrame)
         self.title = title
         self._setup_layout()
         self._apply_professional_styling()
@@ -422,11 +422,11 @@ class ProfessionalGroup(QFrame):
         
         # Professional title with better typography
         title_label = QLabel(self.title)
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setWordWrap(True)
         
         # Enhanced typography
-        font = QFont("Segoe UI", 9, QFont.Medium)
+        font = QFont("Segoe UI", 9, QFont.Weight.Medium)
         title_label.setFont(font)
         title_label.setStyleSheet("""
             color: #6c757d;
@@ -489,7 +489,7 @@ class ProfessionalGroup(QFrame):
     def add_separator(self):
         """Add a modern vertical separator"""
         separator = QFrame()
-        separator.setFrameStyle(QFrame.VLine | QFrame.Plain)
+        separator.setFrameStyle(QFrame.Shape.VLine | QFrame.Shadow.Plain)
         separator.setObjectName("RibbonSeparator")
         separator.setMaximumWidth(1)
         separator.setContentsMargins(0, 10, 0, 10)
@@ -523,10 +523,10 @@ class ProfessionalInputGroup(QWidget):
         
         # Professional title with enhanced typography
         title_label = QLabel(title)
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setWordWrap(True)
         
-        font = QFont("Segoe UI", 9, QFont.Medium)
+        font = QFont("Segoe UI", 9, QFont.Weight.Medium)
         title_label.setFont(font)
         title_label.setStyleSheet("""
             color: #6c757d;
@@ -552,7 +552,7 @@ class ProfessionalInputGroup(QWidget):
         
         combo.setMinimumWidth(110)
         combo.setMaximumHeight(26)
-        combo.setCursor(Qt.PointingHandCursor)
+        combo.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Enhanced styling
         combo.setStyleSheet("""
@@ -625,7 +625,7 @@ class ProfessionalTab(QWidget):
         
         self.fade_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.fade_animation.setDuration(300)
-        self.fade_animation.setEasingCurve(QEasingCurve.OutCubic)
+        self.fade_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
     def add_group(self, group):
         """Add a group with professional separator"""
@@ -633,15 +633,16 @@ class ProfessionalTab(QWidget):
         
         # Modern separator with better styling
         separator = QFrame()
-        separator.setFrameStyle(QFrame.VLine | QFrame.Plain)
+        separator.setFrameStyle(QFrame.Shape.VLine | QFrame.Shadow.Plain)
         separator.setObjectName("RibbonSeparator")
+        separator.setMaximumWidth(1)
+        separator.setContentsMargins(0, 10, 0, 10)
         separator.setStyleSheet("""
             #RibbonSeparator {
                 color: #e9ecef;
                 background: #e9ecef;
                 border: none;
-                margin: 6px 4px;
-                max-width: 1px;
+                margin: 10px 6px;
             }
         """)
         self.layout.insertWidget(self.layout.count() - 1, separator)
@@ -708,10 +709,10 @@ class ProfessionalRibbon(QWidget):
         self.file_button = QToolButton()
         self.file_button.setText("File")
         self.file_button.setCheckable(True)
-        self.file_button.setPopupMode(QToolButton.InstantPopup)
+        self.file_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.file_button.setObjectName("FileButton")
         self.file_button.setFixedSize(52, 30)
-        self.file_button.setCursor(Qt.PointingHandCursor)
+        self.file_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.file_button.clicked.connect(self._on_file_button_clicked)
         
         # Enhanced tooltip
@@ -761,7 +762,7 @@ class ProfessionalRibbon(QWidget):
     def _create_enhanced_content_area(self):
         """Create enhanced content area"""
         self.content_area = QFrame()
-        self.content_area.setFrameShape(QFrame.NoFrame)
+        self.content_area.setFrameShape(QFrame.Shape.NoFrame)
         self.content_area.setObjectName("RibbonContentArea")
         self.content_area.setFixedHeight(108)
         
@@ -774,7 +775,7 @@ class ProfessionalRibbon(QWidget):
         button.setCheckable(True)
         button.setObjectName("RibbonTabButton")
         button.setFixedHeight(30)
-        button.setCursor(Qt.PointingHandCursor)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Calculate optimal width based on text
         font_metrics = QFontMetrics(button.font())
@@ -915,8 +916,8 @@ class ProfessionalRibbon(QWidget):
         quick_button.setDefaultAction(action)
         quick_button.setIconSize(QSize(18, 18))
         quick_button.setFixedSize(28, 28)
-        quick_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        quick_button.setCursor(Qt.PointingHandCursor)
+        quick_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        quick_button.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Enhanced styling for quick access
         quick_button.setStyleSheet("""
@@ -971,12 +972,12 @@ class ProfessionalColorButton(QToolButton):
     
     color_changed = pyqtSignal(QColor)
     
-    def __init__(self, color=Qt.black, parent=None):
+    def __init__(self, color=Qt.GlobalColor.black, parent=None):
         super().__init__(parent)
         self.current_color = QColor(color)
         self.setFixedSize(28, 28)
-        self.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clicked.connect(self._show_color_dialog)
         self._update_color_display()
         
@@ -1011,7 +1012,7 @@ class ProfessionalColorButton(QToolButton):
 
     def _show_color_dialog(self):
         """Show enhanced color picker"""
-        from PyQt5.QtWidgets import QColorDialog
+        from PyQt6.QtWidgets import QColorDialog
         color = QColorDialog.getColor(self.current_color, self, "Choose Color")
         if color.isValid():
             self.current_color = color
@@ -1039,7 +1040,7 @@ class ProfessionalSpinBox(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        from PyQt5.QtWidgets import QSpinBox
+        from PyQt6.QtWidgets import QSpinBox
         self.spinbox = QSpinBox()
         self.spinbox.setRange(minimum, maximum)
         self.spinbox.setValue(value)
@@ -1089,18 +1090,17 @@ class ProfessionalRibbonFactory:
     @staticmethod
     def create_enhanced_file_menu():
         """Create enhanced professional file menu"""
-        from PyQt5.QtWidgets import QAction
-        from PyQt5.QtGui import QKeySequence
+        from PyQt6.QtGui import QKeySequence
         menu = QMenu()
         
         # File actions with better organization
         new_action = QAction("🗋  New", menu)
-        new_action.setShortcut(QKeySequence.New)
+        new_action.setShortcut(QKeySequence.StandardKey.New)
         new_action.setToolTip("Create a new document (Ctrl+N)")
         menu.addAction(new_action)
         
         open_action = QAction("📁  Open", menu)
-        open_action.setShortcut(QKeySequence.Open)
+        open_action.setShortcut(QKeySequence.StandardKey.Open)
         open_action.setToolTip("Open an existing document (Ctrl+O)")
         menu.addAction(open_action)
         
@@ -1111,12 +1111,12 @@ class ProfessionalRibbonFactory:
         menu.addSeparator()
         
         save_action = QAction("💾  Save", menu)
-        save_action.setShortcut(QKeySequence.Save)
+        save_action.setShortcut(QKeySequence.StandardKey.Save)
         save_action.setToolTip("Save the current document (Ctrl+S)")
         menu.addAction(save_action)
         
         save_as_action = QAction("💾  Save As...", menu)
-        save_as_action.setShortcut(QKeySequence.SaveAs)
+        save_as_action.setShortcut(QKeySequence.StandardKey.SaveAs)
         save_as_action.setToolTip("Save document with a new name (Ctrl+Shift+S)")
         menu.addAction(save_as_action)
         
@@ -1135,7 +1135,7 @@ class ProfessionalRibbonFactory:
         menu.addSeparator()
         
         exit_action = QAction("🚪  Exit", menu)
-        exit_action.setShortcut(QKeySequence.Quit)
+        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
         exit_action.setToolTip("Exit the application (Ctrl+Q)")
         menu.addAction(exit_action)
         
@@ -1144,30 +1144,29 @@ class ProfessionalRibbonFactory:
     @staticmethod
     def create_enhanced_edit_group():
         """Create enhanced professional edit group"""
-        from PyQt5.QtWidgets import QAction
-        from PyQt5.QtGui import QKeySequence
+        from PyQt6.QtGui import QKeySequence
         
         group = ProfessionalGroup("Edit")
         
         # Edit actions with better icons and tooltips
         undo_action = QAction("↶  Undo", group)
-        undo_action.setShortcut(QKeySequence.Undo)
+        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         undo_action.setToolTip("Undo the last action (Ctrl+Z)")
         
         redo_action = QAction("↷  Redo", group)
-        redo_action.setShortcut(QKeySequence.Redo)
+        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
         redo_action.setToolTip("Redo the last undone action (Ctrl+Y)")
         
         cut_action = QAction("✂️  Cut", group)
-        cut_action.setShortcut(QKeySequence.Cut)
+        cut_action.setShortcut(QKeySequence.StandardKey.Cut)
         cut_action.setToolTip("Cut selection to clipboard (Ctrl+X)")
         
         copy_action = QAction("📋  Copy", group)
-        copy_action.setShortcut(QKeySequence.Copy)
+        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
         copy_action.setToolTip("Copy selection to clipboard (Ctrl+C)")
         
         paste_action = QAction("📄  Paste", group)
-        paste_action.setShortcut(QKeySequence.Paste)
+        paste_action.setShortcut(QKeySequence.StandardKey.Paste)
         paste_action.setToolTip("Paste from clipboard (Ctrl+V)")
         
         # Add to group with professional layout
@@ -1180,24 +1179,23 @@ class ProfessionalRibbonFactory:
     @staticmethod
     def create_enhanced_format_group():
         """Create enhanced professional format group"""
-        from PyQt5.QtWidgets import QAction
-        from PyQt5.QtGui import QKeySequence
+        from PyQt6.QtGui import QKeySequence
         
         group = ProfessionalGroup("Format")
         
         # Format actions with better visual indicators
         bold_action = QAction("𝐁  Bold", group)
-        bold_action.setShortcut(QKeySequence.Bold)
+        bold_action.setShortcut(QKeySequence.StandardKey.Bold)
         bold_action.setCheckable(True)
         bold_action.setToolTip("Make text bold (Ctrl+B)")
         
         italic_action = QAction("𝐼  Italic", group)
-        italic_action.setShortcut(QKeySequence.Italic)
+        italic_action.setShortcut(QKeySequence.StandardKey.Italic)
         italic_action.setCheckable(True)
         italic_action.setToolTip("Make text italic (Ctrl+I)")
         
         underline_action = QAction("U̲  Underline", group)
-        underline_action.setShortcut(QKeySequence.Underline)
+        underline_action.setShortcut(QKeySequence.StandardKey.Underline)
         underline_action.setCheckable(True)
         underline_action.setToolTip("Underline text (Ctrl+U)")
         
@@ -1209,7 +1207,7 @@ class ProfessionalRibbonFactory:
     @staticmethod
     def create_enhanced_view_group():
         """Create enhanced professional view group"""
-        from PyQt5.QtWidgets import QAction
+        from PyQt6.QtGui import QAction
         
         group = ProfessionalGroup("View")
         
@@ -1250,7 +1248,7 @@ def create_enhanced_fsm_ribbon():
     
     # Enhanced States group
     states_group = ProfessionalGroup("States")
-    from PyQt5.QtWidgets import QAction
+    from PyQt6.QtGui import QAction
     
     add_state_action = QAction("➕  Add State", states_group)
     add_state_action.setToolTip("Add a new state to the diagram (Ctrl+Shift+S)")

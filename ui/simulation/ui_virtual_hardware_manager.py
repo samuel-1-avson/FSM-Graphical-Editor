@@ -1,9 +1,11 @@
+# fsm_designer_project/ui/simulation/ui_virtual_hardware_manager.py
+
 import logging
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QFormLayout, QLabel, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QFormLayout, QLabel, 
                              QSlider, QComboBox, QPushButton, QProgressBar, QFrame, QGridLayout,
                              QScrollArea, QSizePolicy, QSpacerItem)
-from PyQt5.QtCore import Qt, pyqtSlot, QObject, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt6.QtCore import Qt, pyqtSlot, QObject, QTimer
+from PyQt6.QtGui import QFont, QPalette, QColor
 from ..widgets.virtual_hardware_widgets import (VirtualLedWidget, VirtualButtonWidget, 
                                                 VirtualSliderWidget, VirtualGaugeWidget)
 from ...utils.config import (COLOR_TEXT_SECONDARY, APP_FONT_SIZE_SMALL, COLOR_ACCENT_SUCCESS, 
@@ -58,8 +60,8 @@ class VirtualHardwareUIManager(QObject):
 
     def _create_separator_line(self) -> QFrame:
         line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
         line.setStyleSheet("color: #555555;")
         return line
 
@@ -78,7 +80,7 @@ class VirtualHardwareUIManager(QObject):
     def create_dock_widget_contents(self) -> QWidget:
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #2a2a2a; }")
         
         container_widget = QWidget()
@@ -214,7 +216,7 @@ class VirtualHardwareUIManager(QObject):
             slider_key = f"Slider{i}"
             slider_container = QWidget()
             slider_container_layout = QHBoxLayout(slider_container)
-            slider = VirtualSliderWidget(Qt.Horizontal)
+            slider = VirtualSliderWidget(Qt.Orientation.Horizontal)
             slider.setRange(0, 1023)
             slider.setStyleSheet("""
                 QSlider::groove:horizontal {

@@ -3,12 +3,12 @@
 Modern status bar with enhanced visuals and information display.
 """
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QStatusBar, QWidget, QHBoxLayout, QLabel, QProgressBar,
-    QToolButton, QFrame, QVBoxLayout
+    QToolButton, QFrame, QVBoxLayout, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal, QPoint
-from PyQt5.QtGui import QFont, QIcon, QPalette, QColor, QPixmap, QPainter, QBrush
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal, QPoint
+from PyQt6.QtGui import QFont, QIcon, QPalette, QColor, QPixmap, QPainter, QBrush
 from ...utils import config
 from ...utils.config import (
     COLOR_ACCENT_PRIMARY, COLOR_BACKGROUND_LIGHT, COLOR_TEXT_PRIMARY,
@@ -62,11 +62,12 @@ class StatusIndicator(QWidget):
         
         # Create status icon
         pixmap = QPixmap(16, 16)
-        pixmap.fill(Qt.transparent)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
         painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setBrush(QBrush(QColor(color)))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(2, 2, 12, 12)
         painter.end()
         
@@ -80,7 +81,7 @@ class StatusIndicator(QWidget):
         # Fade animation
         self.effect = self.graphicsEffect()
         if not self.effect:
-            from PyQt5.QtWidgets import QGraphicsOpacityEffect
+            from PyQt6.QtWidgets import QGraphicsOpacityEffect
             self.effect = QGraphicsOpacityEffect()
             self.setGraphicsEffect(self.effect)
             
@@ -113,7 +114,7 @@ class ModernStatusBar(QStatusBar):
         
         # Add stretcher
         empty = QWidget()
-        empty.setSizePolicy(empty.sizePolicy().horizontalPolicy(), empty.sizePolicy().verticalPolicy())
+        empty.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.addWidget(empty, 1)
         
         # Right side widgets
@@ -130,13 +131,13 @@ class ModernStatusBar(QStatusBar):
         # Coordinates display
         self.coords_widget = self.create_info_item("Coordinates:", "0, 0")
         self.coords_widget.mousePressEvent = lambda e: self.coordinatesClicked.emit()
-        self.coords_widget.setCursor(Qt.PointingHandCursor)
+        self.coords_widget.setCursor(Qt.CursorShape.PointingHandCursor)
         right_layout.addWidget(self.coords_widget)
         
         # Zoom display
         self.zoom_widget = self.create_info_item("Zoom:", "100%")
         self.zoom_widget.mousePressEvent = lambda e: self.zoomClicked.emit()
-        self.zoom_widget.setCursor(Qt.PointingHandCursor)
+        self.zoom_widget.setCursor(Qt.CursorShape.PointingHandCursor)
         right_layout.addWidget(self.zoom_widget)
         
         # Selection info
@@ -145,7 +146,7 @@ class ModernStatusBar(QStatusBar):
         
         # Add separator
         separator = QFrame()
-        separator.setFrameShape(QFrame.VLine)
+        separator.setFrameShape(QFrame.Shape.VLine)
         separator.setObjectName("StatusBarSeparator")
         right_layout.addWidget(separator)
         
@@ -217,21 +218,27 @@ class ModernStatusBar(QStatusBar):
         """Update performance indicators."""
         try:
             # --- FIX: Wrap in try-except to handle potential OS errors ---
-            cpu_percent = psutil.cpu_percent(interval=0.1)
-            self.cpu_bar.setValue(int(cpu_percent))
+            try:
+                cpu_percent = psutil.cpu_percent(interval=0.1)
+                self.cpu_bar.setValue(int(cpu_percent))
             
-            if cpu_percent > 80: color = COLOR_ACCENT_ERROR
-            elif cpu_percent > 60: color = COLOR_ACCENT_WARNING
-            else: color = COLOR_ACCENT_SUCCESS
+                if cpu_percent > 80: color = COLOR_ACCENT_ERROR
+                elif cpu_percent > 60: color = COLOR_ACCENT_WARNING
+                else: color = COLOR_ACCENT_SUCCESS
                 
-            self.cpu_bar.setStyleSheet(f"""
-                QProgressBar::chunk {{
-                    background-color: {color}; border-radius: 5px;
-                }}
-            """)
+                self.cpu_bar.setStyleSheet(f"""
+                    QProgressBar::chunk {{
+                        background-color: {color}; border-radius: 5px;
+                    }}
+                """)
             
-            mem_percent = psutil.virtual_memory().percent
-            self.mem_bar.setValue(int(mem_percent))
+                mem_percent = psutil.virtual_memory().percent
+                self.mem_bar.setValue(int(mem_percent))
+            except (ImportError, psutil.Error) as e:
+                # psutil not available or failed
+                self.perf_timer.stop()
+                self.performance_widget.hide()
+                logger.warning(f"Stopping status bar performance monitor due to error: {e}")
             # --- END FIX ---
             
         except (ImportError, psutil.Error) as e:

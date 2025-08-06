@@ -2,7 +2,7 @@
 import os
 import json
 import logging
-from PyQt5.QtCore import QStandardPaths, QDir
+from PyQt6.QtCore import QStandardPaths, QDir
 
 logger = logging.getLogger(__name__)
 
@@ -13,14 +13,16 @@ class CustomSnippetManager:
         self.app_name = app_name
         self.custom_assets: dict = {}  # Structure: {lang: {category: {name: code}}}, and a special key "fsm_templates"
 
-        config_path = QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)
+        # --- CORRECTED ENUMS ---
+        config_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppConfigLocation)
         if not config_path: # Fallback if AppConfigLocation is not specific enough
-            config_path = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+            config_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
             if self.app_name and config_path: # Create a subdirectory for the app if using generic AppDataLocation
                 app_dir = QDir(config_path)
                 if not app_dir.exists(self.app_name):
                     app_dir.mkpath(self.app_name)
                 config_path = os.path.join(config_path, self.app_name)
+        # --- END CORRECTION ---
 
         if not config_path: # Further fallback to current working directory (less ideal)
             logger.warning("Could not determine a standard config path. Using current directory for assets.")

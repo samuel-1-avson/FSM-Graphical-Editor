@@ -4,14 +4,14 @@ import sys
 import platform
 import psutil
 import os
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QPushButton, QDialogButtonBox,
     QHBoxLayout, QLabel, QStyle, QListWidget, QListWidgetItem,
-    QGraphicsItem, QLineEdit, QComboBox, QTextEdit, QGraphicsScene, QGraphicsView, QMessageBox, QAction,
+    QGraphicsItem, QLineEdit, QComboBox, QTextEdit, QGraphicsScene, QGraphicsView, QMessageBox,
     QTabWidget, QWidget, QTextBrowser, QInputDialog
 )
-from PyQt5.QtGui import QIcon, QKeyEvent, QPixmap, QPainter, QDesktopServices
-from PyQt5.QtCore import Qt, pyqtSignal, QVariant, QStandardPaths, QUrl
+from PyQt6.QtGui import QKeyEvent, QPixmap, QPainter, QDesktopServices, QAction
+from PyQt6.QtCore import Qt, pyqtSignal, QVariant, QStandardPaths, QUrl
 
 from ..widgets.code_editor import CodeEditor
 from ...utils import get_standard_icon
@@ -31,8 +31,8 @@ class FindItemDialog(QDialog):
         super().__init__(parent)
         self.scene_ref = scene_ref
         self.setWindowTitle("Find Item")
-        self.setWindowIcon(get_standard_icon(QStyle.SP_FileDialogContentsView, "Find"))
-        self.setWindowFlags((self.windowFlags() & ~Qt.WindowContextHelpButtonHint) | Qt.WindowStaysOnTopHint)
+        self.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogContentsView, "Find"))
+        self.setWindowFlags((self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint) | Qt.WindowType.WindowStaysOnTopHint)
         self.setMinimumWidth(350)
         self.setStyleSheet(f"QDialog {{ background-color: {COLOR_BACKGROUND_DIALOG}; }}")
         layout = QVBoxLayout(self)
@@ -68,7 +68,7 @@ class FindItemDialog(QDialog):
         for item in self.scene_ref.items():
             if hasattr(item, 'get_data'): # Filter for our custom items
                 list_item = QListWidgetItem(self._get_item_display_text(item))
-                list_item.setData(Qt.UserRole, QVariant(item))
+                list_item.setData(Qt.ItemDataRole.UserRole, QVariant(item))
                 all_items_with_text.append(list_item)
         all_items_with_text.sort(key=lambda x: x.text())
         for list_item_widget in all_items_with_text:
@@ -94,7 +94,7 @@ class FindItemDialog(QDialog):
             if search_term in searchable_text: item_matches = True
             if item_matches:
                 list_item = QListWidgetItem(self._get_item_display_text(item))
-                list_item.setData(Qt.UserRole, QVariant(item))
+                list_item.setData(Qt.ItemDataRole.UserRole, QVariant(item))
                 matching_list_items.append(list_item)
         matching_list_items.sort(key=lambda x: x.text())
         for list_item_widget in matching_list_items:
@@ -102,7 +102,7 @@ class FindItemDialog(QDialog):
 
     def _on_item_activated(self, list_item_widget: QListWidgetItem):
         if list_item_widget:
-            stored_item_variant = list_item_widget.data(Qt.UserRole)
+            stored_item_variant = list_item_widget.data(Qt.ItemDataRole.UserRole)
             if stored_item_variant is not None:
                 actual_item = stored_item_variant
                 if actual_item: self.item_selected_for_focus.emit(actual_item)
@@ -115,11 +115,11 @@ class FindItemDialog(QDialog):
     def refresh_list(self): self._update_results_list()
     
     def keyPressEvent(self, event: QKeyEvent):
-        if event.key() == Qt.Key_Escape: self.reject()
-        elif event.key() in (Qt.Key_Up, Qt.Key_Down) and self.results_list.count() > 0:
+        if event.key() == Qt.Key.Key_Escape: self.reject()
+        elif event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down) and self.results_list.count() > 0:
             self.results_list.setFocus()
             if self.results_list.currentRow() == -1:
-                self.results_list.setCurrentRow(0 if event.key() == Qt.Key_Down else self.results_list.count() - 1)
+                self.results_list.setCurrentRow(0 if event.key() == Qt.Key.Key_Down else self.results_list.count() - 1)
         else: super().keyPressEvent(event)
 
 
@@ -129,7 +129,7 @@ class SnippetManagerDialog(QDialog):
         super().__init__(parent)
         self.snippet_manager = snippet_manager
         self.setWindowTitle("Custom Asset Manager")
-        self.setWindowIcon(get_standard_icon(QStyle.SP_ToolBarHorizontalExtensionButton, "SnipMgr"))
+        self.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_ToolBarHorizontalExtensionButton, "SnipMgr"))
         self.setMinimumSize(700, 500)
 
         main_layout = QVBoxLayout(self)
@@ -145,7 +145,7 @@ class SnippetManagerDialog(QDialog):
         template_widget = self._create_template_tab()
         self.tabs.addTab(template_widget, "FSM Templates")
         
-        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(self.reject)
         main_layout.addWidget(button_box)
         
@@ -182,9 +182,9 @@ class SnippetManagerDialog(QDialog):
         right_layout = QVBoxLayout(right_panel)
 
         button_layout = QHBoxLayout()
-        self.add_button = QPushButton(get_standard_icon(QStyle.SP_DialogApplyButton, "Add"), "Add New...")
-        self.edit_button = QPushButton(get_standard_icon(QStyle.SP_FileLinkIcon, "Edit"), "Edit...")
-        self.delete_button = QPushButton(get_standard_icon(QStyle.SP_TrashIcon, "Del"), "Delete")
+        self.add_button = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_DialogApplyButton, "Add"), "Add New...")
+        self.edit_button = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "Edit"), "Edit...")
+        self.delete_button = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_TrashIcon, "Del"), "Delete")
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.edit_button)
         button_layout.addStretch()
@@ -223,9 +223,9 @@ class SnippetManagerDialog(QDialog):
         
         # --- START MODIFICATION ---
         template_button_layout = QHBoxLayout()
-        self.rename_template_button = QPushButton(get_standard_icon(QStyle.SP_FileLinkIcon, "Edit"), "Rename...")
+        self.rename_template_button = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "Edit"), "Rename...")
         self.rename_template_button.clicked.connect(self.on_rename_template)
-        self.delete_template_button = QPushButton(get_standard_icon(QStyle.SP_TrashIcon, "Del"), "Delete")
+        self.delete_template_button = QPushButton(get_standard_icon(QStyle.StandardPixmap.SP_TrashIcon, "Del"), "Delete")
         self.delete_template_button.clicked.connect(self.on_delete_template)
         template_button_layout.addStretch()
         template_button_layout.addWidget(self.rename_template_button)
@@ -274,7 +274,7 @@ class SnippetManagerDialog(QDialog):
         language = self.lang_combo.currentText()
         category = self.cat_combo.currentText()
         dialog = SnippetEditDialog(self, language, category)
-        if dialog.exec_():
+        if dialog.exec():
             data = dialog.get_snippet_data()
             if self.snippet_manager.add_custom_snippet(language, category, data["name"], data["code"]):
                 self.on_selection_changed()
@@ -289,7 +289,7 @@ class SnippetManagerDialog(QDialog):
         category = self.cat_combo.currentText()
         old_code = self.snippet_manager.get_snippet_code(language, category, old_name)
         dialog = SnippetEditDialog(self, language, category, old_name, old_code)
-        if dialog.exec_():
+        if dialog.exec():
             data = dialog.get_snippet_data()
             if self.snippet_manager.edit_custom_snippet(language, category, old_name, data["name"], data["code"]):
                 self.on_selection_changed()
@@ -303,8 +303,8 @@ class SnippetManagerDialog(QDialog):
         language = self.lang_combo.currentText()
         category = self.cat_combo.currentText()
         reply = QMessageBox.question(self, "Delete Snippet", f"Are you sure you want to delete the snippet '{name}'?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
             if self.snippet_manager.delete_custom_snippet(language, category, name):
                 self.on_selection_changed()
             else:
@@ -359,8 +359,8 @@ class SnippetManagerDialog(QDialog):
         if not current_item: return
         name = current_item.text()
         reply = QMessageBox.question(self, "Delete Template", f"Are you sure you want to delete the FSM template '{name}'?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
             if self.snippet_manager.delete_custom_template(name):
                 self.on_template_selection_changed()
             else:
@@ -372,7 +372,7 @@ class SnippetEditDialog(QDialog):
     def __init__(self, parent=None, language="", category="", snippet_name="", snippet_code=""):
         super().__init__(parent)
         self.setWindowTitle("Edit Snippet" if snippet_name else "Add Snippet")
-        self.setWindowIcon(get_standard_icon(QStyle.SP_DialogApplyButton, "SnipEdit"))
+        self.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_DialogApplyButton, "SnipEdit"))
         self.setMinimumWidth(500)
 
         layout = QFormLayout(self)
@@ -393,7 +393,7 @@ class SnippetEditDialog(QDialog):
         self.code_edit.setMinimumHeight(120)
         layout.addRow("Snippet Code:", self.code_edit)
 
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.on_accept)
         self.button_box.rejected.connect(self.reject)
         layout.addRow(self.button_box)
@@ -420,12 +420,12 @@ class AutoLayoutPreviewDialog(QDialog):
         scene = QGraphicsScene(self)
         scene.addPixmap(preview_pixmap)
         view = QGraphicsView(scene)
-        view.setRenderHint(QPainter.Antialiasing)
-        view.setDragMode(QGraphicsView.ScrollHandDrag)
+        view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         layout.addWidget(view)
         
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = button_box.button(QDialogButtonBox.Ok)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
         if ok_button: ok_button.setText("Apply")
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -450,8 +450,8 @@ class ImportFromTextDialog(QDialog):
         self.text_editor.setPlaceholderText("Paste your PlantUML or Mermaid state diagram code here...")
         layout.addWidget(self.text_editor)
         
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.button(QDialogButtonBox.Ok).setText("Import")
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.button(QDialogButtonBox.StandardButton.Ok).setText("Import")
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
@@ -474,7 +474,7 @@ class SystemInfoDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("System Information")
-        self.setWindowIcon(get_standard_icon(QStyle.SP_ComputerIcon, "HostInfo"))
+        self.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_ComputerIcon, "HostInfo"))
         self.setMinimumSize(550, 450)
 
         layout = QVBoxLayout(self)
@@ -488,7 +488,7 @@ class SystemInfoDialog(QDialog):
         button_layout.addWidget(self.open_dir_button)
         button_layout.addStretch()
 
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         self.button_box.rejected.connect(self.reject)
         button_layout.addWidget(self.button_box)
         layout.addLayout(button_layout)
@@ -497,9 +497,9 @@ class SystemInfoDialog(QDialog):
 
     def _get_config_path(self) -> str:
         """Helper to get the config path, consistent with other managers."""
-        path = QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)
+        path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppConfigLocation)
         if not path:
-            path = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+            path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
         return path or "Not Found"
 
     def _on_open_config_dir(self):
@@ -598,7 +598,7 @@ class QuickAccessSettingsDialog(QDialog):
         main_hbox.addLayout(right_vbox)
         layout.addLayout(main_hbox)
 
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)

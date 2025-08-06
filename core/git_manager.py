@@ -11,7 +11,7 @@ import logging
 import os
 import subprocess
 from typing import List, Callable
-from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QMetaObject, Qt, Q_ARG
+from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QMetaObject, Qt, Q_ARG
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class GitManager(QObject):
             self._callbacks[command_id] = finished_callback
             
             # Invoke the command on the worker thread via a queued signal
-            QMetaObject.invokeMethod(self.worker, "run_command", Qt.QueuedConnection,
+            QMetaObject.invokeMethod(self.worker, "run_command", Qt.ConnectionType.QueuedConnection,
                                      Q_ARG(str, command_id),
                                      Q_ARG(list, command),
                                      Q_ARG(str, repo_root))

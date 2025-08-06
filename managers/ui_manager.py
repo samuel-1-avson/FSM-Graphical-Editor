@@ -1,17 +1,16 @@
 # fsm_designer_project/managers/ui_manager.py
 
-import sip 
 import os
 import json
-from PyQt5.QtWidgets import (
-    QMainWindow, QDockWidget, QToolBox, QAction, QToolBar, QVBoxLayout, QHBoxLayout, QWidget, QLabel,
-    QStatusBar, QTextEdit, QPushButton, QListWidget, QMenu, QActionGroup, QStyle,
+from PyQt6.QtWidgets import (
+    QMainWindow, QDockWidget, QToolBox, QToolBar, QVBoxLayout, QHBoxLayout, QWidget, QLabel,
+    QStatusBar, QTextEdit, QPushButton, QListWidget, QMenu, QStyle,
     QToolButton, QGroupBox, QComboBox, QProgressBar, QFormLayout, QGraphicsView,
-    QMessageBox, QInputDialog, QLineEdit, QSizePolicy, QTreeView, QFileSystemModel,QSpinBox,
+    QMessageBox, QInputDialog, QLineEdit, QSizePolicy, QTreeView, QSpinBox,
     QDoubleSpinBox, QCheckBox, QColorDialog, QScrollArea, QFrame
 )
-from PyQt5.QtGui import QIcon, QKeySequence, QPalette, QPainter, QColor, QFont
-from PyQt5.QtCore import Qt, QSize, QObject, QPointF, pyqtSlot, QDir, QEvent
+from PyQt6.QtGui import QIcon, QKeySequence, QPalette, QPainter, QColor, QFont, QActionGroup, QAction, QFileSystemModel
+from PyQt6.QtCore import Qt, QSize, QObject, QPointF, pyqtSlot, QDir, QEvent
 
 from ..utils import get_standard_icon, _get_bundled_file_path
 from ..utils.config import (
@@ -71,9 +70,7 @@ class UIManager(QObject):
         self.global_search_handler = None
         self.c_sim_manager = CSimulationManager(main_window)
 
-    # --- NEW: Add the missing helper method here ---
     def _update_dock_color_button_style(self, button: QPushButton, color: QColor):
-        """Sets the background color of the properties dock color button."""
         if not color.isValid():
             return
         luminance = color.lightnessF()
@@ -87,17 +84,17 @@ class UIManager(QObject):
 
     def _safe_get_style_enum(self, attr_name, fallback_attr_name=None):
         try:
-            return getattr(QStyle, attr_name)
+            return getattr(QStyle.StandardPixmap, attr_name)
         except AttributeError:
             if fallback_attr_name:
                 try:
-                    return getattr(QStyle, fallback_attr_name)
+                    return getattr(QStyle.StandardPixmap, fallback_attr_name)
                 except AttributeError:
                     pass
-            return QStyle.SP_CustomBase
+            return QStyle.StandardPixmap.SP_CustomBase
 
     def setup_ui(self):
-        self.mw.setWindowIcon(get_standard_icon(QStyle.SP_DesktopIcon, "BSM"))
+        self.mw.setWindowIcon(get_standard_icon(QStyle.StandardPixmap.SP_DesktopIcon, "BSM"))
         self._create_actions()
         self._create_ribbon()
         self._create_docks()
@@ -121,44 +118,72 @@ class UIManager(QObject):
 
     def _create_actions(self):
         mw = self.mw
-        mw.new_action = QAction(get_standard_icon(QStyle.SP_FileIcon, "New"), "&New Project...", mw, shortcut=QKeySequence.New, statusTip="Create a new project or diagram file")
-        mw.open_action = QAction(get_standard_icon(QStyle.SP_DialogOpenButton, "Opn"), "&Open Project/File...", mw, shortcut=QKeySequence.Open, statusTip="Open an existing project or file")
-        mw.save_action = QAction(get_standard_icon(QStyle.SP_DialogSaveButton, "Sav"), "&Save File", mw, shortcut=QKeySequence.Save, statusTip="Save the current active file", enabled=False)
-        mw.save_as_action = QAction(get_standard_icon(self._safe_get_style_enum("SP_DriveHDIcon", "SP_DialogSaveButton"), "SA"), "Save File &As...", mw, shortcut=QKeySequence.SaveAs, statusTip="Save the current file with a new name")
+        mw.new_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_FileIcon, "New"), "&New Project...", mw)
+        mw.new_action.setShortcut(QKeySequence(QKeySequence.StandardKey.New))
+        mw.new_action.setStatusTip("Create a new project or diagram file")
+
+        mw.open_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogOpenButton, "Opn"), "&Open Project/File...", mw)
+        mw.open_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Open))
+        mw.open_action.setStatusTip("Open an existing project or file")
+
+        mw.save_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogSaveButton, "Sav"), "&Save File", mw)
+        mw.save_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Save))
+        mw.save_action.setStatusTip("Save the current active file")
+        mw.save_action.setEnabled(False)
+
+        mw.save_as_action = QAction(get_standard_icon(self._safe_get_style_enum("SP_DriveHDIcon", "SP_DialogSaveButton"), "SA"), "Save File &As...", mw)
+        mw.save_as_action.setShortcut(QKeySequence(QKeySequence.StandardKey.SaveAs))
+        mw.save_as_action.setStatusTip("Save the current file with a new name")
         mw.save_as_action.setEnabled(False)
-        mw.close_project_action = QAction(get_standard_icon(QStyle.SP_DialogCancelButton, "CloseProj"), "Close Project", mw, statusTip="Close the current project", enabled=False)
-        mw.import_from_text_action = QAction(get_standard_icon(QStyle.SP_FileLinkIcon, "Imp"), "Import from Text...", mw, statusTip="Create a diagram from PlantUML or Mermaid text")
-        mw.exit_action = QAction(get_standard_icon(QStyle.SP_DialogCloseButton, "Exit"), "E&xit", mw, shortcut=QKeySequence.Quit, triggered=mw.close)
-        # --- MODIFICATION: Actions are now defined here but grouped in the new ribbon tab ---
+
+        mw.close_project_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogCancelButton, "CloseProj"), "Close Project", mw)
+        mw.close_project_action.setStatusTip("Close the current project")
+        mw.close_project_action.setEnabled(False)
+
+        mw.import_from_text_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "Imp"), "Import from Text...", mw)
+        mw.import_from_text_action.setStatusTip("Create a diagram from PlantUML or Mermaid text")
+
+        mw.exit_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogCloseButton, "Exit"), "E&xit", mw)
+        mw.exit_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Quit))
+        mw.exit_action.triggered.connect(mw.close)
+
         mw.export_png_action = QAction(get_standard_icon(self._safe_get_style_enum("SP_MediaSave", "Img"), "Export PNG"), "&PNG Image...", mw)
         mw.export_svg_action = QAction(get_standard_icon(self._safe_get_style_enum("SP_MediaSave", "Img"), "Export SVG"), "&SVG Image...", mw)
-        mw.export_simulink_action = QAction(get_standard_icon(QStyle.SP_ComputerIcon, "Simulink"), "&Simulink Model...", mw)
-        mw.generate_c_code_action = QAction(get_standard_icon(QStyle.SP_DialogSaveButton, "C"), "Basic &C/C++ Code...", mw)
-        mw.export_python_fsm_action = QAction(get_standard_icon(QStyle.SP_DialogSaveButton, "Py"), "&Python FSM Class...", mw)
-        mw.export_plantuml_action = QAction(get_standard_icon(QStyle.SP_FileLinkIcon, "Doc"), "&PlantUML...", mw)
-        mw.export_mermaid_action = QAction(get_standard_icon(QStyle.SP_FileLinkIcon, "Doc"), "&Mermaid...", mw)
+        mw.export_simulink_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_ComputerIcon, "Simulink"), "&Simulink Model...", mw)
+        mw.generate_c_code_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogSaveButton, "C"), "Basic &C/C++ Code...", mw)
+        mw.export_python_fsm_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogSaveButton, "Py"), "&Python FSM Class...", mw)
+        mw.export_plantuml_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "Doc"), "&PlantUML...", mw)
+        mw.export_mermaid_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "Doc"), "&Mermaid...", mw)
         testbench_icon = get_standard_icon(self._safe_get_style_enum("SP_FileIcon", "Test"), "Test")
         mw.export_c_testbench_action = QAction(testbench_icon, "C &Testbench...", mw, statusTip="Generate a C test harness for the FSM")
         hdl_icon = get_standard_icon(self._safe_get_style_enum("SP_DriveNetIcon", "SP_ComputerIcon"), "HDL")
         mw.export_vhdl_action = QAction(hdl_icon, "&VHDL Code...", mw, statusTip="Export the FSM as synthesizable VHDL code")
         mw.export_verilog_action = QAction(hdl_icon, "&Verilog Code...", mw, statusTip="Export the FSM as synthesizable Verilog code")
-        mw.generate_matlab_code_action = QAction(get_standard_icon(QStyle.SP_DialogSaveButton, "C++"), "Generate Code from Simulink...", mw)
-        mw.undo_action = QAction(get_standard_icon(QStyle.SP_ArrowBack, "Un"), "&Undo", mw, shortcut=QKeySequence.Undo)
-        mw.redo_action = QAction(get_standard_icon(QStyle.SP_ArrowForward, "Re"), "&Redo", mw, shortcut=QKeySequence.Redo)
-        mw.delete_action = QAction(get_standard_icon(QStyle.SP_TrashIcon, "Del"), "&Delete", mw, shortcut=QKeySequence.Delete)
-        mw.select_all_action = QAction("Select &All", mw, shortcut=QKeySequence.SelectAll)
-        mw.find_item_action = QAction("&Find Item...", mw, shortcut=QKeySequence.Find)
+        mw.generate_matlab_code_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogSaveButton, "C++"), "Generate Code from Simulink...", mw)
+        mw.undo_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_ArrowBack, "Un"), "&Undo", mw)
+        mw.undo_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Undo))
+        mw.redo_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_ArrowForward, "Re"), "&Redo", mw)
+        mw.redo_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Redo))
+        mw.delete_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_TrashIcon, "Del"), "&Delete", mw)
+        mw.delete_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Delete))
+        mw.select_all_action = QAction("Select &All", mw)
+        mw.select_all_action.setShortcut(QKeySequence(QKeySequence.StandardKey.SelectAll))
+        mw.find_item_action = QAction("&Find Item...", mw)
+        mw.find_item_action.setShortcut(QKeySequence(QKeySequence.StandardKey.Find))
         mw.manage_snippets_action = QAction("Manage Custom Snippets...", mw)
         mw.save_selection_as_template_action = QAction("Save Selection as Template...", mw, enabled=False) 
         mw.manage_fsm_templates_action = QAction("Manage FSM Templates...", mw)
-        mw.preferences_action = QAction(get_standard_icon(QStyle.SP_FileDialogDetailedView, "Prefs"), "&Preferences...", mw)
-        mw.log_clear_action = QAction(get_standard_icon(QStyle.SP_DialogResetButton, "Clr"), "Clear Log", mw)
-        mw.log_save_action = QAction(get_standard_icon(QStyle.SP_DialogSaveButton, "SaveLog"), "Save Log As...", mw)
-        mw.log_copy_action = QAction(get_standard_icon(QStyle.SP_FileLinkIcon, "CpyLog"), "Copy All to Clipboard", mw)
+        mw.preferences_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogDetailedView, "Prefs"), "&Preferences...", mw)
+        mw.log_clear_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogResetButton, "Clr"), "Clear Log", mw)
+        mw.log_save_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogSaveButton, "SaveLog"), "Save Log As...", mw)
+        mw.log_copy_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "CpyLog"), "Copy All to Clipboard", mw)
         mw.mode_action_group = QActionGroup(mw); mw.mode_action_group.setExclusive(True)
-        def create_mode_action(name, text, icon_name, shortcut):
-            action = QAction(get_standard_icon(getattr(QStyle, icon_name), shortcut), text, mw, checkable=True)
-            action.setShortcut(shortcut); action.setToolTip(f"Activate {text} mode ({shortcut})")
+        def create_mode_action(name, text, icon_name, shortcut_key):
+            icon_enum = getattr(QStyle.StandardPixmap, icon_name)
+            action = QAction(get_standard_icon(icon_enum, shortcut_key), text, mw)
+            action.setCheckable(True)
+            action.setShortcut(QKeySequence(shortcut_key))
+            action.setToolTip(f"Activate {text} mode ({shortcut_key})")
             mw.mode_action_group.addAction(action)
             return action
         mw.select_mode_action = create_mode_action("select", "Select/Move", "SP_ArrowRight", "S")
@@ -177,8 +202,8 @@ class UIManager(QObject):
         mw.align_actions = [mw.align_left_action, mw.align_center_h_action, mw.align_right_action, mw.align_top_action, mw.align_middle_v_action, mw.align_bottom_action]
         mw.distribute_actions = [mw.distribute_h_action, mw.distribute_v_action]
         for action in mw.align_actions + mw.distribute_actions: action.setEnabled(False)
-        mw.zoom_in_action = QAction("Zoom In", mw, shortcut="Ctrl++")
-        mw.zoom_out_action = QAction("Zoom Out", mw, shortcut="Ctrl+-")
+        mw.zoom_in_action = QAction("Zoom In", mw, shortcut=QKeySequence(QKeySequence.StandardKey.ZoomIn))
+        mw.zoom_out_action = QAction("Zoom Out", mw, shortcut=QKeySequence(QKeySequence.StandardKey.ZoomOut))
         mw.reset_zoom_action = QAction("Reset Zoom/View", mw, shortcut="Ctrl+0")
         mw.zoom_to_selection_action = QAction("Zoom to Selection", mw, enabled=False)
         mw.fit_diagram_action = QAction("Fit Diagram in View", mw)
@@ -189,21 +214,21 @@ class UIManager(QObject):
         mw.show_snap_guidelines_action = QAction("Show Dynamic Snap Guidelines", mw, checkable=True, checked=True)
         mw.save_perspective_action = QAction("Save Current As...", mw)
         mw.reset_perspectives_action = QAction("Reset to Defaults", mw)
-        mw.start_py_sim_action = QAction(get_standard_icon(QStyle.SP_MediaPlay, "Py▶"), "&Start Python Simulation", mw)
-        mw.stop_py_sim_action = QAction(get_standard_icon(QStyle.SP_MediaStop, "Py■"), "S&top Python Simulation", mw, enabled=False)
-        mw.reset_py_sim_action = QAction(get_standard_icon(QStyle.SP_MediaSkipBackward, "Py«"), "&Reset Python Simulation", mw, enabled=False)
-        mw.run_simulation_action = QAction(get_standard_icon(QStyle.SP_MediaPlay, "Run"), "&Run in MATLAB...", mw)
+        mw.start_py_sim_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay, "Py▶"), "&Start Python Simulation", mw)
+        mw.stop_py_sim_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_MediaStop, "Py■"), "S&top Python Simulation", mw, enabled=False)
+        mw.reset_py_sim_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_MediaSkipBackward, "Py«"), "&Reset Python Simulation", mw, enabled=False)
+        mw.run_simulation_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay, "Run"), "&Run in MATLAB...", mw)
         mw.git_commit_action = QAction("Commit...", mw)
         mw.git_push_action = QAction("Push", mw)
         mw.git_pull_action = QAction("Pull", mw)
         mw.git_show_changes_action = QAction("Show Changes...", mw)
         mw.git_actions = [mw.git_commit_action, mw.git_push_action, mw.git_pull_action, mw.git_show_changes_action]
         for action in mw.git_actions: action.setEnabled(False)
-        mw.ide_new_file_action = QAction(get_standard_icon(QStyle.SP_FileIcon, "IDENew"), "New Script", mw)
-        mw.ide_open_file_action = QAction(get_standard_icon(QStyle.SP_DialogOpenButton, "IDEOpn"), "Open Script...", mw)
-        mw.ide_save_file_action = QAction(get_standard_icon(QStyle.SP_DialogSaveButton, "IDESav"), "Save Script", mw)
+        mw.ide_new_file_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_FileIcon, "IDENew"), "New Script", mw)
+        mw.ide_open_file_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogOpenButton, "IDEOpn"), "Open Script...", mw)
+        mw.ide_save_file_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogSaveButton, "IDESav"), "Save Script", mw)
         mw.ide_save_as_file_action = QAction("Save Script As...", mw)
-        mw.ide_run_script_action = QAction(get_standard_icon(QStyle.SP_MediaPlay, "IDERunPy"), "Run Python Script", mw)
+        mw.ide_run_script_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay, "IDERunPy"), "Run Python Script", mw)
         mw.ide_analyze_action = QAction("Analyze with AI", mw)
         mw.ide_analyze_selection_action = QAction("Analyze Selection with AI", mw)
         mw.show_resource_estimation_action = QAction("Resource Estimation", mw, checkable=True)
@@ -211,11 +236,12 @@ class UIManager(QObject):
         mw.ask_ai_to_generate_fsm_action = QAction("Generate FSM from Description...", mw)
         mw.clear_ai_chat_action = QAction("Clear Chat History", mw)
         mw.openai_settings_action = QAction("AI Assistant Settings...", mw)
-        mw.quick_start_action = QAction(get_standard_icon(QStyle.SP_MessageBoxQuestion, "QS"), "&Quick Start Guide", mw)
-        mw.about_action = QAction(get_standard_icon(QStyle.SP_DialogHelpButton, "?"), "&About", mw)
+        mw.quick_start_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxQuestion, "QS"), "&Quick Start Guide", mw)
+        mw.about_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogHelpButton, "?"), "&About", mw)
         mw.customize_quick_access_action = QAction("Customize Quick Access Toolbar...", mw)
-        mw.host_action = QAction(get_standard_icon(QStyle.SP_ComputerIcon, "Host"), "Host", mw)
+        mw.host_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_ComputerIcon, "Host"), "Host", mw)
         logger.debug("UIManager: Actions created.")
+
 
     def _create_ribbon(self):
         mw = self.mw
@@ -230,14 +256,14 @@ class UIManager(QObject):
         self.quick_toolbar = QToolBar("Quick Access")
         self.quick_toolbar.setMovable(False)
         self.quick_toolbar.setFixedHeight(28)
-        mw.addToolBar(Qt.TopToolBarArea, self.quick_toolbar)
+        mw.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.quick_toolbar)
 
         mw.ribbon = ProfessionalRibbon(mw)
         ribbon_container_toolbar = QToolBar("Ribbon")
         ribbon_container_toolbar.setObjectName("RibbonToolbarContainer")
         ribbon_container_toolbar.setMovable(False)
         ribbon_container_toolbar.addWidget(mw.ribbon)
-        mw.addToolBar(Qt.TopToolBarArea, ribbon_container_toolbar)
+        mw.addToolBar(Qt.ToolBarArea.TopToolBarArea, ribbon_container_toolbar)
 
         # --- NEW: Instantiate and connect the global search handler ---
         self.global_search_handler = GlobalSearchHandler(mw, mw.ribbon.search_bar)
@@ -281,17 +307,17 @@ class UIManager(QObject):
         editing_group.add_action_button(mw.find_item_action, is_large=False)
         home_tab.add_group(editing_group)
         mode_group = ProfessionalGroup("Mode")
-        for action in mw.mode_action_group.actions():
+        for action in mw.mode_action_group.actions():            
             mode_group.add_action_button(action, is_large=False)
-        home_tab.add_group(mode_group)
+        home_tab.add_group(mode_group)        
         layout_group = ProfessionalGroup("Layout")
         layout_group.add_action_button(mw.auto_layout_action)
-        align_btn = QToolButton(); align_btn.setText("Align"); align_btn.setPopupMode(QToolButton.InstantPopup)
+        align_btn = QToolButton(); align_btn.setText("Align"); align_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         align_menu = QMenu(mw); align_menu.addActions(mw.align_actions); align_btn.setMenu(align_menu)
-        dist_btn = QToolButton(); dist_btn.setText("Distribute"); dist_btn.setPopupMode(QToolButton.InstantPopup)
+        dist_btn = QToolButton(); dist_btn.setText("Distribute"); dist_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         dist_menu = QMenu(mw); dist_menu.addActions(mw.distribute_actions); dist_btn.setMenu(dist_menu)
         layout_group.add_widget(align_btn)
-        layout_group.add_widget(dist_btn)
+        layout_group.add_widget(dist_btn)        
         home_tab.add_group(layout_group)
 
         view_tab = mw.ribbon.add_tab("View")
@@ -310,9 +336,9 @@ class UIManager(QObject):
         canvas_group.add_action_button(mw.show_snap_guidelines_action, is_large=False)
         view_tab.add_group(canvas_group)
         window_group = ProfessionalGroup("Window")
-        perspectives_btn = QToolButton(); perspectives_btn.setText("Perspectives"); perspectives_btn.setPopupMode(QToolButton.InstantPopup)
+        perspectives_btn = QToolButton(); perspectives_btn.setText("Perspectives"); perspectives_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         perspectives_btn.setMenu(mw.perspectives_menu)
-        docks_btn = QToolButton(); docks_btn.setText("Docks"); docks_btn.setPopupMode(QToolButton.InstantPopup)
+        docks_btn = QToolButton(); docks_btn.setText("Docks"); docks_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         docks_btn.setMenu(mw.docks_menu)
         window_group.add_widget(perspectives_btn)
         window_group.add_widget(docks_btn)
@@ -333,7 +359,7 @@ class UIManager(QObject):
         # --- NEW TAB: Code Export ---
         code_export_tab = mw.ribbon.add_tab("Code Export")
         code_gen_group = ProfessionalGroup("Generate Code")
-        mw.export_arduino_action = QAction(get_standard_icon(QStyle.SP_DialogSaveButton, "ino"), "Arduino Sketch...", mw)
+        mw.export_arduino_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_DialogSaveButton, "ino"), "Arduino Sketch...", mw)
         code_gen_group.add_action_button(mw.export_python_fsm_action, is_large=False)
         code_gen_group.add_action_button(mw.generate_c_code_action, is_large=False)
         code_gen_group.add_action_button(mw.export_arduino_action, is_large=False)
@@ -389,15 +415,16 @@ class UIManager(QObject):
         self.quick_toolbar.addAction(self.mw.host_action)
 
         customize_btn = QToolButton()
-        customize_btn.setIcon(get_standard_icon(QStyle.SP_ToolBarVerticalExtensionButton, "Cust"))
-        customize_btn.setPopupMode(QToolButton.InstantPopup)
+        customize_btn.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_ToolBarVerticalExtensionButton, "Cust"))
+        customize_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu = QMenu(self.mw); menu.addAction(self.mw.customize_quick_access_action); customize_btn.setMenu(menu)
         self.quick_toolbar.addWidget(customize_btn)
 
+
     def _create_docks(self):
         mw = self.mw
-        mw.setDockOptions(QMainWindow.AnimatedDocks | QMainWindow.AllowTabbedDocks | QMainWindow.AllowNestedDocks)
-        mw.setCorner(Qt.BottomRightCorner, Qt.RightDockWidgetArea)
+        mw.setDockOptions(QMainWindow.DockOption.AnimatedDocks | QMainWindow.DockOption.AllowTabbedDocks | QMainWindow.DockOption.AllowNestedDocks)
+        mw.setCorner(Qt.Corner.BottomRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
         docks_to_create = {
             "project_explorer_dock": ("ProjectExplorerDock", "Project Explorer"),
             "data_dictionary_dock": ("DataDictionaryDock", "Data Dictionary"),
@@ -406,7 +433,6 @@ class UIManager(QObject):
             "log_dock": ("LogDock", "Log"),
             "problems_dock": ("ProblemsDock", "Validation Issues"),
             "py_sim_dock": ("PySimDock", "Python Simulation"),
-            # --- NEW: C Simulation Dock ---
             "c_sim_dock": ("CSimDock", "C Simulation"),
             "ai_chatbot_dock": ("AIChatbotDock", "AI Chatbot"),
             "ide_dock": ("IDEDock", "Code IDE"),
@@ -418,27 +444,30 @@ class UIManager(QObject):
         }
         for attr_name, (object_name, title) in docks_to_create.items():
             setattr(mw, attr_name, QDockWidget(title, mw, objectName=object_name))
-        mw.project_explorer_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        mw.data_dictionary_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        mw.elements_palette_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        mw.properties_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        mw.py_sim_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        # --- NEW ---
-        mw.c_sim_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        mw.ai_chatbot_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
-        mw.ide_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
-        mw.minimap_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        mw.hardware_sim_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        bottom_only = Qt.BottomDockWidgetArea
+
+        left_right_area = Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        bottom_only = Qt.DockWidgetArea.BottomDockWidgetArea
+        all_areas = left_right_area | bottom_only
+
+        mw.project_explorer_dock.setAllowedAreas(left_right_area)
+        mw.data_dictionary_dock.setAllowedAreas(left_right_area)
+        mw.elements_palette_dock.setAllowedAreas(left_right_area)
+        mw.properties_dock.setAllowedAreas(left_right_area)
+        mw.py_sim_dock.setAllowedAreas(left_right_area)
+        mw.c_sim_dock.setAllowedAreas(left_right_area)
+        mw.ai_chatbot_dock.setAllowedAreas(all_areas)
+        mw.ide_dock.setAllowedAreas(all_areas)
+        mw.minimap_dock.setAllowedAreas(left_right_area)
+        mw.hardware_sim_dock.setAllowedAreas(left_right_area)
+        
         mw.log_dock.setAllowedAreas(bottom_only)
         mw.problems_dock.setAllowedAreas(bottom_only)
         mw.resource_estimation_dock.setAllowedAreas(bottom_only)
         mw.live_preview_dock.setAllowedAreas(bottom_only)
         mw.serial_monitor_dock.setAllowedAreas(bottom_only)
-        
-        # --- MODIFICATION: Tabify the simulation docks ---
-        mw.addDockWidget(Qt.RightDockWidgetArea, mw.py_sim_dock)
-        mw.addDockWidget(Qt.RightDockWidgetArea, mw.c_sim_dock)
+        mw.c_sim_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, mw.py_sim_dock)
+        mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, mw.c_sim_dock)
         mw.tabifyDockWidget(mw.py_sim_dock, mw.c_sim_dock)
         
         self._populate_project_explorer_dock()
@@ -454,7 +483,7 @@ class UIManager(QObject):
         log_layout.setSpacing(0)
         log_toolbar = QToolBar("Log Tools")
         log_toolbar.setIconSize(QSize(16, 16))
-        log_toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        log_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         mw.log_level_filter_combo = QComboBox()
         mw.log_level_filter_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR"])
         mw.log_level_filter_combo.setCurrentText("INFO")
@@ -484,7 +513,7 @@ class UIManager(QObject):
         mw.problems_list_widget.currentItemChanged.connect(lambda current, prev: mw.problems_ask_ai_btn.setEnabled(current is not None))
         problems_layout.addWidget(mw.problems_list_widget)
         mw.problems_ask_ai_btn = QPushButton("Ask AI for help on this issue...")
-        mw.problems_ask_ai_btn.setIcon(get_standard_icon(QStyle.SP_MessageBoxQuestion, "AIHelp"))
+        mw.problems_ask_ai_btn.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxQuestion, "AIHelp"))
         mw.problems_ask_ai_btn.setEnabled(False)
         problems_layout.addWidget(mw.problems_ask_ai_btn)
         mw.problems_dock.setWidget(problems_widget)
@@ -514,7 +543,7 @@ class UIManager(QObject):
         mw.project_tree_view.setHeaderHidden(True)
         for i in range(1, mw.project_fs_model.columnCount()):
             mw.project_tree_view.hideColumn(i)
-        mw.project_tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        mw.project_tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         mw.project_tree_view.doubleClicked.connect(mw.action_handler.on_project_file_double_clicked)
         mw.project_explorer_dock.setWidget(mw.project_tree_view)
         logger.debug("UIManager: Project explorer dock populated.")
@@ -545,7 +574,7 @@ class UIManager(QObject):
         # Scroll area for the main content to handle many templates
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         dock_layout.addWidget(scroll_area, 1) # The '1' makes the scroll area expand
 
         # Content widget for inside the scroll area
@@ -566,10 +595,10 @@ class UIManager(QObject):
             "Comment": ("Comment", "SP_MessageBoxInformation")
         }
         for text, (data, icon_name) in drag_items.items():
-            icon_enum = getattr(QStyle, icon_name, QStyle.SP_CustomBase)
+            icon_enum = getattr(QStyle.StandardPixmap, icon_name, QStyle.StandardPixmap.SP_CustomBase)
             btn = DraggableToolButton(text, "application/x-bsm-tool", data)
             btn.setIcon(get_standard_icon(icon_enum, text[:2]))
-            btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             drag_layout.addWidget(btn)
         self.drag_elements_group.setLayout(drag_layout)
         content_layout.addWidget(self.drag_elements_group)
@@ -616,18 +645,18 @@ class UIManager(QObject):
             if actual_path:
                 icon_to_use = QIcon(actual_path)
             else:
-                logger.warning(f"Built-in template icon resource not found: {icon_resource_path}")
-                icon_to_use = get_standard_icon(QStyle.SP_FileLinkIcon, "Tpl")
+                logger.warning(f"Built-in template icon resource not found: {icon_resource_path}")                
+                icon_to_use = get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "Tpl")
             btn = DraggableToolButton(data['name'], MIME_TYPE_BSM_TEMPLATE, json.dumps(data)); btn.setIcon(icon_to_use)
-            btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             btn.setToolTip(data.get('description',''))
             layout.addWidget(btn)
         if hasattr(mw, 'custom_snippet_manager'):
             custom_templates = mw.custom_snippet_manager.get_custom_templates()
             for name, data in custom_templates.items():
                 btn = DraggableToolButton(name, MIME_TYPE_BSM_TEMPLATE, json.dumps(data))
-                btn.setIcon(get_standard_icon(QStyle.SP_FileLinkIcon, "CustomTpl"))
-                btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+                btn.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_FileLinkIcon, "CustomTpl"))
+                btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
                 btn.setToolTip(data.get('description', f"Custom template: {name}"))
                 layout.addWidget(btn)
 
@@ -653,7 +682,7 @@ class UIManager(QObject):
 
         # Placeholder for when no item is selected
         mw.properties_placeholder_label = QLabel("<i>Select an item...</i>")
-        mw.properties_placeholder_label.setAlignment(Qt.AlignCenter)
+        mw.properties_placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(mw.properties_placeholder_label)
 
         # Container for the dynamically generated property editors
@@ -912,7 +941,7 @@ class UIManager(QObject):
                 editor_widget.setCurrentText(str(value).capitalize() if isinstance(value, str) else str(value))
         else:
             if isinstance(editor_widget, QLineEdit): editor_widget.setPlaceholderText("(Multiple Values)")
-            elif isinstance(editor_widget, QCheckBox): editor_widget.setCheckState(Qt.PartiallyChecked)
+            elif isinstance(editor_widget, QCheckBox): editor_widget.setCheckState(Qt.CheckState.PartiallyChecked)
             elif isinstance(editor_widget, QComboBox):
                 if 'items' in prop_info:
                     editor_widget.addItems(prop_info['items'])
@@ -932,7 +961,7 @@ class UIManager(QObject):
         # --- END MODIFICATION ---
         
         if prop_info.get('is_color') and isinstance(editor_widget, QPushButton):
-            color = QColor(value) if all_same and value else QColor(Qt.gray)
+            color = QColor(value) if all_same and value else QColor(Qt.GlobalColor.gray)
             # --- FIX: Call self._update_dock_color_button_style instead of self.mw... ---
             self._update_dock_color_button_style(editor_widget, color)
             editor_widget.setObjectName("ColorButtonPropertiesDock") # Add object name for specific styling
@@ -957,12 +986,12 @@ class UIManager(QObject):
 
     def eventFilter(self, obj, event):
         if obj in self._property_editors.values():
-            if event.type() == QEvent.FocusIn:
+            if event.type() == QEvent.Type.FocusIn:
                 if not self._props_pre_edit_data:
                     for item in self._current_edited_items:
                         self._props_pre_edit_data[item] = item.get_data()
                 return False
-            if event.type() == QEvent.FocusOut:
+            if event.type() == QEvent.Type.FocusOut:
                 self._commit_property_changes()
                 return False
         return super().eventFilter(obj, event)
@@ -987,7 +1016,7 @@ class UIManager(QObject):
                 if not editor_widget.hasFocus() and not isinstance(editor_widget, QPushButton):
                      if isinstance(editor_widget, QLineEdit) and editor_widget.placeholderText() == "(Multiple Values)":
                          continue
-                     if isinstance(editor_widget, QCheckBox) and editor_widget.checkState() == Qt.PartiallyChecked:
+                     if isinstance(editor_widget, QCheckBox) and editor_widget.checkState() == Qt.CheckState.PartiallyChecked:
                          continue
                      if isinstance(editor_widget, QComboBox) and editor_widget.currentIndex() == 0 and editor_widget.itemText(0) == "(Multiple Values)":
                          continue
@@ -1008,7 +1037,7 @@ class UIManager(QObject):
     def _get_value_from_editor(self, editor_widget):
         if isinstance(editor_widget, QLineEdit): return editor_widget.text().strip()
         elif isinstance(editor_widget, QTextEdit): return editor_widget.toPlainText().strip()
-        elif isinstance(editor_widget, QCheckBox): return editor_widget.isChecked() if editor_widget.checkState() != Qt.PartiallyChecked else None
+        elif isinstance(editor_widget, QCheckBox): return editor_widget.isChecked() if editor_widget.checkState() != Qt.CheckState.PartiallyChecked else None
         elif isinstance(editor_widget, QComboBox):
             # Handle the special case for "(Multiple Values)"
             if editor_widget.currentIndex() == 0 and editor_widget.itemText(0) == "(Multiple Values)":
@@ -1027,10 +1056,10 @@ class UIManager(QObject):
         color_button = self.mw.sender()
         if not color_button: return
         current_color_hex = color_button.property("currentColorHex")
-        initial_color = QColor(current_color_hex) if current_color_hex else QColor(Qt.white)
+        initial_color = QColor(current_color_hex) if current_color_hex else QColor(Qt.GlobalColor.white)
         dialog = QColorDialog(self.mw)
         dialog.setCurrentColor(initial_color)
-        if dialog.exec_():
+        if dialog.exec():
             new_color = dialog.selectedColor()
             if new_color.isValid() and new_color != initial_color:
                 if not self._props_pre_edit_data:
@@ -1065,9 +1094,9 @@ class UIManager(QObject):
         mw.live_preview_combo.addItems(["Python FSM", "C Code", "PlantUML", "Mermaid"])
         toolbar.addWidget(mw.live_preview_combo)
         toolbar.addSeparator()
-        mw.scratchpad_revert_action = QAction(get_standard_icon(QStyle.SP_BrowserReload, "Revert"), "Regenerate from Diagram", mw)
+        mw.scratchpad_revert_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_BrowserReload, "Revert"), "Regenerate from Diagram", mw)
         mw.scratchpad_revert_action.setToolTip("Discard edits and reload code from the visual diagram.")
-        mw.scratchpad_sync_action = QAction(get_standard_icon(QStyle.SP_ArrowUp, "Sync"), "Sync Code to Diagram", mw)
+        mw.scratchpad_sync_action = QAction(get_standard_icon(QStyle.StandardPixmap.SP_ArrowUp, "Sync"), "Sync Code to Diagram", mw)
         mw.scratchpad_sync_action.setToolTip("Parse the code below and replace the current diagram.")
         toolbar.addAction(mw.scratchpad_revert_action)
         toolbar.addAction(mw.scratchpad_sync_action)
@@ -1107,11 +1136,11 @@ class UIManager(QObject):
             mw.setStatusBar(status_bar)
             mw.main_op_status_label = QLabel("Ready")
             status_bar.addWidget(mw.main_op_status_label, 1)
-            mw.mode_status_segment = StatusSegment(QStyle.SP_ArrowRight, "Sel", "Select", "Interaction Mode", "InteractionModeStatusLabel")
-            mw.zoom_status_segment = StatusSegment(QStyle.SP_FileDialogInfoView, "Zoom", "100%", "Zoom Level", "ZoomStatusLabel")
-            mw.pysim_status_segment = StatusSegment(QStyle.SP_MediaStop, "PySim", "Idle", "Python Sim Status", "PySimStatusLabel")
-            mw.matlab_status_segment = StatusSegment(QStyle.SP_MessageBoxWarning, "MATLAB", "Not Conn.", "MATLAB Status", "MatlabStatusLabel")
-            mw.net_status_segment = StatusSegment(QStyle.SP_MessageBoxQuestion, "Net", "Checking...", "Internet Status", "InternetStatusLabel")
+            mw.mode_status_segment = StatusSegment(QStyle.StandardPixmap.SP_ArrowRight, "Sel", "Select", "Interaction Mode", "InteractionModeStatusLabel")
+            mw.zoom_status_segment = StatusSegment(QStyle.StandardPixmap.SP_FileDialogInfoView, "Zoom", "100%", "Zoom Level", "ZoomStatusLabel")
+            mw.pysim_status_segment = StatusSegment(QStyle.StandardPixmap.SP_MediaStop, "PySim", "Idle", "Python Sim Status", "PySimStatusLabel")
+            mw.matlab_status_segment = StatusSegment(QStyle.StandardPixmap.SP_MessageBoxWarning, "MATLAB", "Not Conn.", "MATLAB Status", "MatlabStatusLabel")
+            mw.net_status_segment = StatusSegment(QStyle.StandardPixmap.SP_MessageBoxQuestion, "Net", "Checking...", "Internet Status", "InternetStatusLabel")
             status_bar.addPermanentWidget(mw.mode_status_segment)
             status_bar.addPermanentWidget(mw.zoom_status_segment)
             status_bar.addPermanentWidget(mw.pysim_status_segment)

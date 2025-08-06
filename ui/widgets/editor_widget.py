@@ -1,7 +1,8 @@
 # fsm_designer_project/editor_widget.py
 
 import os
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QUndoStack, QTabWidget
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTabWidget
+from PyQt6.QtGui import QUndoStack
 
 from ..graphics.graphics_scene import DiagramScene, ZoomableView
 from ...core.snippet_manager import CustomSnippetManager

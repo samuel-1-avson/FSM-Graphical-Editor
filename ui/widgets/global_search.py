@@ -1,8 +1,8 @@
 # fsm_designer_project/ui/widgets/global_search.py
 import logging
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QAction, QGraphicsItem, QStyle
-from PyQt5.QtCore import Qt, QEvent, QTimer
-from PyQt5.QtGui import QKeyEvent
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QLineEdit, QGraphicsItem, QStyle
+from PyQt6.QtCore import Qt, QEvent, QTimer
+from PyQt6.QtGui import QKeyEvent, QAction
 
 
 logger = logging.getLogger(__name__)
@@ -11,7 +11,7 @@ class GlobalSearchHandler(QWidget):
     """Manages the logic and UI for the global search/command palette."""
 
     def __init__(self, main_window, search_bar: QLineEdit):
-        super().__init__(main_window, Qt.Popup | Qt.FramelessWindowHint)
+        super().__init__(main_window, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
         self.mw = main_window
         self.search_bar = search_bar
 
@@ -29,7 +29,7 @@ class GlobalSearchHandler(QWidget):
         from ...utils.config import COLOR_BACKGROUND_LIGHT, COLOR_ACCENT_PRIMARY_LIGHT, COLOR_TEXT_PRIMARY, COLOR_ACCENT_PRIMARY
         # --- END DEFERRED IMPORTS ---
         self.setFixedWidth(self.search_bar.width() + 150)
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(1, 1, 1, 1)
         self.results_list = QListWidget()
@@ -109,11 +109,11 @@ class GlobalSearchHandler(QWidget):
         # Populate list
         for item in filtered_items:
             list_item = QListWidgetItem(item["text"])
-            list_item.setData(Qt.UserRole, item) # Store the whole dictionary
+            list_item.setData(Qt.ItemDataRole.UserRole, item) # Store the whole dictionary
             # Set icons based on type
-            if item["type"] == "State": list_item.setIcon(get_standard_icon(QStyle.SP_FileDialogNewFolder, "St"))
-            elif item["type"] == "Transition": list_item.setIcon(get_standard_icon(QStyle.SP_ArrowForward, "Tr"))
-            elif item["type"] == "Command": list_item.setIcon(get_standard_icon(QStyle.SP_CommandLink, "Cmd"))
+            if item["type"] == "State": list_item.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogNewFolder, "St"))
+            elif item["type"] == "Transition": list_item.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_ArrowForward, "Tr"))
+            elif item["type"] == "Command": list_item.setIcon(get_standard_icon(QStyle.StandardPixmap.SP_CommandLink, "Cmd"))
             self.results_list.addItem(list_item)
         
         # Position and show the popup
@@ -123,7 +123,7 @@ class GlobalSearchHandler(QWidget):
         self.show()
 
     def _on_item_activated(self, item: QListWidgetItem):
-        item_data = item.data(Qt.UserRole)
+        item_data = item.data(Qt.ItemDataRole.UserRole)
         if not item_data: return
 
         data_obj = item_data["data"]
@@ -137,24 +137,24 @@ class GlobalSearchHandler(QWidget):
         self.hide()
 
     def eventFilter(self, source, event: QEvent) -> bool:
-        if source == self.search_bar and event.type() == QEvent.KeyPress:
+        if source == self.search_bar and event.type() == QEvent.Type.KeyPress:
             key_event = QKeyEvent(event)
             key = key_event.key()
             
             if self.isVisible():
-                if key == Qt.Key_Down:
+                if key == Qt.Key.Key_Down:
                     current = self.results_list.currentRow()
                     self.results_list.setCurrentRow((current + 1) % self.results_list.count())
                     return True
-                elif key == Qt.Key_Up:
+                elif key == Qt.Key.Key_Up:
                     current = self.results_list.currentRow()
                     self.results_list.setCurrentRow((current - 1 + self.results_list.count()) % self.results_list.count())
                     return True
-                elif key in (Qt.Key_Return, Qt.Key_Enter):
+                elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                     if item := self.results_list.currentItem():
                         self._on_item_activated(item)
                     return True
-                elif key == Qt.Key_Escape:
+                elif key == Qt.Key.Key_Escape:
                     self.search_bar.clear()
                     self.hide()
                     return True

@@ -1,4 +1,4 @@
-cd path\to\your\project\fsm_designer_project\core_engine
+
 # CMake build script for the FSM Core Engine
 
 cmake_minimum_required(VERSION 3.10)

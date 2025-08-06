@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from PyQt5.QtCore import QObject, pyqtSlot
+from PyQt6.QtCore import QObject, pyqtSlot
 
 logger = logging.getLogger(__name__)
 
