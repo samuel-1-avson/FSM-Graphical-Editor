@@ -1,5 +1,7 @@
+# fsm_designer_project/ui/widgets/rich_text_editor.py
+
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QToolBar, QAction
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont # Import QFont
 from PyQt5.QtCore import Qt, QSize
 from ...utils import get_standard_icon
 from PyQt5.QtWidgets import QStyle
@@ -24,7 +26,7 @@ class RichTextEditor(QWidget):
     def _create_actions(self):
         bold_action = self.toolbar.addAction(get_standard_icon(QStyle.SP_DialogApplyButton, "B"), "Bold")
         bold_action.setCheckable(True)
-        bold_action.triggered.connect(lambda c: self.text_edit.setFontWeight(75 if c else 50))
+        bold_action.triggered.connect(lambda c: self.text_edit.setFontWeight(QFont.Bold if c else QFont.Normal))
 
         italic_action = self.toolbar.addAction(get_standard_icon(QStyle.SP_DialogApplyButton, "I"), "Italic")
         italic_action.setCheckable(True)
@@ -40,7 +42,7 @@ class RichTextEditor(QWidget):
         bullet_list_action.triggered.connect(self._insert_bullet_list)
 
         # Connect text edit's state to update toolbar buttons
-        self.text_edit.currentCharFormatChanged.connect(lambda f: bold_action.setChecked(f.fontWeight() > 50))
+        self.text_edit.currentCharFormatChanged.connect(lambda f: bold_action.setChecked(f.fontWeight() > QFont.Normal))
         self.text_edit.currentCharFormatChanged.connect(lambda f: italic_action.setChecked(f.fontItalic()))
         self.text_edit.currentCharFormatChanged.connect(lambda f: underline_action.setChecked(f.fontUnderline()))
 

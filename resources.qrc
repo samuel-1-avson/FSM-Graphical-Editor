@@ -9,6 +9,7 @@
 <qresource prefix="/examples">
     <file alias="traffic_light.bsm">examples/traffic_light.bsm</file>
     <file alias="simple_toggle.bsm">examples/simple_toggle.bsm</file>
+    <file alias="coffee_machine.bsm">examples/coffee_machine.bsm</file>
 </qresource>
 <qresource prefix="/docs">
     <file alias="QUICK_START.html">docs/QUICK_START.html</file>

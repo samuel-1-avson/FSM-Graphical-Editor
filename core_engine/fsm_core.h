@@ -1,4 +1,5 @@
 
+
 #ifndef FSM_CORE_H
 #define FSM_CORE_H
 
@@ -32,6 +33,8 @@ extern "C"
 
     // --- Simulation ---
     FSM_API void step(FSM_HANDLE handle, const char *event_name);
+    FSM_API void resolve_condition(FSM_HANDLE handle, bool condition_result);
+    FSM_API void queue_internal_event(FSM_HANDLE handle, const char *event_name);
 
     // --- Data Retrieval ---
     // NOTE: All functions returning char* return memory allocated by C++.
