@@ -1,3 +1,5 @@
+
+
 # fsm_designer_project/utils/hdl_code_generator.py
 import re
 from jinja2 import Environment, FileSystemLoader
@@ -54,7 +56,7 @@ def _prepare_hdl_context(diagram_data: Dict, entity_name: str, lang: str) -> Dic
     input_signals = set()
     for trans in diagram_data['transitions']:
         # Sanitize the event name for use as a signal
-        trans['event_signal'] = sanitizer(trans.get('event', 'transition_event'))
+        trans['event_signal'] = sanitizer(trans.get('event', 'transition_event')) + " = '1';"
         input_signals.add(trans['event_signal'])
         
         # Sanitize identifiers found within the condition string
