@@ -1,7 +1,7 @@
 # fsm_designer_project/ui/widgets/global_search.py
 import logging
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QListWidgetItem,
-                             QLineEdit, QGraphicsItem, QStyle, QLabel, QHBoxLayout, QGraphicsDropShadowEffect)
+                             QLineEdit, QGraphicsItem, QStyle, QLabel, QHBoxLayout)
 from PyQt6.QtCore import Qt, QEvent, QTimer, QSize
 from PyQt6.QtGui import QKeyEvent, QAction, QColor, QPalette, QIcon
 

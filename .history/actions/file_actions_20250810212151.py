@@ -9,8 +9,7 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox, QInputDialog, QLineEdit, Q
 from ..utils.config import FILE_EXTENSION, FILE_FILTER, PROJECT_FILE_EXTENSION, PROJECT_FILE_FILTER
 from ..plugins.api import BsmExporterPlugin
 from ..codegen import parse_plantuml, parse_mermaid
-# --- FIX: REMOVE THIS TOP-LEVEL IMPORT ---
-# from ..ui.dialogs import ImportFromTextDialog
+from ..ui.dialogs import ImportFromTextDialog
 from ..utils import _get_bundled_file_path
 
 
@@ -21,6 +20,7 @@ class FileActionHandler(QObject):
         super().__init__(main_window)
         self.mw = main_window
 
+    # --- NEW METHOD for creating projects ---
     @pyqtSlot()
     def on_new_project(self):
         """Shows the New Project dialog and creates a project structure."""
@@ -34,6 +34,7 @@ class FileActionHandler(QObject):
             if not self.mw.project_manager.create_new_project(project_path, project_name, main_diagram):
                 QMessageBox.critical(self.mw, "Project Creation Failed", "Could not create the project. Please check permissions and the log for details.")
 
+    # --- REFACTORED METHOD for creating diagram files ---
     @pyqtSlot()
     def on_new_file(self):
         """
@@ -239,9 +240,6 @@ class FileActionHandler(QObject):
             
     @pyqtSlot()
     def on_import_from_text(self):
-        # --- FIX: MOVE THE IMPORT HERE ---
-        from ..ui.dialogs import ImportFromTextDialog
-        # --- END FIX ---
         dialog = ImportFromTextDialog(self.mw)
         if dialog.exec():
             diagram_data = dialog.get_diagram_data()
@@ -397,5 +395,3 @@ class FileActionHandler(QObject):
             recent_files.remove(file_path)
             self.mw.settings_manager.set("recent_files", recent_files)
             self.mw._populate_recent_files_menu()
-
-    # (Add other file-related actions here as needed)

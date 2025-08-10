@@ -17,6 +17,7 @@ from PyQt6.QtCore import (
     QPropertyAnimation, QEasingCurve, pyqtProperty, QRect
 )
 
+# --- MODIFIED: Corrected import path ---
 from ...utils import get_standard_icon
 from ...utils.config import (
     COLOR_ITEM_STATE_DEFAULT_BG, COLOR_ITEM_STATE_DEFAULT_BORDER, APP_FONT_FAMILY,
@@ -574,9 +575,9 @@ class GraphicsTransitionItem(QGraphicsPathItem):
 
         current_label = self._compose_label_string()
         if current_label:
-            from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(self._font) 
-            flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
+            from PyQt6.QtGui import QFontMetrics; fm = QFontMetrics(self._font) 
+            # --- FIX: PyQt6 uses integer flags and word-wraps implicitly ---
+            flags = int(Qt.AlignmentFlag.AlignCenter)
             text_rect_original = fm.boundingRect(QRect(0, 0, 150, 100), flags, current_label)
             
             label_path_percent = 0.5; text_pos_on_path = self.path().pointAtPercent(label_path_percent); angle_at_mid_deg = self.path().angleAtPercent(label_path_percent)
@@ -587,6 +588,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
             label_bg_color = QColor(COLOR_BACKGROUND_DIALOG); label_bg_color.setAlpha(230); painter.setBrush(label_bg_color)
             painter.setPen(QPen(QColor(COLOR_BORDER_LIGHT), 0.8)); painter.drawRoundedRect(bg_rect, 4, 4)
             painter.setPen(self._text_color)
+            # --- FIX: PyQt6 uses integer flags and word-wraps implicitly ---
             painter.drawText(text_final_draw_rect, flags, current_label)
 
     def set_breakpoint_style(self, has_bp: bool):
@@ -728,9 +730,9 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         extra = (self._determine_current_pen().widthF() + self.arrow_size) / 2.0 + 30; path_bounds = self.path().boundingRect()
         current_label = self._compose_label_string()
         if current_label:
-            from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(self._font) 
-            flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
+            from PyQt6.QtGui import QFontMetrics; fm = QFontMetrics(self._font) 
+            # --- FIX: PyQt6 uses integer flags and toRect(). ---
+            flags = int(Qt.AlignmentFlag.AlignCenter)
             text_rect_original = fm.boundingRect(QRect(0, 0, 150, 100), flags, current_label)
             
             label_path_percent = 0.5; text_pos_on_path = self.path().pointAtPercent(label_path_percent); angle_at_mid_deg = self.path().angleAtPercent(label_path_percent)
@@ -860,6 +862,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
     def __init__(self, x, y, text="Comment",
                  font_family=None, font_size=None, font_italic=None):
         super().__init__()
+        # --- MODIFICATION: Set HTML instead of plain text ---
         self.setHtml(text)
         self.setPos(x, y)
         
@@ -895,7 +898,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
             return QPen(QColor(COLOR_ACCENT_WARNING), self.original_border_pen.widthF() + 0.5, Qt.PenStyle.DashDotLine)
         return QPen(self.original_border_pen)
 
-    def paint(self, painter: QPainter, option, widget):
+    def paint(self, painter, option, widget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         current_pen_for_drawing = self._determine_current_pen()
         painter.setPen(current_pen_for_drawing)
@@ -908,12 +911,14 @@ class GraphicsCommentItem(QGraphicsTextItem):
             painter.setPen(selection_pen); painter.setBrush(Qt.BrushStyle.NoBrush); painter.drawRoundedRect(self.boundingRect().adjusted(-1, -1, 1, 1), 6, 6)
 
     def set_properties(self, **props):
+        # Get values from props dict, allowing for aliases
         text = props.get('text')
         width = props.get('width')
         font_family_prop = props.get('font_family_prop', props.get('font_family'))
         font_size_prop = props.get('font_size_prop', props.get('font_size'))
         font_italic_prop = props.get('font_italic_prop', props.get('font_italic'))
 
+        # The rest of the logic can be adapted from the old method
         text_changed = False
         if text is not None:
             current_text = self.toHtml()
@@ -928,7 +933,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
 
         if text_changed:
             self.setHtml(text)
-            self.description = self.toPlainText()
+            self.description = self.toPlainText() # Description should be plain text
             self.setToolTip(self._problem_tooltip_text or self.description)
         if width_changed or (text_changed and target_width < 0) : self.setTextWidth(target_width)
         
@@ -956,6 +961,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
         if doc_width < 0 : doc_width = self.document().idealWidth() if self.document() else self._default_width
         current_font = self.font()
         return {
+            # --- MODIFICATION: Save as HTML ---
             'text': self.toHtml(), 
             'x': self.x(), 'y': self.y(), 'width': doc_width,
             'font_family': current_font.family(),
@@ -974,12 +980,13 @@ class GraphicsCommentItem(QGraphicsTextItem):
         self._inline_edit_aborted = False
         self.update()
 
+        # --- MODIFIED: Use RichTextEditor for inline editing ---
         editor = RichTextEditor(self.toHtml())
         
         doc_width = self.textWidth() if self.textWidth() > 0 else 160
         doc_height = self.document().size().height()
         editor_width = int(doc_width) + 40
-        editor_height = int(doc_height) + 80
+        editor_height = int(doc_height) + 80 # Extra space for toolbar
         editor.setFixedSize(editor_width, editor_height)
         
         editor.setStyleSheet(f"background-color: {self.background_brush.color().lighter(102).name()}; border-radius: 3px;")
@@ -996,53 +1003,30 @@ class GraphicsCommentItem(QGraphicsTextItem):
                 if key_event.key() == Qt.Key.Key_Escape: self._inline_edit_aborted = True; self._inline_editor_proxy.widget().clearFocus(); return True
                 elif key_event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not (key_event.modifiers() & Qt.KeyboardModifier.ShiftModifier): self._inline_edit_aborted = False; self._inline_editor_proxy.widget().clearFocus(); return True
         return super().eventFilter(watched_object, event)
-
-    def _finish_inline_edit(self, editor_widget: RichTextEditor | None = None):
-        if not self._is_editing_inline:
-            return
-        actual_editor = editor_widget or (self._inline_editor_proxy.widget() if self._inline_editor_proxy else None)
-        if not actual_editor:
-            self._is_editing_inline = False
-            self.update()
-            return
-        
-        new_html = actual_editor.toHtml()
-        old_html = self.toHtml()
-        
+    def _finish_inline_edit(self, editor_widget: QTextEdit | None = None): 
+        if not self._is_editing_inline: return
+        actual_editor = editor_widget if editor_widget else (self._inline_editor_proxy.widget() if self._inline_editor_proxy else None)
+        if not actual_editor: self._is_editing_inline = False; self.update(); return
+        new_text = actual_editor.toPlainText(); old_text = self.toPlainText()
         if self._inline_editor_proxy:
-            actual_editor.removeEventFilter(self)
-            self._inline_editor_proxy.setWidget(None)
-            actual_editor.deleteLater()
-            if self._inline_editor_proxy.scene():
-                self.scene().removeItem(self._inline_editor_proxy)
-            self._inline_editor_proxy.deleteLater()
-            self._inline_editor_proxy = None
-            
+            actual_editor.removeEventFilter(self); self._inline_editor_proxy.setWidget(None); actual_editor.deleteLater()
+            if self._inline_editor_proxy.scene(): self.scene().removeItem(self._inline_editor_proxy)
+            self._inline_editor_proxy.deleteLater(); self._inline_editor_proxy = None
         self._is_editing_inline = False
-        
         if self._inline_edit_aborted:
-            self.update()
-            return
-
-        if new_html != old_html:
-            old_props = self.get_data()
-            self.setHtml(new_html)
-            self.description = self.toPlainText()
-            
-            if self.textWidth() < 0:
-                self.setTextWidth(-1)
-            
+            if new_text.strip() != old_text.strip(): self.setPlainText(old_text)
+            self.update(); return
+        if not new_text.strip() and old_text.strip(): QMessageBox.warning(None, "Empty Comment", "Comment text cannot be empty if it previously had content. Edit cancelled."); self.setPlainText(old_text); self.update(); return
+        elif not new_text.strip() and not old_text.strip(): self.update(); return
+        if new_text.strip() != old_text.strip():
+            old_props = self.get_data(); self.setPlainText(new_text); self.description = new_text
+            if self.textWidth() < 0 : self.setTextWidth(-1) 
             new_props = self.get_data()
-            
             if self.scene() and hasattr(self.scene(), 'undo_stack'):
-                from ...undo_commands import EditItemPropertiesCommand
-                cmd = EditItemPropertiesCommand(self, old_props, new_props, "Edit Comment")
-                self.scene().undo_stack.push(cmd)
-                self.scene().set_dirty(True)
-
+                from ...undo_commands import EditItemPropertiesCommand 
+                cmd = EditItemPropertiesCommand(self, old_props, new_props, "Edit Comment Text"); self.scene().undo_stack.push(cmd); self.scene().set_dirty(True)
             if hasattr(self, 'textChangedViaInlineEdit') and isinstance(self.textChangedViaInlineEdit, pyqtSignal):
-                self.textChangedViaInlineEdit.emit(old_html, new_html)
-
+                self.textChangedViaInlineEdit.emit(old_text, new_text)
         self.setToolTip(self._problem_tooltip_text or self.description)
         self.update()
     def keyPressEvent(self, event: QKeyEvent): 

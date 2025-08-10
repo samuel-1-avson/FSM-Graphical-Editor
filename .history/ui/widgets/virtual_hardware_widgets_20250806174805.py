@@ -19,7 +19,7 @@ class VirtualLedWidget(QLabel):
         """Sets the visual state of the LED (on or off)."""
         if self._is_on != is_on:
             self._is_on = is_on
-            self._update_pixmap()
+            self._update_pixmap()  # Trigger a repaint to show the new color
 
     def _update_pixmap(self):
         """Paints the LED circle onto a QPixmap and sets it on the label."""
@@ -79,3 +79,4 @@ class VirtualGaugeWidget(QProgressBar):
                 margin: 0.5px;
             }
         """)
+# --- END NEW ---

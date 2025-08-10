@@ -502,14 +502,11 @@ class UIManager(QObject):
         standard_layout.setContentsMargins(5, 5, 5, 5)
         standard_layout.setSpacing(5)
 
-        # --- FIX: Use more appropriate standard icons ---
-        standard_layout.addWidget(DraggableToolButton("State", MIME_TYPE_BSM_ITEMS, "State", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileIcon, "State")))
+        standard_layout.addWidget(DraggableToolButton("State", MIME_TYPE_BSM_ITEMS, "State", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileDialogNewFolder, "State")))
         standard_layout.addWidget(DraggableToolButton("Initial State", MIME_TYPE_BSM_ITEMS, "Initial State", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay)))
         standard_layout.addWidget(DraggableToolButton("Final State", MIME_TYPE_BSM_ITEMS, "Final State", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaStop)))
         standard_layout.addWidget(DraggableToolButton("Comment", MIME_TYPE_BSM_ITEMS, "Comment", icon=get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxInformation)))
-        standard_layout.addWidget(DraggableToolButton("Frame", MIME_TYPE_BSM_ITEMS, "Frame", icon=get_standard_icon(QStyle.StandardPixmap.SP_DirOpenIcon, "Frame")))
-        # --- END FIX ---
-        
+        standard_layout.addWidget(DraggableToolButton("Frame", MIME_TYPE_BSM_ITEMS, "Frame", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileDialogListView, "Frame")))
         standard_layout.addStretch()
         toolbox.addItem(standard_elements_widget, "Standard Elements")
 

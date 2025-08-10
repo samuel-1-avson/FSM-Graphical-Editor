@@ -13,7 +13,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QIcon, QKeySequence, QPalette, QPainter, QColor, QFont, QActionGroup, QAction, QFileSystemModel
 from PyQt6.QtCore import Qt, QSize, QObject, QPointF, pyqtSlot, QDir, QEvent
 
+# --- FIX: ADD THIS IMPORT ---
 from .signal_bus import signal_bus
+# --- END FIX ---
 
 from ..utils import get_standard_icon
 from ..utils.config import (
@@ -502,14 +504,11 @@ class UIManager(QObject):
         standard_layout.setContentsMargins(5, 5, 5, 5)
         standard_layout.setSpacing(5)
 
-        # --- FIX: Use more appropriate standard icons ---
-        standard_layout.addWidget(DraggableToolButton("State", MIME_TYPE_BSM_ITEMS, "State", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileIcon, "State")))
+        standard_layout.addWidget(DraggableToolButton("State", MIME_TYPE_BSM_ITEMS, "State", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileDialogNewFolder)))
         standard_layout.addWidget(DraggableToolButton("Initial State", MIME_TYPE_BSM_ITEMS, "Initial State", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay)))
         standard_layout.addWidget(DraggableToolButton("Final State", MIME_TYPE_BSM_ITEMS, "Final State", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaStop)))
         standard_layout.addWidget(DraggableToolButton("Comment", MIME_TYPE_BSM_ITEMS, "Comment", icon=get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxInformation)))
-        standard_layout.addWidget(DraggableToolButton("Frame", MIME_TYPE_BSM_ITEMS, "Frame", icon=get_standard_icon(QStyle.StandardPixmap.SP_DirOpenIcon, "Frame")))
-        # --- END FIX ---
-        
+        standard_layout.addWidget(DraggableToolButton("Frame", MIME_TYPE_BSM_ITEMS, "Frame", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileDialogListView)))
         standard_layout.addStretch()
         toolbox.addItem(standard_elements_widget, "Standard Elements")
 
@@ -587,6 +586,7 @@ class UIManager(QObject):
         input_layout.addWidget(mw.serial_send_button)
         layout.addLayout(input_layout)
         mw.serial_monitor_dock.setWidget(container)
+        # --- FIX: Connect the button click signal ---
         mw.serial_send_button.clicked.connect(mw.hardware_sim_ui_manager.on_send_serial_data)
         mw.serial_input_edit.returnPressed.connect(mw.hardware_sim_ui_manager.on_send_serial_data)
         

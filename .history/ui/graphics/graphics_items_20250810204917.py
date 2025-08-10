@@ -17,6 +17,7 @@ from PyQt6.QtCore import (
     QPropertyAnimation, QEasingCurve, pyqtProperty, QRect
 )
 
+# --- MODIFIED: Corrected import path ---
 from ...utils import get_standard_icon
 from ...utils.config import (
     COLOR_ITEM_STATE_DEFAULT_BG, COLOR_ITEM_STATE_DEFAULT_BORDER, APP_FONT_FAMILY,
@@ -575,7 +576,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         current_label = self._compose_label_string()
         if current_label:
             from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(self._font) 
+            fm = QFontMetrics(self._font)
             flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
             text_rect_original = fm.boundingRect(QRect(0, 0, 150, 100), flags, current_label)
             
@@ -728,8 +729,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         extra = (self._determine_current_pen().widthF() + self.arrow_size) / 2.0 + 30; path_bounds = self.path().boundingRect()
         current_label = self._compose_label_string()
         if current_label:
-            from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(self._font) 
+            from PyQt6.QtGui import QFontMetrics; fm = QFontMetrics(self._font) 
             flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
             text_rect_original = fm.boundingRect(QRect(0, 0, 150, 100), flags, current_label)
             
@@ -1045,6 +1045,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
 
         self.setToolTip(self._problem_tooltip_text or self.description)
         self.update()
+
     def keyPressEvent(self, event: QKeyEvent): 
         if event.key() == Qt.Key.Key_F2 and self.isSelected() and self.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsFocusable:
             if not self._is_editing_inline: 

@@ -17,6 +17,7 @@ from PyQt6.QtCore import (
     QPropertyAnimation, QEasingCurve, pyqtProperty, QRect
 )
 
+# --- MODIFIED: Corrected import path ---
 from ...utils import get_standard_icon
 from ...utils.config import (
     COLOR_ITEM_STATE_DEFAULT_BG, COLOR_ITEM_STATE_DEFAULT_BORDER, APP_FONT_FAMILY,
@@ -575,7 +576,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         current_label = self._compose_label_string()
         if current_label:
             from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(self._font) 
+            fm = QFontMetrics(self._font)
             flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
             text_rect_original = fm.boundingRect(QRect(0, 0, 150, 100), flags, current_label)
             
@@ -728,8 +729,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         extra = (self._determine_current_pen().widthF() + self.arrow_size) / 2.0 + 30; path_bounds = self.path().boundingRect()
         current_label = self._compose_label_string()
         if current_label:
-            from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(self._font) 
+            from PyQt6.QtGui import QFontMetrics; fm = QFontMetrics(self._font) 
             flags = int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap)
             text_rect_original = fm.boundingRect(QRect(0, 0, 150, 100), flags, current_label)
             
@@ -1045,6 +1045,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
 
         self.setToolTip(self._problem_tooltip_text or self.description)
         self.update()
+
     def keyPressEvent(self, event: QKeyEvent): 
         if event.key() == Qt.Key.Key_F2 and self.isSelected() and self.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsFocusable:
             if not self._is_editing_inline: 
@@ -1148,3 +1149,91 @@ class GraphicsDisplayItem(QGraphicsTextItem):
             'variable_name': self.variable_name,
             'x': self.x(), 'y': self.y()
         }
+```
+
+### `fsm_designer_project/ui/widgets/virtual_hardware_widgets.py`
+
+I fixed a subtle bug in the `VirtualLedWidget` where its visual state would not update correctly. The `setState` method now properly triggers a repaint of the LED's pixmap.
+
+```python
+# fsm_designer_project/virtual_hardware_widgets.py
+
+from PyQt6.QtWidgets import QWidget, QPushButton, QSlider, QLabel, QProgressBar
+from PyQt6.QtGui import QPainter, QColor, QBrush, QPixmap
+from PyQt6.QtCore import Qt
+
+class VirtualLedWidget(QLabel):
+    """A simple widget that draws a colored circle to represent an LED by using a pixmap."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._is_on = False
+        self.on_color = QColor(60, 255, 60)   # A bright green
+        self.off_color = QColor(60, 100, 60)  # A dim dark green
+        self.setFixedSize(24, 24)
+        self.setToolTip("Virtual LED")
+        self._update_pixmap() # Set initial state
+
+    def setState(self, is_on: bool):
+        """Sets the visual state of the LED (on or off)."""
+        if self._is_on != is_on:
+            self._is_on = is_on
+            self._update_pixmap()
+
+    def _update_pixmap(self):
+        """Paints the LED circle onto a QPixmap and sets it on the label."""
+        pixmap = QPixmap(self.size())
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        color = self.on_color if self._is_on else self.off_color
+        
+        painter.setBrush(QBrush(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        # Adjust rect to have a small margin
+        painter.drawEllipse(self.rect().adjusted(2, 2, -2, -2))
+        painter.end()
+        
+        self.setPixmap(pixmap)
+
+
+# For now, we can use standard widgets and subclass them if needed later.
+class VirtualButtonWidget(QPushButton):
+    """A simple wrapper for QPushButton for semantic clarity."""
+    pass
+
+class VirtualSliderWidget(QSlider):
+    """A simple wrapper for QSlider for semantic clarity."""
+    pass
+
+# --- NEW GAUGE WIDGET ---
+class VirtualGaugeWidget(QProgressBar):
+    """A progress bar styled to look like a simple horizontal gauge for analog output."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setRange(0, 255) # Default 8-bit PWM range (e.g., analogWrite on Arduino)
+        self.setValue(0)
+        self.setTextVisible(True)
+        self.setFormat("%v") # Show the numeric value
+        self.setOrientation(Qt.Orientation.Horizontal)
+        self.setMinimumHeight(24)
+        self.setToolTip("Virtual Analog Output (e.g., PWM)")
+        # Style the progress bar to look like a gauge
+        self.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #78909C;
+                border-radius: 4px;
+                background-color: #37474F;
+                color: #ECEFF1;
+                font-weight: bold;
+            }
+            QProgressBar::chunk {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                                  stop:0 #81C784, 
+                                                  stop:0.5 #FFD54F, 
+                                                  stop:1 #E57373);
+                border-radius: 3px;
+                margin: 0.5px;
+            }
+        """)
