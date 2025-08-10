@@ -172,9 +172,9 @@ class FSMSimulator(QObject):
         Executes a single step of the simulation.
         ...
         """
-        # --- START FIX ---
         # MODIFIED: The halt/breakpoint/stop_tick checks are now at the top,
         # before the tick is incremented, to ensure correct termination.
+        # --- START FIX ---
         if self.stop_at_tick > 0 and self.current_tick >= self.stop_at_tick:
             self.simulation_halted_flag = True
             if not any("Reached configured stop tick" in log for log in self._action_log):

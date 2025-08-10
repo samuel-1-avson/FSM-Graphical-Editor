@@ -1,6 +1,9 @@
 # tests/test_fsm_simulator.py
 import pytest
-from fsm_designer_project.fsm_simulator import FSMSimulator, FSMError, check_code_safety_basic
+# --- START MODIFICATION ---
+# Import the parser and IR to create the FsmModel for the refactored simulator
+from fsm_designer_project.core.fsm_parser import parse_diagram_to_ir
+from fsm_designer_project.core.fsm_simulator import FSMSimulator, FSMError, check_code_safety_basic
 
 @pytest.fixture
 def toggle_fsm_data():
@@ -16,12 +19,18 @@ def toggle_fsm_data():
     }
 
 def test_fsm_initialization(toggle_fsm_data):
-    sim = FSMSimulator(toggle_fsm_data['states'], toggle_fsm_data['transitions'])
+    # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
+    fsm_model = parse_diagram_to_ir(toggle_fsm_data)
+    sim = FSMSimulator(fsm_model)
+    # --- END MODIFICATION ---
     assert sim.get_current_state_name() == "Off"
     assert sim.get_variables()['is_on'] is False
 
 def test_fsm_simple_transition(toggle_fsm_data):
-    sim = FSMSimulator(toggle_fsm_data['states'], toggle_fsm_data['transitions'])
+    # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
+    fsm_model = parse_diagram_to_ir(toggle_fsm_data)
+    sim = FSMSimulator(fsm_model)
+    # --- END MODIFICATION ---
     sim.step(event_name="toggle")
     assert sim.get_current_state_name() == "On"
     assert sim.get_variables()['is_on'] is True
@@ -36,7 +45,10 @@ def test_fsm_conditional_transition():
             {"source": "A", "target": "B", "event": "go", "condition": "x > 5", "action": "y = 10"}
         ]
     }
-    sim = FSMSimulator(fsm_data['states'], fsm_data['transitions'])
+    # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
+    fsm_model = parse_diagram_to_ir(fsm_data)
+    sim = FSMSimulator(fsm_model)
+    # --- END MODIFICATION ---
     sim._variables['x'] = 3
     
     # Condition is false, should not transition
@@ -64,7 +76,10 @@ def test_fsm_hierarchical_step():
         ],
         "transitions": [{"source": "Idle", "target": "Processing", "event": "start"}]
     }
-    sim = FSMSimulator(fsm_data['states'], fsm_data['transitions'])
+    # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
+    fsm_model = parse_diagram_to_ir(fsm_data)
+    sim = FSMSimulator(fsm_model)
+    # --- END MODIFICATION ---
     sim.step("start")
     assert sim.get_current_state_name() == "Processing (SubIdle)"
     assert sim.get_variables()['sub_status'] == 'idle'
@@ -85,7 +100,7 @@ def test_fsm_safety_checker():
 
     is_safe, msg = check_code_safety_basic("open('file.txt', 'w')", set())
     assert not is_safe
-    assert "Calling the function 'open' is not allowed" in msg
+    assert "Calling the function 'open' is not allowed for security reasons" in msg
     
     is_safe, msg = check_code_safety_basic("my_obj.__class__", set())
     assert not is_safe
