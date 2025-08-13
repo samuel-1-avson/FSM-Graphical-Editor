@@ -494,6 +494,7 @@ class MatlabEngineWorker(QObject):
                 recovery_timer = QTimer(self)
                 recovery_timer.setSingleShot(True)
                 recovery_timer.timeout.connect(self._attempt_auto_recovery)
+                recovery_timer.moveToThread(self.thread())
                 recovery_timer.start(10000)  # Retry after 10 seconds
 
     def _get_installation_help_message(self) -> str:
@@ -1089,12 +1090,8 @@ class MatlabConnection(QObject):
                         priority=Priority.CRITICAL,
                         metadata={'purpose': 'fsm_instantiation'}
                     )
-                    # --- FIX: Use a properly parented QTimer to break the call chain ---
-                    timer = QTimer(self)
-                    timer.setSingleShot(True)
-                    timer.timeout.connect(lambda: self._execute_command(instantiate_command))
-                    timer.start(0)
-
+                    # Use a zero-delay timer to break the call chain and avoid thread issues
+                    QTimer.singleShot(0, lambda: self._execute_command(instantiate_command))
             self.modelGenerationFinished.emit(success, message, data, metadata)
 
         elif command_type == CommandType.GENERAL and metadata.get('purpose') == 'fsm_instantiation':
@@ -1106,10 +1103,7 @@ class MatlabConnection(QObject):
                     priority=Priority.HIGH,
                     metadata={'purpose': 'setup_streaming'}
                 )
-                timer = QTimer(self)
-                timer.setSingleShot(True)
-                timer.timeout.connect(lambda: self._execute_command(setup_streaming_command))
-                timer.start(0)
+                QTimer.singleShot(0, lambda: self._execute_command(setup_streaming_command))
             else:
                 logger.error("FSM class instantiation failed. Data streaming will not be set up.")
         
@@ -2116,7 +2110,8 @@ end
         
         enhanced_commands = [
             f"    % Enhanced code generation configuration for {model_name}",
-            "    try"
+            "    try",
+            "        % Apply basic configuration"
         ]
         
         for cmd in config_commands:
@@ -3001,3 +2996,19 @@ class MatlabErrorRecovery:
             ])
         
         return base_suggestions
+
+# Export classes for use in other modules
+__all__ = [
+    'MatlabConnection',
+    'MatlabEngineWorker', 
+    'EngineState',
+    'CommandType',
+    'Priority',
+    'MatlabCommand',
+    'SimulationConfig',
+    'CodeGenConfig',
+    'MatlabModelValidator',
+    'MatlabDiagnostics',
+    'MatlabScriptGenerator',
+    'MatlabErrorRecovery'
+]

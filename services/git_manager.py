@@ -22,8 +22,6 @@ class GitWorker(QObject):
 
     def __init__(self):
         super().__init__()
-        # --- FIX: Remove this redundant flag ---
-        # self._is_running = False
 
     # --- MODIFIED SLOT ---
     @pyqtSlot(str, list, str)
@@ -36,11 +34,6 @@ class GitWorker(QObject):
             command: A list of strings representing the command and its arguments.
             working_dir: The directory in which to run the command.
         """
-        # --- FIX: Remove this redundant check ---
-        # if self._is_running:
-        #     logger.warning("GitWorker: Another command is already running.")
-        #     return
-        # self._is_running = True
         logger.info(f"GitWorker: Running command '{' '.join(command)}' in '{working_dir}' (ID: {command_id})")
         try:
             startupinfo = None
@@ -70,10 +63,6 @@ class GitWorker(QObject):
         except Exception as e:
             logger.error(f"GitWorker: Unexpected error running command '{' '.join(command)}': {e}", exc_info=True)
             self.command_finished.emit(command_id, False, "", f"An unexpected error occurred: {e}")
-        finally:
-            # --- FIX: Remove this ---
-            # self._is_running = False
-            pass # The finally block can be removed if empty
 
 class GitManager(QObject):
     """

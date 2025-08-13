@@ -11,7 +11,7 @@ from ..plugins.api import BsmExporterPlugin
 from ..codegen import parse_plantuml, parse_mermaid
 # --- FIX: REMOVE THIS TOP-LEVEL IMPORT ---
 # from ..ui.dialogs import ImportFromTextDialog
-from ..utils import _get_bundled_file_path
+from ..utils import _get_bundled_file_path, get_standard_icon
 
 
 logger = logging.getLogger(__name__)
@@ -397,5 +397,3 @@ class FileActionHandler(QObject):
             recent_files.remove(file_path)
             self.mw.settings_manager.set("recent_files", recent_files)
             self.mw._populate_recent_files_menu()
-
-    # (Add other file-related actions here as needed)

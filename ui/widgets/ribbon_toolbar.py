@@ -1,3 +1,4 @@
+# fsm_designer_project/ui/widgets/ribbon_toolbar.py
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QToolButton,
     QLabel, QFrame, QButtonGroup, QSizePolicy, QMenu, QComboBox,
@@ -10,285 +11,6 @@ from PyQt6.QtGui import QIcon, QColor, QFont, QPainter, QPalette, QFontMetrics, 
 from ...utils import get_standard_icon
 
 
-
-# Enhanced Professional Stylesheet
-PROFESSIONAL_STYLESHEET = """
-/* Modern Professional Color Scheme */
-QWidget {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-    color: #2c3e50;
-}
-
-/* Ribbon Container */
-ProfessionalRibbon {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #ffffff, stop:1 #f8f9fa);
-    border-bottom: 1px solid #e9ecef;
-}
-
-/* Tab Bar Styling */
-#RibbonTabBar {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #ffffff, stop:0.5 #f8f9fa, stop:1 #e9ecef);
-    border-bottom: 1px solid #dee2e6;
-}
-
-/* File Button */
-#FileButton {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #007bff, stop:1 #0056b3);
-    color: white;
-    border: 1px solid #0056b3;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 11px;
-    margin: 2px;
-    padding: 0px 8px;
-}
-
-#FileButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #0056b3, stop:1 #004085);
-    border: 1px solid #004085;
-}
-
-#FileButton:pressed {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #004085, stop:1 #002752);
-}
-
-#FileButton:checked {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #002752, stop:1 #001a33);
-}
-
-/* Tab Buttons */
-#RibbonTabButton {
-    background: transparent;
-    color: #495057;
-    border: none;
-    border-radius: 4px 4px 0px 0px;
-    font-size: 11px;
-    font-weight: 500;
-    padding: 0px 16px;
-    margin: 0px 1px;
-    margin-bottom: 1px;
-    outline: none;
-}
-
-#RibbonTabButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(0, 123, 255, 0.05), stop:1 rgba(0, 123, 255, 0.1));
-    color: #007bff;
-}
-
-#RibbonTabButton:checked {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #ffffff, stop:1 #f8f9fa);
-    color: #007bff;
-    border: 1px solid #dee2e6;
-    border-bottom: 1px solid #ffffff;
-    font-weight: 600;
-}
-
-#RibbonTabButton:disabled {
-    color: #adb5bd;
-    background: transparent;
-}
-
-/* Content Area */
-#RibbonContentArea {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #ffffff, stop:1 #f8f9fa);
-    border: none;
-}
-
-/* Ribbon Groups */
-#RibbonGroup {
-    background: transparent;
-    border: none;
-    margin: 0px 4px;
-}
-
-#RibbonGroup QLabel {
-    color: #6c757d;
-    font-size: 10px;
-    font-weight: 500;
-    background: transparent;
-    border: none;
-    padding: 2px 0px;
-}
-
-/* Professional Buttons */
-ProfessionalButton {
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    color: #495057;
-    font-size: 10px;
-    font-weight: 500;
-    padding: 4px 6px;
-    margin: 1px;
-}
-
-ProfessionalButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(0, 123, 255, 0.08), stop:1 rgba(0, 123, 255, 0.12));
-    border: 1px solid rgba(0, 123, 255, 0.2);
-    color: #007bff;
-}
-
-ProfessionalButton:pressed {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(0, 123, 255, 0.15), stop:1 rgba(0, 123, 255, 0.25));
-    border: 1px solid rgba(0, 123, 255, 0.3);
-}
-
-ProfessionalButton:checked {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #e3f2fd, stop:1 #bbdefb);
-    border: 1px solid #2196f3;
-    color: #1976d2;
-}
-
-ProfessionalButton:disabled {
-    color: #adb5bd;
-    background: transparent;
-    border: 1px solid transparent;
-}
-
-/* Split Buttons */
-ProfessionalSplitButton QToolButton {
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    color: #495057;
-    font-size: 10px;
-    font-weight: 500;
-    padding: 2px;
-    margin: 1px 0px;
-}
-
-ProfessionalSplitButton QToolButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(0, 123, 255, 0.08), stop:1 rgba(0, 123, 255, 0.12));
-    border: 1px solid rgba(0, 123, 255, 0.2);
-    color: #007bff;
-}
-
-/* Input Controls */
-QComboBox, QLineEdit {
-    background: white;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 11px;
-    color: #495057;
-    selection-background-color: #007bff;
-}
-
-QComboBox:hover, QLineEdit:hover {
-    border: 1px solid #80bdff;
-}
-
-QComboBox:focus, QLineEdit:focus {
-    border: 1px solid #007bff;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-QComboBox::drop-down {
-    border: none;
-    width: 20px;
-    background: transparent;
-}
-
-QComboBox::down-arrow {
-    image: none;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 4px solid #6c757d;
-    margin-right: 6px;
-}
-
-/* Search Bar */
-#RibbonSearchBar {
-    background: white;
-    border: 1px solid #ced4da;
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 11px;
-    color: #495057;
-    margin: 4px;
-}
-
-#RibbonSearchBar:hover {
-    border: 1px solid #80bdff;
-}
-
-#RibbonSearchBar:focus {
-    border: 1px solid #007bff;
-    outline: none;
-}
-
-/* Separators */
-#RibbonSeparator {
-    color: #dee2e6;
-    background: #dee2e6;
-    margin: 8px 4px;
-    max-width: 1px;
-    border: none;
-}
-
-/* Tooltips */
-QToolTip {
-    background: #212529;
-    color: white;
-    border: 1px solid #495057;
-    border-radius: 4px;
-    padding: 6px 8px;
-    font-size: 11px;
-    opacity: 240;
-}
-
-/* Professional Menu */
-QMenu {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 4px 0px;
-    color: #495057;
-    font-size: 11px;
-}
-
-QMenu::item {
-    padding: 8px 16px;
-    margin: 0px 4px;
-    border-radius: 4px;
-}
-
-QMenu::item:selected {
-    background: #f8f9fa;
-    color: #007bff;
-}
-
-QMenu::separator {
-    height: 1px;
-    background: #e9ecef;
-    margin: 4px 8px;
-}
-
-/* Animations */
-QWidget {
-    /*transition: all 0.2s ease-in-out;*/
-}
-
-/* Accessibility Improvements */
-QWidget:focus {
-    outline: 2px solid #007bff;
-    outline-offset: 2px;
-}
-"""
 
 class ProfessionalButton(QToolButton):
     """Enhanced professional button with animations and better UX"""
@@ -669,7 +391,6 @@ class ProfessionalRibbon(QWidget):
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self._perform_search)
         self._init_ui()
-        self._apply_professional_stylesheet()
 
     def _init_ui(self):
         """Initialize the enhanced professional UI"""
@@ -742,19 +463,14 @@ class ProfessionalRibbon(QWidget):
         search_layout.setContentsMargins(0, 0, 0, 0)
         search_layout.setSpacing(4)
         
-        # Search icon (using Unicode)
-        search_icon = QLabel("🔍")
-        search_icon.setStyleSheet("color: #6c757d; font-size: 12px; margin-right: 4px;")
-        
         # Enhanced search input
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search commands...")
         self.search_bar.setObjectName("RibbonSearchBar")
-        self.search_bar.setFixedSize(160, 24)
+        self.search_bar.setFixedSize(220, 28)
         self.search_bar.textChanged.connect(self._on_search_text_changed)
         self.search_bar.setToolTip("Search for commands and features (Ctrl+K)")
         
-        search_layout.addWidget(search_icon)
         search_layout.addWidget(self.search_bar)
         
         self.tab_layout.addWidget(search_container)
@@ -769,9 +485,10 @@ class ProfessionalRibbon(QWidget):
         self.content_layout = QVBoxLayout(self.content_area)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
 
-    def _create_enhanced_tab_button(self, text):
-        """Create enhanced professional tab button"""
-        button = QPushButton(text)
+    def add_tab(self, name):
+        """Add a new professional tab with animations"""
+        tab_widget = ProfessionalTab(name, self)
+        button = QPushButton(name)
         button.setCheckable(True)
         button.setObjectName("RibbonTabButton")
         button.setFixedHeight(30)
@@ -779,22 +496,11 @@ class ProfessionalRibbon(QWidget):
         
         # Calculate optimal width based on text
         font_metrics = QFontMetrics(button.font())
-        text_width = font_metrics.horizontalAdvance(text)
+        text_width = font_metrics.horizontalAdvance(name)
         button.setMinimumWidth(text_width + 32)
         
         # Enhanced tooltip
-        button.setToolTip(f"Switch to {text} tab")
-        
-        return button
-
-    def _apply_professional_stylesheet(self):
-        """Apply the complete professional stylesheet"""
-        self.setStyleSheet(PROFESSIONAL_STYLESHEET)
-
-    def add_tab(self, name):
-        """Add a new professional tab with animations"""
-        tab_widget = ProfessionalTab(name, self)
-        button = self._create_enhanced_tab_button(name)
+        button.setToolTip(f"Switch to {name} tab")
         
         self.tab_button_group.addButton(button)
         self.tab_buttons_layout.addWidget(button)
@@ -850,34 +556,7 @@ class ProfessionalRibbon(QWidget):
         """Set enhanced professional file menu"""
         self.file_button.setMenu(menu)
         
-        # Enhanced menu styling
-        menu.setStyleSheet("""
-            QMenu {
-                background: white;
-                border: 1px solid #dee2e6;
-                border-radius: 8px;
-                padding: 6px 0px;
-                color: #495057;
-                font-size: 12px;
-            }
-            QMenu::item {
-                padding: 10px 20px;
-                margin: 0px 6px;
-                border-radius: 4px;
-            }
-            QMenu::item:selected {
-                background: #f8f9fa;
-                color: #007bff;
-            }
-            QMenu::separator {
-                height: 1px;
-                background: #e9ecef;
-                margin: 6px 10px;
-            }
-            QMenu::item:disabled {
-                color: #adb5bd;
-            }
-        """)
+        # Enhanced menu styling is now part of the global theme
         
         menu.aboutToHide.connect(lambda: self.file_button.setChecked(False))
 
@@ -960,10 +639,12 @@ class ProfessionalRibbon(QWidget):
     def set_theme(self, theme="light"):
         """Set professional theme (light/dark)"""
         if theme == "dark":
-            dark_stylesheet = PROFESSIONAL_STYLESHEET.replace("#ffffff", "#2b2b2b").replace("#f8f9fa", "#3c3c3c")
+            dark_stylesheet = """
+            /* Dark theme specifics would go here */
+            """
             self.setStyleSheet(dark_stylesheet)
         else:
-            self.setStyleSheet(PROFESSIONAL_STYLESHEET)
+            self.setStyleSheet("") # Revert to default/global stylesheet
 
 # Enhanced Professional utility components
 

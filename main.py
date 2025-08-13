@@ -24,11 +24,11 @@ import jsonschema
 
 from PyQt6.QtCore import (
     Qt, QTimer, QPoint, QUrl, pyqtSignal, pyqtSlot, QSize, QIODevice, QFile, QSaveFile, QTime,
-    QPointF, QModelIndex, QVariant, QEvent
+    QPointF, QModelIndex, QVariant, QEvent, QRectF, QCoreApplication, QMetaObject, Q_ARG, QThread, QObject
 )
 from PyQt6.QtGui import (
     QIcon, QKeySequence, QCloseEvent, QPalette, QColor, QPen, QFont, QDesktopServices, QUndoStack, QAction,
-    QFileSystemModel
+    QFileSystemModel, QCursor, QPixmap, QBrush, QFontMetrics, QTextCursor, QTextCharFormat, QTextDocument
 )
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QDockWidget,
@@ -167,7 +167,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.setDocumentMode(True)
 
         self.welcome_widget = ModernWelcomeScreen(self)
-        # --- FIX: Connect to the correct, dedicated slot for creating a new project ---
+        # --- FIX: The welcome screen's "New" button should create a project. ---
         self.welcome_widget.newFileRequested.connect(self.action_handler.file_handler.on_new_project)
         self.welcome_widget.openProjectRequested.connect(self.action_handler.file_handler.on_open_file)
         self.welcome_widget.openRecentRequested.connect(self._on_open_recent_project_from_welcome)
@@ -554,12 +554,16 @@ class MainWindow(QMainWindow):
     
         self.close_project_action.setEnabled(is_project_open)
     
-        can_open_or_create_project = not is_project_open
-        self.new_action.setEnabled(can_open_or_create_project)
-        self.open_action.setEnabled(can_open_or_create_project)
-
-        self.save_action.setEnabled(is_project_open and self.current_editor() is not None and self.current_editor().is_dirty())
-        self.save_as_action.setEnabled(is_project_open and self.current_editor() is not None)    
+        # --- FIX: The "New File" and "Open File" actions should be enabled regardless of project state.
+        # Their handlers are context-aware.
+        if hasattr(self, 'new_file_action'): # A new action for files
+            self.new_file_action.setEnabled(True)
+        else: # Fallback for the existing action
+            self.new_action.setEnabled(True) 
+        self.open_action.setEnabled(True)
+    
+        self.save_action.setEnabled(self.current_editor() is not None and self.current_editor().is_dirty())
+        self.save_as_action.setEnabled(self.current_editor() is not None)
 
     @pyqtSlot(QGraphicsItem)
     def on_item_edit_requested(self, item: QGraphicsItem):
@@ -1378,7 +1382,7 @@ class MainWindow(QMainWindow):
             
 
 
-    @pyqtSlot('QRectF')
+    @pyqtSlot(QRectF)
     def update_resource_estimation(self, region=None):
         editor = self.current_editor()
         if not editor or not hasattr(self, 'resource_estimation_dock') or not self.resource_estimation_dock.isVisible():
@@ -1915,7 +1919,7 @@ Please explain what this means in the context of an FSM and suggest how I might 
         self.log_message("INFO", f"Successfully added FSM data to the scene.")
 
 def main_entry_point():
-    app = QApplication(sys.argv)
+    app = QApplication(sys.argv) 
     app.setApplicationName(config.APP_NAME)
     app.setApplicationVersion(config.APP_VERSION)
     

@@ -277,9 +277,9 @@ function modelConfig = setupModelConfiguration()
     {% endif %}
     
     % Generation statistics
-    modelConfig.stats.totalStates = {{ states | length }});
-    modelConfig.stats.totalTransitions = {{ transitions | length }});
-    modelConfig.stats.initialStates = {{ states | selectattr("is_initial") | list | length }});
+    modelConfig.stats.totalStates = {{ states | length }};
+    modelConfig.stats.totalTransitions = {{ transitions | length }};
+    modelConfig.stats.initialStates = {{ states | selectattr("is_initial") | list | length }};
     
     {% if enable_detailed_logging %}
     fprintf('Model configuration setup completed.\n');

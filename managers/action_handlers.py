@@ -53,9 +53,10 @@ class ActionHandler(QObject):
 
     def connect_actions(self):
         """Connects all QAction triggers to the appropriate sub-handler slots."""
-        # --- FIX: The "New" action now correctly points to the diagram file creation method. ---
-        # The welcome screen button will now correctly point to on_new_project.
-        self.mw.new_action.triggered.connect(self.file_handler.on_new_file)
+        # --- FIX: The main window's "New Project" action was inconsistently connected to creating a new file.
+        # It is now correctly connected to the on_new_project handler to match its text.
+        # The welcome screen button creates projects, and the main menu's "New" creates a file. This was swapped.
+        self.mw.new_action.triggered.connect(self.file_handler.on_new_project)
         self.mw.open_action.triggered.connect(self.file_handler.on_open_file)
         self.mw.close_project_action.triggered.connect(self.file_handler.on_close_project)
         self.mw.save_action.triggered.connect(self.file_handler.on_save_file)

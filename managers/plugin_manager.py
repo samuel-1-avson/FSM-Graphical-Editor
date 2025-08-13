@@ -32,7 +32,7 @@ class PluginManager:
                     module = importlib.import_module(f"..{PLUGIN_SUBDIR}.{module_name}", package="fsm_designer_project.managers")
                     
                     for name, obj in inspect.getmembers(module, inspect.isclass):
-                        # --- MODIFY THIS DISCOVERY BLOCK ---
+                        # --- FIX: Add discovery logic for importer plugins ---
                         # Check for Exporter plugins
                         if issubclass(obj, BsmExporterPlugin) and obj is not BsmExporterPlugin:
                             try:
@@ -50,7 +50,7 @@ class PluginManager:
                                 logger.info(f"Successfully loaded importer plugin: '{plugin_instance.name}'")
                             except Exception as e:
                                 logger.error(f"Failed to instantiate importer plugin '{name}': {e}", exc_info=True)
-                        # --- END MODIFICATION ---
+                        # --- END FIX ---
 
                 except ImportError as e:
                     logger.error(f"Failed to import plugin module '{module_name}': {e}", exc_info=True)

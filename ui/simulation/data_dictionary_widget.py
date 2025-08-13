@@ -45,7 +45,7 @@ class DataDictionaryWidget(QWidget):
         layout.addWidget(self.table)
         
         # --- FIX: REMOVE THIS LINE ---
-        # self.manager.dictionary_changed.connect(self.populate_table)
+        
         # --- END FIX ---
         self.populate_table()
 

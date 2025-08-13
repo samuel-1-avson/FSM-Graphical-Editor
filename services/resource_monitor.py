@@ -27,6 +27,7 @@ class ResourceMonitorWorker(QObject):
         self._stop_requested = False
         self.MAX_NVML_REINIT_ATTEMPTS = 3
         self.NVML_REINIT_BACKOFF_SECONDS = 30
+        # --- FIX: Timer will be created in the correct thread ---
         self.monitor_timer: QTimer | None = None
 
         if PYNVML_AVAILABLE and pynvml:
@@ -89,7 +90,7 @@ class ResourceMonitorWorker(QObject):
 
         # --- FIX: Ensure timer is created and started in this thread's context ---
         if self.monitor_timer is None:
-            self.monitor_timer = QTimer()
+            self.monitor_timer = QTimer(self)
             self.monitor_timer.setInterval(self.data_collection_interval_ms)
             self.monitor_timer.timeout.connect(self._monitor_resources)
 
@@ -124,7 +125,6 @@ class ResourceMonitorWorker(QObject):
             return
             
         try:
-            # --- FIX: Wrap psutil calls in a try-except block ---
             try:
                 cpu_usage = psutil.cpu_percent(interval=None)
                 ram_percent = psutil.virtual_memory().percent
@@ -133,7 +133,6 @@ class ResourceMonitorWorker(QObject):
                 # Emit error values that the UI can interpret
                 self.resourceUpdate.emit(-1.0, -1.0, -3.0, "psutil Error")
                 return
-            # --- END FIX ---
 
             gpu_util = -1.0 
             gpu_name_to_emit = self._gpu_name_cache

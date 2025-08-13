@@ -1,0 +1,219 @@
+{
+    "states": [
+        {
+            "name": "Idle",
+            "x": 60.0,
+            "y": 200.0,
+            "width": 120.0,
+            "height": 60.0,
+            "is_initial": true,
+            "is_final": false,
+            "color": "#90caf9",
+            "action_language": "Python (Generic Simulation)",
+            "entry_action": "print(\"Machine is Idle.\")\ncredit = 0",
+            "during_action": "",
+            "exit_action": "print(\"Leaving Idle state.\")",
+            "description": "The machine is waiting for a coin.",
+            "is_superstate": false,
+            "sub_fsm_data": {
+                "states": [],
+                "transitions": [],
+                "comments": []
+            },
+            "shape_type": "rectangle",
+            "font_family": "Segoe UI, Arial, sans-serif",
+            "font_size": 10,
+            "font_bold": true,
+            "font_italic": false,
+            "border_style_str": "Solid",
+            "border_width": 1.8,
+            "icon_path": null
+        },
+        {
+            "name": "MakingCoffee",
+            "x": 480.0,
+            "y": 200.0,
+            "width": 160.0,
+            "height": 140.0,
+            "is_initial": false,
+            "is_final": false,
+            "color": "#a5d6a7",
+            "action_language": "Python (Generic Simulation)",
+            "entry_action": "print(\"Starting coffee making process...\")",
+            "during_action": "",
+            "exit_action": "print(\"Coffee process finished.\")\ncredit = 0",
+            "description": "A superstate that encapsulates the multi-step coffee making process.",
+            "is_superstate": true,
+            "sub_fsm_data": {
+                "states": [
+                    {
+                        "name": "Grinding",
+                        "is_initial": true,
+                        "entry_action": "print(\"  Sub: Grinding beans...\")\ntimer_start_tick = current_tick",
+                        "during_action": "if current_tick >= timer_start_tick + 3:\n    sm.send('grind_done')"
+                    },
+                    {
+                        "name": "Brewing",
+                        "entry_action": "print(\"  Sub: Brewing coffee...\")\ntimer_start_tick = current_tick",
+                        "during_action": "if current_tick >= timer_start_tick + 5:\n    sm.send('brew_done')"
+                    },
+                    {
+                        "name": "Pouring",
+                        "entry_action": "print(\"  Sub: Pouring coffee...\")\ntimer_start_tick = current_tick",
+                        "during_action": "if current_tick >= timer_start_tick + 2:\n    sm.send('pour_done')"
+                    },
+                    {
+                        "name": "Done",
+                        "is_final": true,
+                        "entry_action": "print(\"  Sub: Coffee is ready!\")"
+                    }
+                ],
+                "transitions": [
+                    {
+                        "source": "Grinding",
+                        "target": "Brewing",
+                        "event": "grind_done"
+                    },
+                    {
+                        "source": "Brewing",
+                        "target": "Pouring",
+                        "event": "brew_done"
+                    },
+                    {
+                        "source": "Pouring",
+                        "target": "Done",
+                        "event": "pour_done"
+                    }
+                ],
+                "comments": []
+            },
+            "shape_type": "rectangle",
+            "font_family": "Segoe UI, Arial, sans-serif",
+            "font_size": 10,
+            "font_bold": true,
+            "font_italic": false,
+            "border_style_str": "Dash",
+            "border_width": 2.5,
+            "icon_path": null
+        },
+        {
+            "name": "HasCredit",
+            "x": 260.0,
+            "y": 200.0,
+            "width": 120.0,
+            "height": 60.0,
+            "is_initial": false,
+            "is_final": false,
+            "color": "#fff59d",
+            "action_language": "Python (Generic Simulation)",
+            "entry_action": "print(f\"Credit is now: {credit}\")",
+            "during_action": "",
+            "exit_action": "",
+            "description": "The machine has received payment and is waiting for a selection.",
+            "is_superstate": false,
+            "sub_fsm_data": {
+                "states": [],
+                "transitions": [],
+                "comments": []
+            },
+            "shape_type": "rectangle",
+            "font_family": "Segoe UI, Arial, sans-serif",
+            "font_size": 10,
+            "font_bold": true,
+            "font_italic": false,
+            "border_style_str": "Solid",
+            "border_width": 1.8,
+            "icon_path": null
+        }
+    ],
+    "transitions": [
+        {
+            "source": "Idle",
+            "target": "HasCredit",
+            "event": "insert_coin",
+            "condition": "",
+            "action_language": "Python (Generic Simulation)",
+            "action": "credit = credit + 1",
+            "color": "#4db6ac",
+            "description": "",
+            "control_offset_x": 0.0,
+            "control_offset_y": 0.0,
+            "line_style_str": "Solid",
+            "line_width": 2.2,
+            "arrowhead_style": "filled",
+            "label_font_family": "Segoe UI, Arial, sans-serif",
+            "label_font_size": 8
+        },
+        {
+            "source": "HasCredit",
+            "target": "MakingCoffee",
+            "event": "select_coffee",
+            "condition": "credit >= 1",
+            "action_language": "Python (Generic Simulation)",
+            "action": "print(\"Selection made with sufficient credit.\")",
+            "color": "#4db6ac",
+            "description": "User selects coffee with enough money.",
+            "control_offset_x": 0.0,
+            "control_offset_y": 0.0,
+            "line_style_str": "Solid",
+            "line_width": 2.2,
+            "arrowhead_style": "filled",
+            "label_font_family": "Segoe UI, Arial, sans-serif",
+            "label_font_size": 8
+        },
+        {
+            "source": "MakingCoffee",
+            "target": "Idle",
+            "event": "",
+            "condition": "",
+            "action_language": "Python (Generic Simulation)",
+            "action": "print(\"Dispensing complete. Returning to Idle.\")",
+            "color": "#4db6ac",
+            "description": "This is a completion transition, triggered when the sub-machine reaches its final state.",
+            "control_offset_x": 0.0,
+            "control_offset_y": -90.0,
+            "line_style_str": "Solid",
+            "line_width": 2.2,
+            "arrowhead_style": "filled",
+            "label_font_family": "Segoe UI, Arial, sans-serif",
+            "label_font_size": 8
+        },
+        {
+            "source": "HasCredit",
+            "target": "Idle",
+            "event": "cancel",
+            "condition": "",
+            "action_language": "Python (Generic Simulation)",
+            "action": "print(f\"Returning {credit} credit(s).\")\ncredit = 0",
+            "color": "#e57373",
+            "description": "User cancels and gets a refund.",
+            "control_offset_x": 0.0,
+            "control_offset_y": 80.0,
+            "line_style_str": "Solid",
+            "line_width": 2.2,
+            "arrowhead_style": "filled",
+            "label_font_family": "Segoe UI, Arial, sans-serif",
+            "label_font_size": 8
+        }
+    ],
+    "comments": [
+        {
+            "text": "This is a hierarchical state machine for a simple coffee vendor.",
+            "x": 60.0,
+            "y": 80.0,
+            "width": 220.0,
+            "font_family": "Segoe UI, Arial, sans-serif",
+            "font_size": 10,
+            "font_italic": true
+        },
+        {
+            "text": "NOTE: This example uses Python-specific code (e.g., `sm.send()`, `current_tick`) and is designed for the internal Python simulator.\n\nTo generate code for other targets like C or HDL, you must replace the Python actions and conditions with code valid for your target platform.",
+            "x": 60.0,
+            "y": 120.0,
+            "width": 400.0,
+            "font_family": "Segoe UI, Arial, sans-serif",
+            "font_size": 9,
+            "font_italic": true
+        }
+    ]
+}

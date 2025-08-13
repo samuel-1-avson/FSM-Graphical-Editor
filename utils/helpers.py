@@ -91,7 +91,7 @@ def _get_bundled_file_path(filename: str, resource_prefix: str = "") -> str | No
                 return temp_disk_path
             else:
                 source_file_for_error = QFile(resource_path) # Re-open to check error
-                source_file_for_error.open(QIODevice.ReadOnly)
+                source_file_for_error.open(QIODevice.OpenModeFlag.ReadOnly)
                 logger.warning(f"Failed to copy resource '{resource_path}' to '{temp_disk_path}'. Error: {source_file_for_error.errorString()}")
                 source_file_for_error.close()
         else:

@@ -1272,6 +1272,7 @@ classdef {{ class_name | default("FSMController") }} < handle
         
         function performSystemHealthCheck(obj)
             % Perform comprehensive system health check with template-specific validations
+            % Fixed version with proper error handling and no missing arguments
             
             obj.log('info', 'Performing system health check (Template v%s)...', obj.TEMPLATE_VERSION);
             

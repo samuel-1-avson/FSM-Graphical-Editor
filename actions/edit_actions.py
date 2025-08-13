@@ -217,4 +217,3 @@ class EditActionHandler(QObject):
         except Exception as e:
             QMessageBox.critical(self.mw, "Auto-Layout Error", f"An error occurred during auto-layout: {e}")
             logger.error("Auto-layout failed: %s", e, exc_info=True)
-    # --- END FIX ---
