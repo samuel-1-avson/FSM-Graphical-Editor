@@ -1,0 +1,3 @@
+C:/Users/HP/OneDrive/Desktop/Applications/Projects/Project research/fsm_designer_project/build/CMakeFiles/fsm_core.dir
+C:/Users/HP/OneDrive/Desktop/Applications/Projects/Project research/fsm_designer_project/build/CMakeFiles/edit_cache.dir
+C:/Users/HP/OneDrive/Desktop/Applications/Projects/Project research/fsm_designer_project/build/CMakeFiles/rebuild_cache.dir
