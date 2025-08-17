@@ -3,6 +3,8 @@ from PyQt6.QtGui import QUndoCommand
 from PyQt6.QtWidgets import QGraphicsItem
 from PyQt6.QtCore import QPointF
 
+# --- FIX: Use theme_config for colors ---
+from .utils.theme_config import theme_config
 from .utils.config import DEFAULT_EXECUTION_ENV # Import default
 import logging
 

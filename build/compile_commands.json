@@ -1,8 +1,0 @@
-[
-{
-  "directory": "C:/Users/HP/OneDrive/Desktop/Applications/Projects/Project research/fsm_designer_project/build",
-  "command": "C:\\mingw64\\bin\\g++.exe -DFSM_CORE_BUILD_DLL -Dfsm_core_EXPORTS -I\"C:/Users/HP/OneDrive/Desktop/Applications/Projects/Project research/fsm_designer_project/core_engine/../dependencies\" -g -std=gnu++17 -o CMakeFiles\\fsm_core.dir\\fsm_core.cpp.obj -c \"C:\\Users\\HP\\OneDrive\\Desktop\\Applications\\Projects\\Project research\\fsm_designer_project\\core_engine\\fsm_core.cpp\"",
-  "file": "C:\\Users\\HP\\OneDrive\\Desktop\\Applications\\Projects\\Project research\\fsm_designer_project\\core_engine\\fsm_core.cpp",
-  "output": "CMakeFiles\\fsm_core.dir\\fsm_core.cpp.obj"
-}
-]

@@ -28,6 +28,7 @@ from ..utils import config
 from ..ui.widgets.custom_widgets import CollapsibleSection, DraggableToolButton
 from ..undo_commands import EditItemPropertiesCommand
 from .c_simulation_manager import CSimulationManager
+# --- FIX: Correct the import path for DataDictionaryWidget ---
 from ..ui.simulation.data_dictionary_widget import DataDictionaryWidget
 
 import logging
@@ -536,16 +537,22 @@ class UIManager(QObject):
 
     def _populate_elements_palette_dock(self):
         mw = self.mw
-        toolbox = QToolBox()
-        toolbox.setObjectName("ElementsToolbox")
+        
+        # --- NEW: Use CollapsibleSection instead of QToolBox ---
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 5, 0, 5)
+        container_layout.setSpacing(8)
 
-        standard_elements_widget = QWidget()
-        standard_layout = QVBoxLayout(standard_elements_widget)
+        # --- Standard Elements Section ---
+        standard_section = CollapsibleSection("Standard Elements", container)
+        standard_content = QWidget()
+        standard_layout = QVBoxLayout(standard_content)
         standard_layout.setContentsMargins(5, 5, 5, 5)
         standard_layout.setSpacing(5)
 
         # --- FIX: Use more appropriate standard icons ---
-        standard_layout.addWidget(DraggableToolButton("State", config.MIME_TYPE_BSM_ITEMS, "State", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileIcon, "State")))
+        standard_layout.addWidget(DraggableToolButton("State", config.MIME_TYPE_BSM_ITEMS, "State", icon=get_standard_icon(QStyle.StandardPixmap.SP_FileDialogNewFolder, "State")))
         standard_layout.addWidget(DraggableToolButton("Initial State", config.MIME_TYPE_BSM_ITEMS, "Initial State", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaPlay)))
         standard_layout.addWidget(DraggableToolButton("Final State", config.MIME_TYPE_BSM_ITEMS, "Final State", icon=get_standard_icon(QStyle.StandardPixmap.SP_MediaStop)))
         standard_layout.addWidget(DraggableToolButton("Comment", config.MIME_TYPE_BSM_ITEMS, "Comment", icon=get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxInformation)))
@@ -553,16 +560,31 @@ class UIManager(QObject):
         # --- END FIX ---
         
         standard_layout.addStretch()
-        toolbox.addItem(standard_elements_widget, "Standard Elements")
+        standard_section.add_widget(standard_content)
+        container_layout.addWidget(standard_section)
 
-        mw.templates_widget = QWidget()
+        # --- FSM Templates Section ---
+        templates_section = CollapsibleSection("FSM Templates", container)
+        
+        # Use a scroll area for a potentially long list of templates
+        templates_scroll_area = QScrollArea()
+        templates_scroll_area.setWidgetResizable(True)
+        templates_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        templates_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        mw.templates_widget = QWidget() # This widget goes inside the scroll area
         mw.templates_layout = QVBoxLayout(mw.templates_widget)
         mw.templates_layout.setContentsMargins(5, 5, 5, 5)
         mw.templates_layout.setSpacing(5)
-        self._load_and_display_templates()
-        toolbox.addItem(mw.templates_widget, "FSM Templates")
 
-        mw.elements_palette_dock.setWidget(toolbox)
+        templates_scroll_area.setWidget(mw.templates_widget)
+        templates_section.add_widget(templates_scroll_area)
+        container_layout.addWidget(templates_section)
+
+        self._load_and_display_templates()
+
+        container_layout.addStretch()
+        mw.elements_palette_dock.setWidget(container)
 
     def _load_and_display_templates(self):
         mw = self.mw

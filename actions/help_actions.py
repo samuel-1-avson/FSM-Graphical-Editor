@@ -1,6 +1,9 @@
 # fsm_designer_project/actions/help_actions.py
 import logging
-from PyQt6.QtCore import QObject, pyqtSlot
+from PyQt6.QtCore import QObject, pyqtSlot, QUrl
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtWidgets import QMessageBox
+from ..utils import _get_bundled_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +14,15 @@ class HelpActionHandler(QObject):
 
     @pyqtSlot()
     def on_show_quick_start(self):
-        self.mw.action_handler.file_handler.on_show_quick_start()
+        """Finds and opens the QUICK_START.html file in the default web browser."""
+        # --- FIX: Moved implementation from FileActionHandler to here ---
+        quick_start_path = _get_bundled_file_path("QUICK_START.html", resource_prefix="docs")
+        if quick_start_path:
+            url = QUrl.fromLocalFile(quick_start_path)
+            if not QDesktopServices.openUrl(url):
+                QMessageBox.warning(self.mw, "Could Not Open Guide", f"Failed to open the Quick Start Guide in your browser:\n{quick_start_path}")
+        else:
+            QMessageBox.critical(self.mw, "File Not Found", "The Quick Start Guide (QUICK_START.html) could not be found.")
         
     @pyqtSlot()
     def on_about(self):

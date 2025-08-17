@@ -125,7 +125,10 @@ class GraphicsStateItem(QGraphicsRectItem):
         self.is_superstate = is_superstate
         self._is_potential_transition_target = False
         if sub_fsm_data and isinstance(sub_fsm_data, dict) and \
-           all(k in sub_fsm_data for k in ['states', 'transitions', 'comments']):
+           all(k in sub_fsm_data for k in ['states', 'transitions', 'comments']) and \
+           isinstance(sub_fsm_data.get('states'), list) and \
+           isinstance(sub_fsm_data.get('transitions'), list) and \
+           isinstance(sub_fsm_data.get('comments'), list):
             self.sub_fsm_data = sub_fsm_data
         else:
             self.sub_fsm_data = {'states': [], 'transitions': [], 'comments': []}
@@ -215,11 +218,11 @@ class GraphicsStateItem(QGraphicsRectItem):
         pen_to_use = QPen(current_base_color, current_base_width, current_base_style)
 
         if self.is_py_sim_active:
-            pen_to_use.setColor(COLOR_PY_SIM_STATE_ACTIVE)
-            pen_to_use.setWidthF(max(current_base_width, COLOR_PY_SIM_STATE_ACTIVE_PEN_WIDTH)) 
+            pen_to_use.setColor(theme_config.COLOR_PY_SIM_STATE_ACTIVE)
+            pen_to_use.setWidthF(max(current_base_width, config.COLOR_PY_SIM_STATE_ACTIVE_PEN_WIDTH)) 
             pen_to_use.setStyle(Qt.PenStyle.SolidLine) 
         elif self._is_problematic:
-            pen_to_use.setColor(QColor(COLOR_ACCENT_WARNING))
+            pen_to_use.setColor(QColor(theme_config.COLOR_ACCENT_WARNING))
             pen_to_use.setWidthF(current_base_width + 0.7)
             pen_to_use.setStyle(Qt.PenStyle.DashDotLine)
         
@@ -349,7 +352,7 @@ class GraphicsStateItem(QGraphicsRectItem):
         if is_superstate_prop is not None and self.is_superstate != is_superstate_prop: self.is_superstate = is_superstate_prop; changed = True
         if sub_fsm_data_prop is not None and self.sub_fsm_data != sub_fsm_data_prop: self.sub_fsm_data = sub_fsm_data_prop; changed = True
         settings = QApplication.instance().settings_manager if QApplication.instance() and hasattr(QApplication.instance(), 'settings_manager') else None
-        default_color_hex = settings.get("item_default_state_color") if settings else COLOR_ITEM_STATE_DEFAULT_BG
+        default_color_hex = settings.get("item_default_state_color") if settings else theme_config.COLOR_ITEM_STATE_DEFAULT_BG
         color_hex = props.get('color_hex', props.get('color'))
         new_base_color = QColor(color_hex) if color_hex and QColor(color_hex).isValid() else QColor(default_color_hex)
         if self.base_color != new_base_color: self.base_color = new_base_color; self.border_color = new_base_color.darker(120); self.setBrush(self.base_color); changed = True
@@ -449,26 +452,26 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         
         settings = QApplication.instance().settings_manager if QApplication.instance() and hasattr(QApplication.instance(), 'settings_manager') else None
         
-        default_color_hex = settings.get("item_default_transition_color") if settings else COLOR_ITEM_TRANSITION_DEFAULT
+        default_color_hex = settings.get("item_default_transition_color") if settings else theme_config.COLOR_ITEM_TRANSITION_DEFAULT
         self.base_color = QColor(color) if color and QColor(color).isValid() else QColor(default_color_hex)
         
-        _label_font_family = label_font_family if label_font_family is not None else (settings.get("transition_default_font_family") if settings else APP_FONT_FAMILY)
+        _label_font_family = label_font_family if label_font_family is not None else (settings.get("transition_default_font_family") if settings else config.APP_FONT_FAMILY)
         _label_font_size = label_font_size if label_font_size is not None else (settings.get("transition_default_font_size") if settings else 8)
         self._font = QFont(_label_font_family, _label_font_size) 
 
-        self.custom_line_width = custom_line_width if custom_line_width is not None else (settings.get("transition_default_line_width") if settings else DEFAULT_TRANSITION_LINE_WIDTH)
+        self.custom_line_width = custom_line_width if custom_line_width is not None else (settings.get("transition_default_line_width") if settings else config.DEFAULT_TRANSITION_LINE_WIDTH)
         
         if line_style_qt is not None:
             self.line_style_qt = line_style_qt
         elif settings:
             style_str = settings.get("transition_default_line_style_str")
-            self.line_style_qt = SettingsManager.STRING_TO_QT_PEN_STYLE.get(style_str, DEFAULT_TRANSITION_LINE_STYLE)
+            self.line_style_qt = SettingsManager.STRING_TO_QT_PEN_STYLE.get(style_str, config.DEFAULT_TRANSITION_LINE_STYLE)
         else:
-            self.line_style_qt = DEFAULT_TRANSITION_LINE_STYLE
+            self.line_style_qt = config.DEFAULT_TRANSITION_LINE_STYLE
             
-        self.arrowhead_style = arrowhead_style if arrowhead_style is not None else (settings.get("transition_default_arrowhead_style") if settings else DEFAULT_TRANSITION_ARROWHEAD)
+        self.arrowhead_style = arrowhead_style if arrowhead_style is not None else (settings.get("transition_default_arrowhead_style") if settings else config.DEFAULT_TRANSITION_ARROWHEAD)
 
-        self._text_color = QColor(COLOR_TEXT_PRIMARY) 
+        self._text_color = QColor(theme_config.COLOR_TEXT_PRIMARY) 
         self.control_point_offset = QPointF(0,0)
         
         self.original_pen = QPen(self.base_color, self.custom_line_width, self.line_style_qt, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
@@ -512,8 +515,8 @@ class GraphicsTransitionItem(QGraphicsPathItem):
     def _determine_current_pen(self) -> QPen:
         pen_to_use = QPen(self.base_color, self.custom_line_width, self.line_style_qt, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
         if self.is_py_sim_active:
-            pen_to_use.setColor(theme_config.COLOR_PY_SIM_STATE_ACTIVE)
-            if highlight_color == self.base_color : highlight_color = QColor(COLOR_ACCENT_SECONDARY)
+            highlight_color = theme_config.COLOR_PY_SIM_STATE_ACTIVE
+            if highlight_color == self.base_color : highlight_color = QColor(theme_config.COLOR_ACCENT_SECONDARY)
             pen_to_use.setColor(highlight_color)
             pen_to_use.setWidthF(self.custom_line_width + 1.2)
             pen_to_use.setStyle(Qt.PenStyle.SolidLine) 
@@ -530,10 +533,10 @@ class GraphicsTransitionItem(QGraphicsPathItem):
 
         if self.isSelected() and not self.is_py_sim_active:
             stroker = QPainterPathStroker(); stroker.setWidth(current_pen_for_drawing.widthF() + 8); stroker.setCapStyle(Qt.PenCapStyle.RoundCap); stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-            selection_path_shape = stroker.createStroke(self.path()); highlight_color = QColor(COLOR_ITEM_TRANSITION_SELECTION); highlight_color.setAlpha(150)
+            selection_path_shape = stroker.createStroke(self.path()); highlight_color = QColor(theme_config.COLOR_ITEM_TRANSITION_SELECTION); highlight_color.setAlpha(150)
             painter.setPen(QPen(highlight_color, 1, Qt.PenStyle.SolidLine)); painter.setBrush(highlight_color); painter.drawPath(selection_path_shape)
             cp_rect = self._get_control_point_rect()
-            if not cp_rect.isEmpty(): painter.setPen(QPen(QColor(COLOR_ACCENT_PRIMARY), 1.5)); fill_color = QColor(COLOR_ACCENT_PRIMARY_LIGHT); fill_color.setAlpha(200); painter.setBrush(fill_color); painter.drawEllipse(cp_rect)
+            if not cp_rect.isEmpty(): painter.setPen(QPen(QColor(theme_config.COLOR_ACCENT_PRIMARY), 1.5)); fill_color = QColor(theme_config.COLOR_ACCENT_PRIMARY_LIGHT); fill_color.setAlpha(200); painter.setBrush(fill_color); painter.drawEllipse(cp_rect)
 
 
         painter.setPen(current_pen_for_drawing)
@@ -577,8 +580,8 @@ class GraphicsTransitionItem(QGraphicsPathItem):
             text_center_x = text_pos_on_path.x() + offset_dist * math.cos(offset_angle_rad); text_center_y = text_pos_on_path.y() + offset_dist * math.sin(offset_angle_rad)
             text_final_draw_rect = QRectF(text_center_x - text_rect_original.width() / 2, text_center_y - text_rect_original.height() / 2, text_rect_original.width(), text_rect_original.height())
             bg_padding = 4; bg_rect = text_final_draw_rect.adjusted(-bg_padding, -bg_padding, bg_padding, bg_padding)
-            label_bg_color = QColor(COLOR_BACKGROUND_DIALOG); label_bg_color.setAlpha(230); painter.setBrush(label_bg_color)
-            painter.setPen(QPen(QColor(COLOR_BORDER_LIGHT), 0.8)); painter.drawRoundedRect(bg_rect, 4, 4)
+            label_bg_color = QColor(theme_config.COLOR_BACKGROUND_DIALOG); label_bg_color.setAlpha(230); painter.setBrush(label_bg_color)
+            painter.setPen(QPen(QColor(theme_config.COLOR_BORDER_LIGHT), 0.8)); painter.drawRoundedRect(bg_rect, 4, 4)
             painter.setPen(self._text_color)
             painter.drawText(text_final_draw_rect, flags, current_label)
 
@@ -619,7 +622,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
         if offset is not None and self.control_point_offset != offset:
              self.control_point_offset = offset; changed = True
 
-        default_color_hex = settings.get("item_default_transition_color") if settings else COLOR_ITEM_TRANSITION_DEFAULT
+        default_color_hex = settings.get("item_default_transition_color") if settings else theme_config.COLOR_ITEM_TRANSITION_DEFAULT
         color_hex = props.get('color_hex', props.get('color'))
         new_color = QColor(color_hex) if color_hex and QColor(color_hex).isValid() else QColor(default_color_hex)
 
@@ -661,7 +664,7 @@ class GraphicsTransitionItem(QGraphicsPathItem):
             'target': self.end_item.text_label if self.end_item else "None", 
             'event': self.event_str, 'condition': self.condition_str, 
             'action_language': self.action_language, 'action': self.action_str, 
-            'color': self.base_color.name() if self.base_color else QColor(COLOR_ITEM_TRANSITION_DEFAULT).name(), 
+            'color': self.base_color.name() if self.base_color else QColor(theme_config.COLOR_ITEM_TRANSITION_DEFAULT).name(), 
             'description': self.description, 
             'control_offset_x': self.control_point_offset.x(), 
             'control_offset_y': self.control_point_offset.y(),
@@ -857,14 +860,14 @@ class GraphicsCommentItem(QGraphicsTextItem):
         self.setPos(x, y)
         
         settings = QApplication.instance().settings_manager if QApplication.instance() and hasattr(QApplication.instance(), 'settings_manager') else None
-        _font_family = font_family if font_family is not None else (settings.get("comment_default_font_family") if settings else APP_FONT_FAMILY)
+        _font_family = font_family if font_family is not None else (settings.get("comment_default_font_family") if settings else config.APP_FONT_FAMILY)
         _font_size = font_size if font_size is not None else (settings.get("comment_default_font_size") if settings else 9)
         _font_italic = font_italic if font_italic is not None else (settings.get("comment_default_font_italic") if settings else True)
         self._custom_font = QFont(_font_family, _font_size)
         if _font_italic: self._custom_font.setItalic(True)
         self.setFont(self._custom_font) 
         
-        default_color_hex = settings.get("item_default_comment_bg_color") if settings else COLOR_ITEM_COMMENT_BG
+        default_color_hex = settings.get("item_default_comment_bg_color") if settings else theme_config.COLOR_ITEM_COMMENT_BG
         
         self.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemIsMovable | QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges | QGraphicsItem.GraphicsItemFlag.ItemIsFocusable)
@@ -873,7 +876,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
         self.border_pen = QPen(self.original_border_pen)
         self.background_brush = QBrush(QColor(default_color_hex))
         self.shadow_effect = QGraphicsDropShadowEffect(); self.shadow_effect.setBlurRadius(10); self.shadow_effect.setColor(QColor(0, 0, 0, 40)); self.shadow_effect.setOffset(2.5, 2.5); self.setGraphicsEffect(self.shadow_effect)
-        self.setDefaultTextColor(QColor(COLOR_TEXT_PRIMARY).darker(110)) 
+        self.setDefaultTextColor(QColor(theme_config.COLOR_TEXT_PRIMARY).darker(110)) 
         if self.document(): self.document().contentsChanged.connect(self._on_contents_changed)
         self._inline_editor_proxy: QGraphicsProxyWidget | None = None; self._is_editing_inline = False
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
@@ -885,7 +888,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
 
     def _determine_current_pen(self) -> QPen:
         if self._is_problematic:
-            return QPen(QColor(COLOR_ACCENT_WARNING), self.original_border_pen.widthF() + 0.5, Qt.PenStyle.DashDotLine)
+            return QPen(QColor(theme_config.COLOR_ACCENT_WARNING), self.original_border_pen.widthF() + 0.5, Qt.PenStyle.DashDotLine)
         return QPen(self.original_border_pen)
 
     def paint(self, painter: QPainter, option, widget):
@@ -897,7 +900,7 @@ class GraphicsCommentItem(QGraphicsTextItem):
         if not self._is_editing_inline:
             super().paint(painter, option, widget)
         if self.isSelected() and not self._is_editing_inline:
-            selection_pen = QPen(QColor(COLOR_ACCENT_PRIMARY), 1.8, Qt.PenStyle.DashLine)
+            selection_pen = QPen(QColor(theme_config.COLOR_ACCENT_PRIMARY), 1.8, Qt.PenStyle.DashLine)
             painter.setPen(selection_pen); painter.setBrush(Qt.BrushStyle.NoBrush); painter.drawRoundedRect(self.boundingRect().adjusted(-1, -1, 1, 1), 6, 6)
 
     def set_properties(self, **props):
@@ -1080,8 +1083,9 @@ class GraphicsFrameItem(QGraphicsRectItem):
         self.title = title
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemIsMovable | QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
         self.setZValue(-10) # Ensure it's behind all other items
-        self.setPen(QPen(QColor(config.COLOR_BORDER_MEDIUM), 2, Qt.PenStyle.DashLine))
-        self.setBrush(QBrush(QColor(config.COLOR_BACKGROUND_MEDIUM).lighter(120)))
+        # --- FIX: Use theme_config for colors ---
+        self.setPen(QPen(QColor(theme_config.COLOR_BORDER_MEDIUM), 2, Qt.PenStyle.DashLine))
+        self.setBrush(QBrush(QColor(theme_config.COLOR_BACKGROUND_MEDIUM).lighter(120)))
 
     def paint(self, painter: QPainter, option, widget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -1092,7 +1096,8 @@ class GraphicsFrameItem(QGraphicsRectItem):
         # Draw title
         title_font = QFont(config.APP_FONT_FAMILY, 10, QFont.Weight.Bold)
         painter.setFont(title_font)
-        painter.setPen(QColor(config.COLOR_TEXT_SECONDARY))
+        # --- FIX: Use theme_config for colors ---
+        painter.setPen(QColor(theme_config.COLOR_TEXT_SECONDARY))
         
         title_rect = QRectF(10, 5, self.rect().width() - 20, 20)
         painter.drawText(title_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, self.title)
@@ -1118,7 +1123,8 @@ class GraphicsDisplayItem(QGraphicsTextItem):
         self.variable_name = variable_name
         self.setPlainText(f"{self.variable_name}\n(sim inactive)")
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-        self.setDefaultTextColor(QColor(config.COLOR_TEXT_PRIMARY))
+        # --- FIX: Use theme_config for colors ---
+        self.setDefaultTextColor(QColor(theme_config.COLOR_TEXT_PRIMARY))
         font = QFont(config.APP_FONT_FAMILY, 9)
         self.setFont(font)
         self.setTextWidth(120) # Give it a default width
@@ -1126,8 +1132,9 @@ class GraphicsDisplayItem(QGraphicsTextItem):
     def paint(self, painter: QPainter, option, widget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = self.boundingRect().adjusted(2, 2, -2, -2)
-        painter.setPen(QPen(QColor(config.COLOR_BORDER_MEDIUM), 1.5))
-        painter.setBrush(QBrush(QColor(config.COLOR_BACKGROUND_LIGHT)))
+        # --- FIX: Use theme_config for colors ---
+        painter.setPen(QPen(QColor(theme_config.COLOR_BORDER_MEDIUM), 1.5))
+        painter.setBrush(QBrush(QColor(theme_config.COLOR_BACKGROUND_LIGHT)))
         painter.drawRoundedRect(rect, 5, 5)
         super().paint(painter, option, widget)
 

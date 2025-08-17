@@ -1,4 +1,3 @@
-
 # fsm_designer_project/ui/graphics/graphics_scene.py
 
 
@@ -72,9 +71,10 @@ class DiagramScene(QGraphicsScene):
 
         self.grid_size = self.settings_manager.get("grid_size", 20)
 
-        self.grid_pen_light = QPen(QColor(config.COLOR_GRID_MINOR), 0.7, Qt.PenStyle.DotLine)
-        self.grid_pen_dark = QPen(QColor(config.COLOR_GRID_MAJOR), 0.9, Qt.PenStyle.SolidLine)
-        self.setBackgroundBrush(QColor(config.COLOR_BACKGROUND_LIGHT))
+        # --- FIX: Use theme_config for dynamic colors, config for static defaults ---
+        self.grid_pen_light = QPen(QColor(theme_config.COLOR_GRID_MINOR), 0.7, Qt.PenStyle.DotLine)
+        self.grid_pen_dark = QPen(QColor(theme_config.COLOR_GRID_MAJOR), 0.9, Qt.PenStyle.SolidLine)
+        self.setBackgroundBrush(QColor(theme_config.COLOR_BACKGROUND_LIGHT))
 
         self.snap_to_grid_enabled = self.settings_manager.get("view_snap_to_grid")
         self.snap_to_objects_enabled = self.settings_manager.get("view_snap_to_objects")
@@ -95,7 +95,116 @@ class DiagramScene(QGraphicsScene):
         self.grid_pen_light.setColor(QColor(self.settings_manager.get("canvas_grid_minor_color")))
         self.grid_pen_dark.setColor(QColor(self.settings_manager.get("canvas_grid_major_color")))
         self._guideline_pen.setColor(QColor(self.settings_manager.get("canvas_snap_guideline_color")))
-        self.setBackgroundBrush(QColor(config.COLOR_BACKGROUND_LIGHT))
+        self.setBackgroundBrush(QColor(theme_config.COLOR_BACKGROUND_LIGHT))
+
+    # --- NEW METHOD to handle Auto-Layout ---
+    def _calculate_auto_layout(self):
+        """Calculates new positions for states using pygraphviz."""
+        from .graphics_items import GraphicsStateItem, GraphicsTransitionItem
+        import pygraphviz as pgv
+
+        states = [item for item in self.items() if isinstance(item, GraphicsStateItem)]
+        transitions = [item for item in self.items() if isinstance(item, GraphicsTransitionItem)]
+
+        if not states:
+            return None
+
+        G = pgv.AGraph(directed=True, strict=False, rankdir='LR', splines='ortho')
+        
+        for state in states:
+            G.add_node(state.text_label, shape='box', width=state.rect().width()/72, height=state.rect().height()/72)
+
+        for trans in transitions:
+            if trans.start_item and trans.end_item:
+                G.add_edge(trans.start_item.text_label, trans.end_item.text_label)
+
+        G.layout(prog='dot')
+        
+        new_positions = {}
+        for node in G.nodes():
+            try:
+                pos_str = node.attr['pos']
+                x, y = map(float, pos_str.split(','))
+                # Pygraphviz uses a different coordinate system (y-axis inverted)
+                new_positions[node.name] = QPointF(x, -y)
+            except (KeyError, ValueError) as e:
+                logger.error(f"Could not get position for node '{node.name}': {e}")
+                
+        # Normalize positions to be relative to the top-left corner
+        if new_positions:
+            min_x = min(p.x() for p in new_positions.values())
+            min_y = min(p.y() for p in new_positions.values())
+            for name in new_positions:
+                new_positions[name] -= QPointF(min_x, min_y)
+                # Add some padding
+                new_positions[name] += QPointF(50, 50)
+
+        return new_positions
+
+    def generate_auto_layout_preview(self) -> QPixmap | None:
+        """Generates a QPixmap preview of the auto-laid-out diagram."""
+        from .graphics_items import GraphicsStateItem, GraphicsTransitionItem
+
+        new_positions = self._calculate_auto_layout()
+        if not new_positions:
+            return None
+
+        # Create a temporary scene to render the preview
+        preview_scene = QGraphicsScene()
+        preview_state_map = {}
+
+        # Add states at new positions
+        for item in self.items():
+            if isinstance(item, GraphicsStateItem):
+                if item.text_label in new_positions:
+                    pos = new_positions[item.text_label]
+                    preview_state = GraphicsStateItem(0, 0, item.rect().width(), item.rect().height(), item.text_label)
+                    preview_state.setPos(pos)
+                    preview_scene.addItem(preview_state)
+                    preview_state_map[item.text_label] = preview_state
+
+        # Add transitions between the newly placed states
+        for item in self.items():
+            if isinstance(item, GraphicsTransitionItem):
+                if item.start_item and item.end_item:
+                    src = preview_state_map.get(item.start_item.text_label)
+                    tgt = preview_state_map.get(item.end_item.text_label)
+                    if src and tgt:
+                        preview_trans = GraphicsTransitionItem(src, tgt)
+                        preview_scene.addItem(preview_trans)
+
+        # Render the scene to a pixmap
+        bounds = preview_scene.itemsBoundingRect()
+        if bounds.isEmpty():
+            return None
+            
+        pixmap = QPixmap(bounds.size().toSize())
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        preview_scene.render(painter, QRectF(pixmap.rect()), bounds)
+        painter.end()
+
+        return pixmap
+
+    def apply_auto_layout(self):
+        """Applies the auto-layout positions to the actual scene items."""
+        from ...undo_commands import MoveItemsCommand
+        
+        new_positions = self._calculate_auto_layout()
+        if not new_positions:
+            return
+
+        move_data = []
+        for item in self.items():
+            if isinstance(item, GraphicsStateItem) and item.text_label in new_positions:
+                old_pos = item.pos()
+                new_pos = new_positions[item.text_label]
+                move_data.append((item, old_pos, new_pos))
+
+        if move_data:
+            cmd = MoveItemsCommand(move_data, "Auto-Layout")
+            self.undo_stack.push(cmd)
+
 
     def _request_validation_update(self):
         """Starts the single-shot timer to run validation after a short delay."""
@@ -108,10 +217,11 @@ class DiagramScene(QGraphicsScene):
         if not show_grid or self.grid_size < 5:
             return
 
-        self.grid_pen_light.setColor(QColor(self.settings_manager.get("canvas_grid_minor_color")))
-        self.grid_pen_dark.setColor(QColor(self.settings_manager.get("canvas_grid_major_color")))
-        self._guideline_pen.setColor(QColor(self.settings_manager.get("canvas_snap_guideline_color")))
-        self.setBackgroundBrush(QColor(config.COLOR_BACKGROUND_LIGHT))
+        # --- FIX: Use theme_config for dynamic colors ---
+        self.grid_pen_light.setColor(QColor(self.settings_manager.get("canvas_grid_minor_color", theme_config.COLOR_GRID_MINOR)))
+        self.grid_pen_dark.setColor(QColor(self.settings_manager.get("canvas_grid_major_color", theme_config.COLOR_GRID_MAJOR)))
+        self._guideline_pen.setColor(QColor(self.settings_manager.get("canvas_snap_guideline_color", theme_config.COLOR_ACCENT_ERROR)))
+        self.setBackgroundBrush(QColor(theme_config.COLOR_BACKGROUND_LIGHT))
 
         left = int(rect.left()) - (int(rect.left()) % self.grid_size)
         top = int(rect.top()) - (int(rect.top()) % self.grid_size)
@@ -1869,144 +1979,3 @@ class ZoomableView(QGraphicsView):
             self.zoom_to_rect(items_rect)
         else: 
             self.zoom_to_rect(self.scene().sceneRect())
-
-class MinimapView(QGraphicsView):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.main_view = None
-        self.setInteractive(True)
-        self.setDragMode(QGraphicsView.DragMode.NoDrag)
-        self._is_dragging_viewport = False
-        
-        self._viewport_rect_item = QGraphicsRectItem()
-        self._viewport_rect_item.setPen(QPen(QColor(255, 0, 0, 180), 2))
-        self._viewport_rect_item.setBrush(QBrush(QColor(255, 0, 0, 40)))
-        self._viewport_rect_item.setZValue(100)
-        
-        self.schematic_state_pen = QPen(Qt.PenStyle.NoPen)
-        self.schematic_transition_pen = QPen(QColor(120, 144, 156, 180), 1.5)
-        self.schematic_comment_brush = QBrush(QColor(255, 249, 196, 120))
-
-    def setMainView(self, view: ZoomableView | None):
-        if self.main_view:
-            try:
-                self.main_view.horizontalScrollBar().valueChanged.disconnect(self.update_viewport_rect)
-                self.main_view.verticalScrollBar().valueChanged.disconnect(self.update_viewport_rect)
-                if hasattr(self, '_resize_timer'):
-                    self.main_view.removeEventFilter(self)
-            except (TypeError, RuntimeError):
-                logger.debug("Error disconnecting signals from old main_view.")
-
-        self.main_view = view
-        
-        if self.main_view:
-            self.main_view.horizontalScrollBar().valueChanged.connect(self.update_viewport_rect)
-            self.main_view.verticalScrollBar().valueChanged.connect(self.update_viewport_rect)
-            if not hasattr(self, '_resize_timer'):
-                 self._resize_timer = QTimer(self)
-                 self._resize_timer.setInterval(100)
-                 self._resize_timer.setSingleShot(True)
-                 self._resize_timer.timeout.connect(self.update_viewport_rect)
-            self.main_view.installEventFilter(self)
-
-    def eventFilter(self, obj, event):
-        if obj == self.main_view and event.type() == QEvent.Type.Resize:
-            if hasattr(self, '_resize_timer'):
-                self._resize_timer.start()
-        return super().eventFilter(obj, event)
-
-    def update_viewport_rect(self):
-        try:
-            if not self.main_view or not self.scene():
-                if self._viewport_rect_item.isVisible(): self._viewport_rect_item.hide()
-                return
-            if not self._viewport_rect_item.isVisible(): self._viewport_rect_item.show()
-            visible_rect = self.main_view.mapToScene(self.main_view.viewport().rect()).boundingRect()
-            self._viewport_rect_item.setRect(visible_rect)
-        except RuntimeError: # Object might be deleted
-            pass
-
-    def mousePressEvent(self, event: QMouseEvent):
-        try:
-            if self._viewport_rect_item.isUnderMouse():
-                self._is_dragging_viewport = True
-                self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            elif self.main_view:
-                self.main_view.centerOn(self.mapToScene(event.position().toPoint()))
-        except RuntimeError: # Object might be deleted
-            pass
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event: QMouseEvent):
-        if self._is_dragging_viewport and self.main_view:
-            try:
-                self.main_view.centerOn(self.mapToScene(event.position().toPoint()))
-            except RuntimeError: # Object might be deleted
-                pass
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event: QMouseEvent):
-        self._is_dragging_viewport = False
-        self.setCursor(Qt.CursorShape.ArrowCursor)
-        super().mouseReleaseEvent(event)
-
-    def setScene(self, scene: QGraphicsScene | None):
-        try:
-            if self.scene():
-                self.scene().changed.disconnect(self._on_scene_changed)
-        except (TypeError, RuntimeError): pass
-        
-        super().setScene(scene)
-
-        try:
-            if scene:
-                if self._viewport_rect_item.scene() != scene:
-                    scene.addItem(self._viewport_rect_item)
-                self._viewport_rect_item.show()
-                scene.changed.connect(self._on_scene_changed)
-                self._fit_contents()
-                self.update_viewport_rect()
-            elif self._viewport_rect_item:
-                self._viewport_rect_item.hide()
-        except RuntimeError: # Object might be deleted
-            pass
-
-    def drawBackground(self, painter: QPainter, rect: QRectF):
-        from .graphics_items import GraphicsStateItem, GraphicsTransitionItem, GraphicsCommentItem
-        super().drawBackground(painter, rect)
-        if not self.scene(): return
-
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-        
-        for item in self.scene().items():
-            if isinstance(item, GraphicsStateItem):
-                painter.setPen(self.schematic_state_pen)
-                painter.setBrush(item.base_color)
-                painter.drawRect(item.sceneBoundingRect())
-            elif isinstance(item, GraphicsTransitionItem):
-                if item.start_item and item.end_item:
-                    painter.setPen(self.schematic_transition_pen)
-                    p1 = item.start_item.sceneBoundingRect().center()
-                    p2 = item.end_item.sceneBoundingRect().center()
-                    painter.drawLine(p1, p2)
-            elif isinstance(item, GraphicsCommentItem):
-                painter.setPen(self.schematic_state_pen)
-                painter.setBrush(self.schematic_comment_brush)
-                painter.drawRect(item.sceneBoundingRect())
-
-    def _on_scene_changed(self):
-        if not hasattr(self, '_fit_timer'):
-            self._fit_timer = QTimer(self)
-            self._fit_timer.setSingleShot(True)
-            self._fit_timer.setInterval(150)
-            self._fit_timer.timeout.connect(self._fit_contents)
-        self._fit_timer.start()
-
-    def _fit_contents(self):
-        try:
-            if self.scene():
-                content_rect = self.scene().itemsBoundingRect()
-                if content_rect.isEmpty(): content_rect = self.scene().sceneRect()
-                self.fitInView(content_rect, Qt.AspectRatioMode.KeepAspectRatio)
-        except RuntimeError: # Object might be deleted
-            pass
