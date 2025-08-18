@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QFrame, QGraphicsDropShadowEffect, QScrollArea, QGridLayout
 )
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, QPropertyAnimation, QEasingCurve, QTimer, PYQT_VERSION_STR
-from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter, QBrush, QColor, QPen, QLinearGradient
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter, QBrush, QColor, QLinearGradient
 import os
 from PyQt6.QtWidgets import QStyle
 from ...utils import get_standard_icon
@@ -103,13 +103,17 @@ class ActionCard(QFrame):
             self.shadow.setBlurRadius(20)
             self.shadow.setOffset(0, 4)
         else:
+            # --- MODIFICATION ---
+            # Make the background and border transparent in the normal state
+            # to make the content appear to float on the main window.
             self.setStyleSheet(f"""
                 ActionCard {{
-                    background-color: {theme_config.COLOR_BACKGROUND_LIGHT};
-                    border: 1px solid {theme_config.COLOR_BORDER_LIGHT};
+                    background-color: transparent;
+                    border: 1px solid transparent;
                     border-radius: 8px;
                 }}
             """)
+            # --- END MODIFICATION ---
             self.shadow.setBlurRadius(10)
             self.shadow.setOffset(0, 2)
         

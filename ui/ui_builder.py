@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QToolButton, QGroupBox, QComboBox, QProgressBar, QFormLayout, QGraphicsView,
     QTreeView, QFrame
 )
-from PyQt6.QtGui import QIcon, QKeySequence, QFont, QActionGroup, QAction, QFileSystemModel
+from PyQt6.QtGui import QIcon, QKeySequence, QPalette, QPainter, QColor, QFont, QActionGroup, QAction, QFileSystemModel
 from PyQt6.QtCore import Qt, QSize, QDir
 
 from ..utils import get_standard_icon
@@ -41,6 +41,9 @@ class UIBuilder:
         self._create_ribbon()
         self._create_docks()
         self._create_status_bar()
+        # --- NEW: Add context menu for toggling docks ---
+        self.mw.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.mw.customContextMenuRequested.connect(self._show_toolbar_dock_context_menu)
 
     def _create_actions(self):
         mw = self.mw
@@ -350,25 +353,29 @@ class UIBuilder:
         mw = self.mw
         mw.setDockOptions(QMainWindow.DockOption.AnimatedDocks | QMainWindow.DockOption.AllowTabbedDocks | QMainWindow.DockOption.AllowNestedDocks)
         mw.setCorner(Qt.Corner.BottomRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
+        # --- MODIFIED: Added icons to dock definitions ---
         docks_to_create = {
-            "project_explorer_dock": ("ProjectExplorerDock", "Project Explorer"),
-            "data_dictionary_dock": ("DataDictionaryDock", "Data Dictionary"),
-            "elements_palette_dock": ("ElementsPaletteDock", "Elements"),
-            "properties_dock": ("PropertiesDock", "Properties"),
-            "log_dock": ("LogDock", "Log"),
-            "problems_dock": ("ProblemsDock", "Validation Issues"),
-            "py_sim_dock": ("PySimDock", "Python Simulation"),
-            "c_sim_dock": ("CSimDock", "C Simulation"),
-            "ai_chatbot_dock": ("AIChatbotDock", "AI Chatbot"),
-            "ide_dock": ("IDEDock", "Code IDE"),
-            "resource_estimation_dock": ("ResourceEstimationDock", "Resource Estimation"),
-            "live_preview_dock": ("LivePreviewDock", "Code Scratchpad"),
-            "minimap_dock": ("MinimapDock", "Navigator"),
-            "hardware_sim_dock": ("HardwareSimDock", "Hardware Simulator"),
-            "serial_monitor_dock": ("SerialMonitorDock", "Serial Monitor"),
+            "project_explorer_dock": ("ProjectExplorerDock", "Project Explorer", QStyle.StandardPixmap.SP_DirIcon),
+            "data_dictionary_dock": ("DataDictionaryDock", "Data Dictionary", QStyle.StandardPixmap.SP_FileIcon),
+            "elements_palette_dock": ("ElementsPaletteDock", "Elements", QStyle.StandardPixmap.SP_FileDialogNewFolder),
+            "properties_dock": ("PropertiesDock", "Properties", QStyle.StandardPixmap.SP_FileDialogDetailedView),
+            "log_dock": ("LogDock", "Log", QStyle.StandardPixmap.SP_MessageBoxInformation),
+            "problems_dock": ("ProblemsDock", "Validation Issues", QStyle.StandardPixmap.SP_MessageBoxWarning),
+            "py_sim_dock": ("PySimDock", "Python Simulation", QStyle.StandardPixmap.SP_MediaPlay),
+            "c_sim_dock": ("CSimDock", "C Simulation", QStyle.StandardPixmap.SP_MediaPlay),
+            "ai_chatbot_dock": ("AIChatbotDock", "AI Chatbot", QStyle.StandardPixmap.SP_MessageBoxQuestion),
+            "ide_dock": ("IDEDock", "Code IDE", QStyle.StandardPixmap.SP_FileIcon),
+            "resource_estimation_dock": ("ResourceEstimationDock", "Resource Estimation", QStyle.StandardPixmap.SP_ComputerIcon),
+            "live_preview_dock": ("LivePreviewDock", "Code Scratchpad", QStyle.StandardPixmap.SP_FileLinkIcon),
+            "minimap_dock": ("MinimapDock", "Navigator", QStyle.StandardPixmap.SP_FileDialogListView),
+            "hardware_sim_dock": ("HardwareSimDock", "Hardware Simulator", QStyle.StandardPixmap.SP_DriveNetIcon),
+            "serial_monitor_dock": ("SerialMonitorDock", "Serial Monitor", QStyle.StandardPixmap.SP_ComputerIcon),
         }
-        for attr_name, (object_name, title) in docks_to_create.items():
-            setattr(mw, attr_name, QDockWidget(title, mw, objectName=object_name))
+        for attr_name, (object_name, title, icon_enum) in docks_to_create.items():
+            dock = QDockWidget(title, mw, objectName=object_name)
+            dock.setWindowIcon(get_standard_icon(icon_enum))
+            setattr(mw, attr_name, dock)
+        # --- END MODIFICATION ---
 
         # --- MODIFIED: Explicitly set features to allow user interaction ---
         dock_list = [getattr(mw, attr_name) for attr_name in docks_to_create.keys()]
@@ -481,3 +488,33 @@ class UIBuilder:
             mw.progress_bar.setMaximumWidth(120)
             mw.progress_bar.setTextVisible(False)
             status_bar.addPermanentWidget(mw.progress_bar)
+            
+    def _show_toolbar_dock_context_menu(self, pos):
+        """Show a context menu to toggle toolbars and docks."""
+        # Check if the right-click was over a toolbar area
+        is_over_toolbar = False
+        for toolbar in self.mw.findChildren(QToolBar):
+            if toolbar.isVisible() and toolbar.geometry().contains(toolbar.mapFromGlobal(pos)):
+                is_over_toolbar = True
+                break
+        
+        # Or if it's over an empty dock area
+        is_over_dock_area = self.mw.dockWidgetArea(pos) != Qt.DockWidgetArea.NoDockWidgetArea
+
+        if not (is_over_toolbar or is_over_dock_area):
+            return
+
+        context_menu = QMenu(self.mw)
+        context_menu.setTitle("Panels & Toolbars")
+        
+        context_menu.addSection("Toolbars")
+        context_menu.addAction(self.mw.quick_toolbar.toggleViewAction())
+        # The ribbon is inside another toolbar, so we find its parent
+        ribbon_toolbar = self.mw.ribbon.parentWidget()
+        if isinstance(ribbon_toolbar, QToolBar):
+            context_menu.addAction(ribbon_toolbar.toggleViewAction())
+        
+        context_menu.addSection("Docks")
+        context_menu.addActions(self.mw.docks_menu.actions())
+
+        context_menu.exec(pos)

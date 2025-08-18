@@ -690,6 +690,16 @@ class CommentPropertiesDialog(QDialog):
         
         layout.addWidget(QLabel("Comment Text:")); layout.addWidget(self.text_edit)
 
+        # --- NEW: Add color button ---
+        self.color_button = QPushButton("Choose Background Color...")
+        self.color_button.setObjectName("ColorButton")
+        default_color_hex = p.get('bg_color', theme_config.COLOR_ITEM_COMMENT_BG)
+        self.current_color = QColor(default_color_hex)
+        self._update_color_button_style()
+        self.color_button.clicked.connect(self._choose_color)
+        layout.addWidget(self.color_button)
+        # --- END NEW ---
+
         font_group = QGroupBox("Font Style")
         font_layout = QFormLayout(font_group)
         self.font_family_combo = QFontComboBox()
@@ -709,13 +719,29 @@ class CommentPropertiesDialog(QDialog):
         buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
         self.setMinimumWidth(350); self.text_edit.setFocus(); self.text_edit.selectAll()
+
+    # --- NEW METHODS for color handling ---
+    def _choose_color(self):
+        color = QColorDialog.getColor(self.current_color, self, "Select Comment Background Color")
+        if color.isValid():
+            self.current_color = color
+            self._update_color_button_style()
+
+    def _update_color_button_style(self):
+        luminance = self.current_color.lightnessF()
+        text_color_name = theme_config.COLOR_TEXT_ON_ACCENT if luminance < 0.5 else theme_config.COLOR_TEXT_PRIMARY
+        self.color_button.setStyleSheet(f"background-color: {self.current_color.name()}; color: {text_color_name}; border: 1px solid {self.current_color.darker(130).name()};")
+        self.color_button.setText(self.current_color.name().upper())
+    # --- END NEW METHODS ---
         
     def get_properties(self):
+        # --- FIX: Use toHtml to preserve formatting and add bg_color ---
         return {
-            'text': self.text_edit.toPlainText(),
+            'text': self.text_edit.toHtml(),
             'font_family': self.font_family_combo.currentFont().family(),
             'font_size': self.font_size_spin.value(),
-            'font_italic': self.font_italic_cb.isChecked()
+            'font_italic': self.font_italic_cb.isChecked(),
+            'bg_color': self.current_color.name()
         }
 
 class SubFSMEditorDialog(QDialog):
@@ -738,7 +764,7 @@ class SubFSMEditorDialog(QDialog):
             self.sub_view = ZoomableView(self.sub_scene, self)
             toolbar = QToolBar("Sub-Editor Tools")
             toolbar.setIconSize(QSize(18,18)) 
-            toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly) 
+            toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon) 
             self.sub_mode_action_group = QActionGroup(self)
             self.sub_mode_action_group.setExclusive(True)
             actions_data = [

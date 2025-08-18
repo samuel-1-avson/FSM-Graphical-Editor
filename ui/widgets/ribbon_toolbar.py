@@ -42,30 +42,7 @@ class ModernButton(QToolButton):
         
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         
-        # Modern styling
-        self.setStyleSheet("""
-            ModernButton {
-                background: transparent;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                padding: 4px;
-                color: #2c3e50;
-                font-size: 11px;
-                font-weight: 500;
-            }
-            ModernButton:hover {
-                background: rgba(52, 152, 219, 0.1);
-                border: 1px solid rgba(52, 152, 219, 0.3);
-            }
-            ModernButton:pressed {
-                background: rgba(52, 152, 219, 0.2);
-                border: 1px solid rgba(52, 152, 219, 0.5);
-            }
-            ModernButton:checked {
-                background: rgba(52, 152, 219, 0.15);
-                border: 1px solid rgba(52, 152, 219, 0.4);
-            }
-        """)
+        # Modern styling is now handled by the global stylesheet
         
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -122,26 +99,7 @@ class ModernSplitButton(QWidget):
         menu.addActions(menu_actions)
         self.dropdown_button.setMenu(menu)
         
-        # Apply modern styling
-        button_style = """
-            QToolButton {
-                background: transparent;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                color: #2c3e50;
-                font-size: 11px;
-                font-weight: 500;
-            }
-            QToolButton:hover {
-                background: rgba(52, 152, 219, 0.1);
-                border: 1px solid rgba(52, 152, 219, 0.3);
-            }
-            QToolButton:pressed {
-                background: rgba(52, 152, 219, 0.2);
-            }
-        """
-        self.main_button.setStyleSheet(button_style)
-        self.dropdown_button.setStyleSheet(button_style)
+        # Styling is handled by the global stylesheet
         
         self.layout().addWidget(self.main_button)
         self.layout().addWidget(self.dropdown_button)
@@ -151,7 +109,7 @@ class ModernRibbonGroup(QFrame):
     
     def __init__(self, title, parent=None):
         super().__init__(parent)
-        self.setObjectName("ModernRibbonGroup")
+        self.setObjectName("RibbonGroup")
         self.title = title
         self._setup_layout()
         self._apply_styling()
@@ -177,12 +135,7 @@ class ModernRibbonGroup(QFrame):
         # Modern typography
         font = QFont("Segoe UI", 8, QFont.Weight.Normal)
         title_label.setFont(font)
-        title_label.setStyleSheet("""
-            color: #7f8c8d;
-            background: transparent;
-            padding: 2px;
-            border: none;
-        """)
+        # Styling is handled by the global stylesheet
         
         main_layout.addWidget(title_label)
 
@@ -191,18 +144,7 @@ class ModernRibbonGroup(QFrame):
         self.setMaximumHeight(96)
         self.setMinimumWidth(60)
         
-        self.setStyleSheet("""
-            ModernRibbonGroup {
-                background: transparent;
-                border: 1px solid transparent;
-                border-radius: 6px;
-                margin: 1px;
-            }
-            ModernRibbonGroup:hover {
-                background: rgba(236, 240, 241, 0.5);
-                border: 1px solid rgba(189, 195, 199, 0.3);
-            }
-        """)
+        # Styling is handled by the global stylesheet
 
     def add_button(self, action, style="large"):
         """Add a modern button"""
@@ -241,12 +183,9 @@ class ModernRibbonGroup(QFrame):
         """Add clean vertical separator"""
         separator = QFrame()
         separator.setFrameStyle(QFrame.Shape.VLine | QFrame.Shadow.Plain)
+        separator.setObjectName("RibbonSeparator")
         separator.setMaximumWidth(1)
-        separator.setStyleSheet("""
-            background: #bdc3c7;
-            border: none;
-            margin: 8px 2px;
-        """)
+        # Styling is handled by the global stylesheet
         self.content_layout.addWidget(separator)
 
 class ModernInputGroup(QWidget):
@@ -288,34 +227,7 @@ class ModernInputGroup(QWidget):
         combo.setMaximumHeight(24)
         combo.setCursor(Qt.CursorShape.PointingHandCursor)
         
-        combo.setStyleSheet("""
-            QComboBox {
-                background: white;
-                border: 1px solid #bdc3c7;
-                border-radius: 3px;
-                padding: 3px 8px;
-                font-size: 11px;
-                color: #2c3e50;
-            }
-            QComboBox:hover {
-                border: 1px solid #3498db;
-            }
-            QComboBox:focus {
-                border: 2px solid #3498db;
-                outline: none;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 4px solid #7f8c8d;
-                margin-right: 4px;
-            }
-        """)
+        # Styling is handled by the global stylesheet
         
         self.content_layout.addWidget(combo)
         return combo
@@ -327,23 +239,7 @@ class ModernInputGroup(QWidget):
         edit.setMinimumWidth(90)
         edit.setMaximumHeight(24)
         
-        edit.setStyleSheet("""
-            QLineEdit {
-                background: white;
-                border: 1px solid #bdc3c7;
-                border-radius: 3px;
-                padding: 3px 8px;
-                font-size: 11px;
-                color: #2c3e50;
-            }
-            QLineEdit:hover {
-                border: 1px solid #3498db;
-            }
-            QLineEdit:focus {
-                border: 2px solid #3498db;
-                outline: none;
-            }
-        """)
+        # Styling is handled by the global stylesheet
         
         self.content_layout.addWidget(edit)
         return edit
@@ -376,12 +272,9 @@ class ModernTab(QWidget):
         if self.layout.count() > 2:
             separator = QFrame()
             separator.setFrameStyle(QFrame.Shape.VLine | QFrame.Shadow.Plain)
+            separator.setObjectName("RibbonSeparator")
             separator.setMaximumWidth(1)
-            separator.setStyleSheet("""
-                background: #d5dbdb;
-                border: none;
-                margin: 6px 3px;
-            """)
+            # Styling is handled by the global stylesheet
             self.layout.insertWidget(self.layout.count() - 2, separator)
 
     def show_animated(self):
@@ -426,7 +319,7 @@ class ModernRibbon(QWidget):
         """Create modern tab bar"""
         self.tab_bar = QWidget()
         self.tab_bar.setFixedHeight(32)
-        self.tab_bar.setObjectName("ModernTabBar")
+        self.tab_bar.setObjectName("RibbonTabBar")
 
         self.tab_layout = QHBoxLayout(self.tab_bar)
         self.tab_layout.setContentsMargins(4, 2, 4, 0)
@@ -446,6 +339,7 @@ class ModernRibbon(QWidget):
         self.file_button = QToolButton()
         self.file_button.setText("File")
         self.file_button.setCheckable(True)
+        self.file_button.setObjectName("FileButton")
         self.file_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.file_button.setFixedSize(48, 28)
         self.file_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -470,6 +364,7 @@ class ModernRibbon(QWidget):
         self.tab_layout.addStretch()
         
         self.search_bar = QLineEdit()
+        self.search_bar.setObjectName("RibbonSearchBar")
         self.search_bar.setPlaceholderText("Search...")
         self.search_bar.setFixedSize(180, 26)
         self.search_bar.textChanged.connect(self._on_search_text_changed)
@@ -480,7 +375,7 @@ class ModernRibbon(QWidget):
         """Create modern content area"""
         self.content_area = QFrame()
         self.content_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.content_area.setObjectName("ModernContentArea")
+        self.content_area.setObjectName("RibbonContentArea")
         self.content_area.setFixedHeight(100)
         
         self.content_layout = QVBoxLayout(self.content_area)
@@ -488,74 +383,15 @@ class ModernRibbon(QWidget):
 
     def _apply_modern_theme(self):
         """Apply modern, clean theme"""
-        self.setStyleSheet("""
-            ModernRibbon {
-                background: #f8f9fa;
-                border-bottom: 1px solid #dee2e6;
-            }
-            
-            #ModernTabBar {
-                background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
-                border-bottom: 1px solid #dee2e6;
-            }
-            
-            #ModernContentArea {
-                background: #f8f9fa;
-                border-top: 1px solid #dee2e6;
-            }
-            
-            QToolButton[objectName="FileButton"] {
-                background: #3498db;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                font-weight: 600;
-                font-size: 11px;
-            }
-            QToolButton[objectName="FileButton"]:hover {
-                background: #2980b9;
-            }
-            QToolButton[objectName="FileButton"]:pressed {
-                background: #21618c;
-            }
-            
-            QPushButton[objectName="ModernTabButton"] {
-                background: transparent;
-                border: none;
-                border-radius: 4px;
-                padding: 4px 12px;
-                color: #2c3e50;
-                font-size: 11px;
-                font-weight: 500;
-            }
-            QPushButton[objectName="ModernTabButton"]:hover {
-                background: rgba(52, 152, 219, 0.1);
-            }
-            QPushButton[objectName="ModernTabButton"]:checked {
-                background: rgba(52, 152, 219, 0.15);
-                border-bottom: 2px solid #3498db;
-            }
-            
-            QLineEdit {
-                background: white;
-                border: 1px solid #bdc3c7;
-                border-radius: 13px;
-                padding: 4px 12px;
-                font-size: 11px;
-                color: #2c3e50;
-            }
-            QLineEdit:focus {
-                border: 1px solid #3498db;
-                outline: none;
-            }
-        """)
+        # Styling is now handled by the global stylesheet from ThemeManager
+        pass
 
     def add_tab(self, name):
         """Add new tab"""
         tab_widget = ModernTab(name, self)
         button = QPushButton(name)
         button.setCheckable(True)
-        button.setObjectName("ModernTabButton")
+        button.setObjectName("RibbonTabButton")
         button.setFixedHeight(28)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         
@@ -638,15 +474,7 @@ class ModernColorButton(QToolButton):
         self.clicked.connect(self._show_color_dialog)
         self._update_color_display()
         
-        self.setStyleSheet("""
-            QToolButton {
-                border: 1px solid #bdc3c7;
-                border-radius: 3px;
-            }
-            QToolButton:hover {
-                border: 1px solid #3498db;
-            }
-        """)
+        # Styling is handled by the global stylesheet
 
     def _update_color_display(self):
         """Update color display"""

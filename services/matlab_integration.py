@@ -103,15 +103,11 @@ class SimulationConfig:
             params['SolverType'] = 'Fixed-step'
             params['Solver'] = 'ode1'  # Common fixed-step solver
             params['FixedStep'] = str(self.fixed_step_size)
-            # CRITICAL: Don't set SampleTimeConstraint for fixed-step solvers
         else:
             params['SolverType'] = 'Variable-step'
             params['Solver'] = self.solver
-            # CRITICAL: Don't set SampleTimeConstraint - it causes the error you saw
-            
             if self.max_step_size is not None:
                 params['MaxStep'] = str(self.max_step_size)
-            
             if self.initial_step_size is not None:
                 params['InitialStep'] = str(self.initial_step_size)
         
@@ -142,7 +138,6 @@ class SimulationConfig:
                 errors.append("InitialStep is not applicable for fixed-step solvers")
 
         else:
-            # Variable-step validation - remove overly strict validation
             pass  # Most solvers can work in variable-step mode
         
         # Validate numerical parameters
@@ -405,6 +400,263 @@ class EngineHealthMonitor:
             self.health_data['total_commands'] += 1
             if success:
                 self.health_data['successful_commands'] += 1
+
+
+# -------------------------------------------
+# NEW: Diagnostics helper with error analyzer
+# -------------------------------------------
+class MatlabDiagnostics:
+    """Diagnostics helpers for MATLAB integration."""
+
+    @staticmethod
+    def check_matlab_installation() -> Dict[str, Any]:
+        """Lightweight system diagnostics."""
+        info = {
+            'matlab_engine_available': MATLAB_ENGINE_AVAILABLE,
+            'python_executable': sys.executable,
+            'python_version': sys.version,
+            'platform': sys.platform,
+            'cwd': os.getcwd(),
+        }
+        # Try to detect MATLAB from environment
+        matlab_root = os.environ.get('MATLAB_ROOT', '')
+        if matlab_root:
+            info['matlab_root_env'] = matlab_root
+        return info
+
+    # Enhanced analyzer and recovery suggester
+    _REGEX_CACHE: Dict[Tuple[str, int], re.Pattern] = {}
+
+    @staticmethod
+    def _rx(pattern: str, flags=re.IGNORECASE | re.MULTILINE) -> re.Pattern:
+        key = (pattern, flags)
+        if key not in MatlabDiagnostics._REGEX_CACHE:
+            MatlabDiagnostics._REGEX_CACHE[key] = re.compile(pattern, flags)
+        return MatlabDiagnostics._REGEX_CACHE[key]
+
+    @staticmethod
+    def _extract_matlab_identifier(msg: str) -> Optional[str]:
+        for pat in [
+            r"identifier(?:\s*[:=]\s*|:\s*)([A-Za-z0-9_:.]+)",
+            r"KATEX_INLINE_OPEN([\w:.]+)KATEX_INLINE_CLOSE\s*$",
+            r"\b([A-Za-z]+:[A-Za-z0-9_:.]+)\b"
+        ]:
+            m = MatlabDiagnostics._rx(pat).search(msg)
+            if m:
+                return m.group(1)
+        return None
+
+    @staticmethod
+    def _try_parse_failure_json(msg: str) -> Dict[str, Any]:
+        m = MatlabDiagnostics._rx(r"MATLAB_SCRIPT_FAILURE:(\{.*\})").search(msg)
+        if not m:
+            return {}
+        try:
+            return json.loads(m.group(1))
+        except Exception:
+            return {}
+
+    @staticmethod
+    def analyze_error(error_message: str) -> Dict[str, Any]:
+        """Analyze MATLAB error and provide recovery suggestions (enhanced)."""
+        emsg = error_message or ""
+        failure_payload = MatlabDiagnostics._try_parse_failure_json(emsg)
+        identifier = failure_payload.get('identifier') or MatlabDiagnostics._extract_matlab_identifier(emsg)
+
+        categories = [
+            {'key': 'licensing', 'category': 'licensing', 'regexes': [r"license.*(fail|error|not available|checkout)", r"license manager error"], 'recoverable': True},
+            {'key': 'memory', 'category': 'memory', 'regexes': [r"out of memory", r"insufficient memory", r"java heap space", r"out of java heap memory"], 'recoverable': True},
+            {'key': 'file_system', 'category': 'file_system', 'regexes': [r"file not found", r"no such file or directory", r"cannot open", r"permission denied", r"invalid (simulink )?object name"], 'recoverable': True},
+            {'key': 'undefined_symbol', 'category': 'model_error', 'regexes': [r"undefined function '?\w+'?", r"undefined variable '?\w+'?", r"unrecognized method, property, or field", r"undefined class", r"the class '.*' has no '.*' (method|property|field)"], 'recoverable': True},
+            {'key': 'class_reload', 'category': 'configuration', 'regexes': [r"unrecognized method, property, or field 'setup_data_streaming'", r"unrecognized method, property, or field .* for class 'fsm_", r"too many input arguments"], 'recoverable': True},
+            {'key': 'syntax_error', 'category': 'model_error', 'regexes': [r"invalid expression", r"mismatched delimiters", r"unexpected matlab expression", r"when calling a function or indexing a variable"], 'recoverable': True},
+            {'key': 'argument_error', 'category': 'model_error', 'regexes': [r"not enough input arguments", r"too many input arguments", r"input argument (is|must be)", r"number of inputs"], 'recoverable': True},
+            {'key': 'parameter_conflict', 'category': 'configuration', 'regexes': [r"parameter '.*' is ignored", r"constraint", r"incompatible setting", r"sampletimeconstraint", r"parameter conflict"], 'recoverable': True},
+            {'key': 'simulink_update', 'category': 'model_error', 'regexes': [r"failed to load model", r"error evaluating .* parameter", r"error occurred while .* model", r"update diagram failed", r"sldiagnostics", r"invalid setting in '.*'"], 'recoverable': True},
+            {'key': 'codegen_build', 'category': 'code_generation', 'regexes': [r"\brtwbuild\b|\brtw\b|\brtwgen\b", r"\bslbuild\b", r"gcc|g\+\+|cl\.exe|msbuild|gmake|ninja|cmake", r"(error|fatal error)\s*:.*\.(c|cpp|h|hpp|obj|o|lib|dll|mex)\b", r"link(er)? error|unresolved external symbol|undefined reference"], 'recoverable': True},
+            {'key': 'stateflow_lint', 'category': 'stateflow', 'regexes': [r"state '.*' must not intersect another state or junction", r"category:sflint error", r"in default transition.*every path must lead to a substate.*one path that is not guarded"], 'recoverable': True},
+            {'key': 'engine_thread', 'category': 'engine', 'regexes': [r"qobject::starttimer: timers cannot be started from another thread"], 'recoverable': True},
+        ]
+
+        matches: List[Tuple[str, int, List[str]]] = []
+        for cat in categories:
+            score = 0
+            matched = []
+            for pat in cat['regexes']:
+                m = MatlabDiagnostics._rx(pat).search(emsg)
+                if m:
+                    score += 1
+                    matched.append(m.group(0))
+            if score > 0:
+                matches.append((cat['key'], score, matched))
+
+        if not matches:
+            return {
+                'error_type': 'unknown',
+                'category': 'general',
+                'identifier': identifier,
+                'suggestions': [
+                    'Open MATLAB Diagnostic Viewer for full details',
+                    'Check last error in MATLAB: lasterror or MException stack',
+                    "Try: rehash; clear classes; clear functions; bdclose('all');",
+                ],
+                'matched': [],
+                'recoverable': False,
+                'confidence': 0.0
+            }
+
+        matches.sort(key=lambda t: t[1], reverse=True)
+        top_key, top_score, top_snips = matches[0]
+
+        base_suggestions_map = {
+            'licensing': [
+                "Check MATLAB license availability: license('test','Simulink'), license('test','Stateflow')",
+                "Try license in use: license('inuse')",
+                "Verify network connectivity for floating licenses",
+            ],
+            'memory': [
+                "Close models: bdclose('all'); clearvars; pack",
+                "Reduce StopTime or log fewer signals",
+                "Use variable-step solver (ode45) or increase MaxStep",
+            ],
+            'file_system': [
+                "Verify path exists and is accessible (no OneDrive lock)",
+                "Ensure correct slx/m path and quoting: addpath(genpath('<dir>'))",
+                "Use exist(path,'file') in MATLAB to confirm",
+            ],
+            'undefined_symbol': [
+                "Check spelling/case; run which -all <name> in MATLAB",
+                "Add required folders: addpath(genpath('<dir>'))",
+                "If it’s a class method: rehash; clear classes; clear functions;",
+            ],
+            'class_reload': [
+                "Force class reload before instantiation:",
+                "rehash; clear classes; clear functions;",
+                "addpath(genpath('<dir_with_FSM_class_and_slx>'));",
+                "which -all FSM_<model> to confirm MATLAB sees the new class",
+            ],
+            'syntax_error': [
+                "Check for MATLAB cell arrays {...} (not (...))",
+                "Fix mismatched quotes/parentheses in generated .m",
+                "If Jinja template used, ensure literals aren’t re-rendered incorrectly",
+            ],
+            'argument_error': [
+                "Verify method signature; confirm you’re passing required args",
+                "Check for shadowed functions: which -all warning strjoin",
+                "If class method changed, rehash; clear classes; clear functions;",
+            ],
+            'parameter_conflict': [
+                "Do not set SampleTimeConstraint in variable-step solver",
+                "For fixed-step: set SolverType='Fixed-step', Solver='ode1', FixedStep=<value>",
+                "Avoid MaxStep/InitialStep for fixed-step solvers",
+            ],
+            'simulink_update': [
+                "Update diagram and view diagnostics: set_param(model,'SimulationCommand','update');",
+                "Open model and inspect invalid blocks/params",
+                "Run sldiagnostics(model,'CompileCheck')",
+            ],
+            'codegen_build': [
+                "Verify supported compiler: mex -setup C; mex -setup C++",
+                "Check codegen logs (rtwbuild) and resolve C/C++ errors",
+                "Ensure output dir permissions and short path (avoid spaces if possible)",
+            ],
+            'stateflow_lint': [
+                "Increase layout margins; avoid placing states near default junction",
+                "Ensure chart default transition is unguarded: DefaultTransition.LabelString = ''",
+                "Only one initial state path; remove guards/events from default transition",
+                "Use Simulink.BlockDiagram.arrangeSystem for layout assistance",
+            ],
+            'engine_thread': [
+                "Qt warning is benign; ensure QTimer runs in the Qt thread",
+                "In Python, parent QTimers to QObject living in the Qt thread",
+            ]
+        }
+
+        suggestions = base_suggestions_map.get(top_key, []).copy()
+        if identifier:
+            suggestions.insert(0, f"MATLAB Identifier: {identifier}")
+        if top_key in ('class_reload', 'undefined_symbol', 'syntax_error', 'argument_error'):
+            suggestions.append("Try: rehash; clear classes; clear functions; bdclose('all').")
+
+        return {
+            'error_type': top_key,
+            'category': next(c['category'] for c in categories if c['key'] == top_key),
+            'identifier': identifier,
+            'suggestions': suggestions,
+            'matched': top_snips,
+            'recoverable': next(c['recoverable'] for c in categories if c['key'] == top_key),
+            'confidence': min(1.0, top_score / 3.0)
+        }
+
+    @staticmethod
+    def suggest_recovery_actions(error_analysis: Dict[str, Any]) -> List[str]:
+        """Suggest specific recovery actions based on error analysis (enhanced)."""
+        actions = list(error_analysis.get('suggestions', []))
+        category = error_analysis.get('category', 'general')
+        etype = error_analysis.get('error_type', 'unknown')
+
+        if category == 'licensing':
+            actions += [
+                "Run in MATLAB: license('test','Simulink'), license('test','Stateflow')",
+                "Run: license('inuse') to check active users",
+                "If network license: verify VPN/host connection",
+            ]
+        elif category == 'memory':
+            actions += [
+                "MATLAB: dbstop if error; inspect memory; try memory; feature memstats",
+                "Reduce logged data (To Workspace blocks) or decimate",
+                "Consider variable-step solver (ode45) and increase MaxStep",
+            ]
+        elif category == 'file_system':
+            actions += [
+                "Confirm path with exist('<path>','file')",
+                "Avoid syncing folders (OneDrive) during write; try local path",
+                "Ensure addpath(genpath('<dir_with_class_and_slx>')) precedes use",
+            ]
+        elif category == 'model_error':
+            if etype == 'syntax_error':
+                actions += [
+                    "Open the .m file at the reported line; verify braces {...} for cell arrays",
+                    "Replace ('on','off') with {'on','off'} etc.",
+                    "Check Jinja expressions don’t output tuples instead of cell arrays",
+                ]
+            elif etype == 'argument_error':
+                actions += [
+                    "Confirm method call matches signature; check recent template changes",
+                    "Run: which -all <function/method> to detect shadowing",
+                ]
+            else:
+                actions += [
+                    "Open Diagnostic Viewer; expand full stack",
+                    "Run: set_param(model,'SimulationCommand','update') to surface errors",
+                ]
+        elif category == 'configuration':
+            if etype in ('parameter_conflict', 'class_reload'):
+                actions += [
+                    "Class reload sequence:",
+                    "rehash; clear classes; clear functions;",
+                    "addpath(genpath('<dir>')); which -all FSM_<model>",
+                    "Recreate instance after ensuring the new class is on path",
+                ]
+        elif category == 'stateflow':
+            actions += [
+                "Ensure only the first initial state sets DefaultTransition.Destination",
+                "Clear default transition label: DefaultTransition.LabelString = ''",
+                "Increase margins/spacing; avoid top-left corner near default junction",
+            ]
+        elif category == 'code_generation':
+            actions += [
+                "Set up compiler: mex -setup C; mex -setup C++",
+                "Open build logs in <model>_ert_rtw and resolve compiler/linker errors",
+            ]
+        elif category == 'engine':
+            actions += [
+                "Ensure QTimers created in non-Qt threads are parented to a QObject in the Qt thread",
+                "Use QueuedConnection to call Qt slots from background threads",
+            ]
+
+        actions.append("If issues persist: restart engine and clear state (rehash; clear classes; bdclose('all')).")
+        return actions
 
 
 class MatlabEngineWorker(QObject):
@@ -1077,9 +1329,12 @@ class MatlabConnection(QObject):
                     matlab_slx_path = str(slx_file_path).replace(os.sep, '/')
                     m_file_dir = os.path.dirname(matlab_slx_path).replace('\\', '/')
                     
+                    # --- IMPORTANT: Force class reload and add path recursively ---
                     instantiate_command_str = (
-                        f"addpath('{m_file_dir}'); "
+                        f"rehash; clear classes; clear functions; "
+                        f"addpath(genpath('{m_file_dir}')); "
                         f"clear FSM_INSTANCE; "
+                        f"try, bdclose('all'); end; "
                         f"FSM_INSTANCE = {class_name}('{matlab_slx_path}');"
                     )
                     
@@ -1099,7 +1354,7 @@ class MatlabConnection(QObject):
 
         elif command_type == CommandType.GENERAL and metadata.get('purpose') == 'fsm_instantiation':
             if success:
-                # After instantiation, the next step is to set up streaming
+                # After instantiation, the next step is to set up streaming (snake_case wrapper exists).
                 setup_streaming_command = MatlabCommand(
                     command="FSM_INSTANCE.setup_data_streaming();",
                     command_type=CommandType.GENERAL,
@@ -1377,7 +1632,10 @@ class MatlabConnection(QObject):
 
         def generate_state_creation_code(states: List['State']) -> List[str]:
             """Generates MATLAB code for creating states from the IR."""
-            script_lines = ["    % Enhanced state creation with advanced features"]
+            script_lines = [
+                "    % Enhanced state creation with advanced features",
+                "    initialSet = false;",  # ensure only one default initial transition
+            ]
         
             for i, state in enumerate(states):
                 state_id = f"state_{i}_{state.name.replace(' ', '_').replace('-', '_')}"
@@ -1385,13 +1643,17 @@ class MatlabConnection(QObject):
                 if not state_id or not state_id[0].isalpha():
                     state_id = 's_' + state_id
         
-                sf_x = state.properties.get('x', 50 + (i % 4) * 150) / 2.0 + 30
-                sf_y = state.properties.get('y', 50 + (i // 4) * 120) / 2.0 + 30
-                sf_w = max(100, state.properties.get('width', 120) / 2.0)
-                sf_h = max(60, state.properties.get('height', 80) / 2.0)
+                # Layout with safe margins away from chart default junction
+                base_margin_x = 200
+                base_margin_y = 200
+                grid_spacing_x = 220
+                grid_spacing_y = 160
+                sf_x = state.properties.get('x', base_margin_x + (i % 4) * grid_spacing_x)
+                sf_y = state.properties.get('y', base_margin_y + (i // 4) * grid_spacing_y)
+                sf_w = max(120, state.properties.get('width', 120))
+                sf_h = max(80,  state.properties.get('height', 80))
         
-                # 1. Prepare strings for the Stateflow action language context.
-                #    Here, single quotes within strings must be doubled.
+                # 1. Prepare strings for Stateflow label
                 state_name_for_action = sanitize_matlab_code(state.name).replace("'", "''")
         
                 label_parts = [
@@ -1410,11 +1672,9 @@ class MatlabConnection(QObject):
                     code = sanitize_matlab_code(state.exit_action.code).replace('\n', '; ').replace("'", "''")
                     label_parts.append(f"exit: try; {code}; catch; end;")
         
-                # 2. Join the parts to form the final Stateflow label string. Stateflow uses '\n'.
                 state_label_for_stateflow = "\\n".join(label_parts)
         
-                # 3. Now, prepare strings for the MATLAB script context.
-                #    This requires escaping single quotes for the script's parser.
+                # 3. Prepare strings for MATLAB script context.
                 name_for_script = sanitize_matlab_code(state.name).replace("'", "''")
                 description_for_script = sanitize_matlab_code(state.description or f"State {state.name}").replace("'", "''")
                 label_for_script = state_label_for_stateflow.replace("'", "''")
@@ -1430,15 +1690,27 @@ class MatlabConnection(QObject):
                     f"    stateIndexMap('{name_for_script}') = {i+1};"
                 ])
         
+                # Initial state: set unguarded default transition once
                 if state.is_initial:
-                    initial_trans_label = "[trans_count_local = 0]".replace("'", "''")
                     script_lines.extend([
-                        f"    % Set {name_for_script} as initial state",  
-                        f"    defaultTrans_{i} = Stateflow.Transition(chartSFObj);",
-                        f"    defaultTrans_{i}.Destination = {state_id};",
-                        f"    defaultTrans_{i}.DestinationOClock = 12;",
-                        f"    defaultTrans_{i}.LabelString = '{initial_trans_label}';",
-                        f"    defaultTrans_{i}.Description = 'Initial transition to {name_for_script}';"
+                        f"    % Set {name_for_script} as initial state (unguarded, first only)",
+                        f"    if ~initialSet",
+                        f"        try",
+                        f"            if ~isempty(chartSFObj.DefaultTransition)",
+                        f"                chartSFObj.DefaultTransition.Destination = {state_id};",
+                        f"                try, chartSFObj.DefaultTransition.LabelString = ''; catch, end",
+                        f"            else",
+                        f"                defaultTrans_{i} = Stateflow.Transition(chartSFObj);",
+                        f"                defaultTrans_{i}.Destination = {state_id};",
+                        f"                defaultTrans_{i}.DestinationOClock = 12;",
+                        f"                try, defaultTrans_{i}.LabelString = ''; catch, end",
+                        f"                defaultTrans_{i}.Description = 'Initial transition to {name_for_script}';",
+                        f"            end",
+                        f"            initialSet = true;",
+                        f"        catch initErr",
+                        f"            warning('Initial transition set failed for %s: %s', '{name_for_script}', initErr.message);",
+                        f"        end",
+                        f"    end",
                     ])
         
                 script_lines.append("")
@@ -1453,11 +1725,9 @@ class MatlabConnection(QObject):
             ]
         
             for i, trans in enumerate(transitions):
-                # 1. Prepare strings for the MATLAB script context (like keys and descriptions).
                 src_name = sanitize_matlab_code(trans.source_name).replace("'", "''")
                 dst_name = sanitize_matlab_code(trans.target_name).replace("'", "''")
             
-                # 2. Build the raw Stateflow label string, escaping for Stateflow's action language where needed.
                 label_parts_raw = []
                 if trans.event:
                     clean_event = sanitize_matlab_code(trans.event)
@@ -1480,7 +1750,6 @@ class MatlabConnection(QObject):
                 if action_parts_raw:
                     label_parts_raw.append(f"/{{{'; '.join(action_parts_raw)}}}")
             
-                # 3. Join parts and escape the entire string for the MATLAB script context.
                 trans_label_stateflow = " ".join(label_parts_raw).strip()
                 trans_label_for_script = trans_label_stateflow.replace("'", "''")
             
@@ -1644,11 +1913,9 @@ class MatlabConnection(QObject):
             "    if strcmp(solverType, 'Fixed-step')",
             "        set_param(modelNameVar, 'Solver', 'ode1');  % Use fixed-step solver",
             "        set_param(modelNameVar, 'FixedStep', '0.1');",
-            "        % SampleTimeConstraint can be set here if needed for specific fixed-step scenarios",
-            "        set_param(modelNameVar, 'SampleTimeConstraint', 'STIndependent');",
+            "        % If you must use SampleTimeConstraint for fixed-step, set it here.",
             "    else",
             "        set_param(modelNameVar, 'Solver', 'ode45');  % Variable-step solver",
-            "        % Do NOT set SampleTimeConstraint for variable-step solvers as it causes conflicts.",
             "    end",
             "    ",
             "    fprintf('FSM_PROGRESS: Creating Stateflow chart...\\n');",
@@ -2462,542 +2729,3 @@ end
             EngineState.CONNECTING,
             "Restarting MATLAB Engine..."
         )
-
-
-class MatlabModelValidator:
-    """Enhanced validation for MATLAB model generation"""
-    
-    @staticmethod
-    def validate_states(states: List[Dict]) -> Tuple[bool, List[str]]:
-        """Validate state definitions with comprehensive checks"""
-        errors = []
-        
-        if not states:
-            errors.append("No states defined")
-            return False, errors
-        
-        state_names = []
-        initial_count = 0
-        
-        for i, state in enumerate(states):
-            # Name validation
-            if 'name' not in state or not state['name']:
-                errors.append(f"State {i}: Missing or empty name")
-                continue
-            
-            name = state['name'].strip()
-            if not name:
-                errors.append(f"State {i}: Empty name")
-                continue
-            
-            # Check for duplicate names
-            if name in state_names:
-                errors.append(f"State '{name}': Duplicate state name")
-            else:
-                state_names.append(name)
-            
-            # Name format validation
-            if not re.match(r'^[a-zA-Z][a-zA-Z0-9_\s-]*$', name):
-                errors.append(f"State '{name}': Invalid name format (must start with letter)")
-            
-            if len(name) > 50:
-                errors.append(f"State '{name}': Name too long (max 50 characters)")
-            
-            # Initial state validation
-            if state.get('is_initial', False):
-                initial_count += 1
-            
-            # Position validation
-            if 'x' in state and 'y' in state:
-                try:
-                    x, y = float(state['x']), float(state['y'])
-                    if x < 0 or y < 0 or x > 10000 or y > 10000:
-                        errors.append(f"State '{name}': Position out of reasonable bounds")
-                except (ValueError, TypeError):
-                    errors.append(f"State '{name}': Invalid position coordinates")
-            
-            # Action validation
-            for action_type in ['entry_action', 'during_action', 'exit_action']:
-                if action_type in state and state[action_type]:
-                    action_code = state[action_type].strip()
-                    if action_code:
-                        # Check for potentially dangerous MATLAB code
-                        dangerous_patterns = [
-                            'delete', 'rmdir', 'system', 'dos', 'unix', 
-                            'eval', 'evalin', 'assignin', 'clear all'
-                        ]
-                        
-                        for pattern in dangerous_patterns:
-                            if pattern in action_code.lower():
-                                errors.append(f"State '{name}': Potentially dangerous code in {action_type}: '{pattern}'")
-        
-        # Check for exactly one initial state
-        if initial_count == 0:
-            errors.append("No initial state defined")
-        elif initial_count > 1:
-            errors.append(f"Multiple initial states defined ({initial_count})")
-        
-        return len(errors) == 0, errors
-    
-    @staticmethod
-    def validate_transitions(transitions: List[Dict], states: List[Dict]) -> Tuple[bool, List[str]]:
-        """Validate transition definitions with comprehensive checks"""
-        errors = []
-        
-        if not transitions:
-            errors.append("No transitions defined")
-            return False, errors
-        
-        # Build state name set for validation
-        state_names = {state['name'] for state in states if 'name' in state}
-        
-        transition_signatures = set()
-        
-        for i, trans in enumerate(transitions):
-            # Source validation
-            if 'source' not in trans or not trans['source']:
-                errors.append(f"Transition {i}: Missing source state")
-                continue
-            
-            source = trans['source'].strip()
-            if source not in state_names:
-                errors.append(f"Transition {i}: Invalid source state '{source}'")
-            
-            # Target validation
-            if 'target' not in trans or not trans['target']:
-                errors.append(f"Transition {i}: Missing target state")
-                continue
-            
-            target = trans['target'].strip()
-            if target not in state_names:
-                errors.append(f"Transition {i}: Invalid target state '{target}'")
-            
-            # Check for duplicate transitions
-            signature = (source, target, trans.get('event', ''), trans.get('condition', ''))
-            if signature in transition_signatures:
-                errors.append(f"Transition {i}: Duplicate transition from '{source}' to '{target}'")
-            else:
-                transition_signatures.add(signature)
-            
-            # Event validation
-            event = trans.get('event', '').strip()
-            if event and not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', event):
-                errors.append(f"Transition {i}: Invalid event name '{event}'")
-            
-            # Condition validation
-            condition = trans.get('condition', '').strip()
-            if condition:
-                # Check for balanced brackets
-                if condition.count('[') != condition.count(']'):
-                    errors.append(f"Transition {i}: Unbalanced brackets in condition")
-                
-                if condition.count('(') != condition.count(')'):
-                    errors.append(f"Transition {i}: Unbalanced parentheses in condition")
-            
-            # Action validation
-            action = trans.get('action', '').strip()
-            if action:
-                # Check for potentially dangerous MATLAB code
-                dangerous_patterns = ['delete', 'rmdir', 'system', 'dos', 'unix', 'clear all']
-                for pattern in dangerous_patterns:
-                    if pattern in action.lower():
-                        errors.append(f"Transition {i}: Potentially dangerous code in action: '{pattern}'")
-        
-        # Check for unreachable states
-        if states and transitions:
-            reachable_states = set()
-            
-            # Find initial state
-            initial_states = [state['name'] for state in states if state.get('is_initial', False)]
-            if initial_states:
-                reachable_states.add(initial_states[0])
-                
-                # Build reachability graph
-                changed = True
-                while changed:
-                    changed = False
-                    for trans in transitions:
-                        if trans.get('source') in reachable_states and trans.get('target') not in reachable_states:
-                            reachable_states.add(trans.get('target'))
-                            changed = True
-                
-                # Check for unreachable states
-                for state in states:
-                    if state.get('name') not in reachable_states:
-                        errors.append(f"State '{state['name']}': Unreachable from initial state")
-        
-        return len(errors) == 0, errors
-    
-    @staticmethod
-    def validate_model_name(model_name: str) -> Tuple[bool, List[str]]:
-        """Validate model name for MATLAB compatibility"""
-        errors = []
-        
-        if not model_name:
-            errors.append("Model name is empty")
-            return False, errors
-        
-        name = model_name.strip()
-        
-        # Length check
-        if len(name) > 63:  # MATLAB identifier limit
-            errors.append("Model name too long (max 63 characters)")
-        
-        # Format check
-        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', name):
-            errors.append("Model name must start with letter and contain only letters, numbers, and underscores")
-        
-        # Reserved word check
-        matlab_keywords = {
-            'break', 'case', 'catch', 'continue', 'else', 'elseif', 'end', 'for', 
-            'function', 'global', 'if', 'otherwise', 'persistent', 'return', 
-            'switch', 'try', 'while', 'classdef', 'properties', 'methods', 'events'
-        }
-        
-        if name.lower() in matlab_keywords:
-            errors.append(f"Model name '{name}' is a reserved MATLAB keyword")
-        
-        return len(errors) == 0, errors
-
-
-class MatlabDiagnostics:
-    """Enhanced MATLAB system diagnostics"""
-    
-    @staticmethod
-    def check_matlab_installation() -> Dict[str, Any]:
-        """Comprehensive MATLAB installation check"""
-        result = {
-            'matlab_engine_available': MATLAB_ENGINE_AVAILABLE,
-            'python_version': sys.version,
-            'platform': sys.platform,
-            'timestamp': time.time()
-        }
-        
-        if MATLAB_ENGINE_AVAILABLE:
-            try:
-                # Get MATLAB Engine version info
-                import matlab.engine
-                result['matlab_engine_module'] = {
-                    'file': matlab.engine.__file__,
-                    'version': getattr(matlab.engine, '__version__', 'Unknown')
-                }
-                
-                # Test engine creation (quick test)
-                try:
-                    test_engine = matlab.engine.start_matlab('-nodesktop -nosplash')
-                    
-                    # Get MATLAB version info
-                    matlab_version = test_engine.eval("version('-release')")
-                    matlab_root = test_engine.eval("matlabroot")
-                    
-                    result['matlab_info'] = {
-                        'version': matlab_version,
-                        'root': matlab_root,
-                        'quick_test': 'passed'
-                    }
-                    
-                    # Test toolbox availability
-                    toolboxes = {
-                        'Simulink': 'simulink',
-                        'Stateflow': 'stateflow',
-                        'MATLAB_Coder': 'matlab_coder',
-                        'Simulink_Coder': 'simulink_coder'
-                    }
-                    
-                    toolbox_status = {}
-                    for name, license_name in toolboxes.items():
-                        try:
-                            available = test_engine.eval(f"license('test', '{license_name}')")
-                            toolbox_status[name] = bool(available)
-                        except:
-                            toolbox_status[name] = False
-                    
-                    result['toolbox_availability'] = toolbox_status
-                    
-                    # Cleanup test engine
-                    test_engine.quit()
-                    
-                except Exception as e:
-                    result['matlab_test_error'] = str(e)
-                    result['quick_test'] = 'failed'
-                
-            except Exception as e:
-                result['matlab_engine_error'] = str(e)
-        
-        else:
-            result['installation_help'] = MatlabEngineWorker()._get_installation_help_message()
-        
-        return result
-    
-    @staticmethod
-    def check_system_resources() -> Dict[str, Any]:
-        """Check system resources for MATLAB operations"""
-        try:
-            import psutil
-        except ImportError:
-            return {'error': 'psutil not available for resource monitoring'}
-        
-        return {
-            'memory': {
-                'total_gb': psutil.virtual_memory().total / (1024**3),
-                'available_gb': psutil.virtual_memory().available / (1024**3),
-                'usage_percent': psutil.virtual_memory().percent
-            },
-            'cpu': {
-                'count': psutil.cpu_count(),
-                'usage_percent': psutil.cpu_percent(interval=1)
-            },
-            'disk': {
-                'free_gb': psutil.disk_usage('/').free / (1024**3),
-                'total_gb': psutil.disk_usage('/').total / (1024**3),
-                'usage_percent': psutil.disk_usage('/').percent
-            }
-        }
-    
-    @staticmethod
-    def run_comprehensive_diagnostics() -> Dict[str, Any]:
-        """Run all diagnostic checks"""
-        return {
-            'matlab_installation': MatlabDiagnostics.check_matlab_installation(),
-            'system_resources': MatlabDiagnostics.check_system_resources(),
-            'python_environment': {
-                'version': sys.version,
-                'executable': sys.executable,
-                'platform': sys.platform,
-                'architecture': os.uname() if hasattr(os, 'uname') else 'Unknown'
-            },
-            'qt_environment': {
-                'pyqt_version': '6.x',  # Could be detected dynamically
-                'thread_support': True
-            }
-        }
-
-
-class MatlabScriptGenerator:
-    """Enhanced MATLAB script generation utilities"""
-    
-    @staticmethod
-    def generate_simulation_script(model_path: str, config: SimulationConfig, 
-                                 custom_setup: str = "", custom_analysis: str = "") -> str:
-        """Generate comprehensive simulation script with custom extensions"""
-        
-        model_name = Path(model_path).stem
-        
-        script_template = f"""
-% Advanced FSM Simulation Script
-% Model: {model_name}
-% Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}
-
-try
-    fprintf('=== FSM Simulation Starting ===\\n');
-    
-    % Environment validation and setup
-    if ~license('test', 'Simulink')
-        error('Simulink license not available');
-    end
-    
-    % Load model with error handling
-    fprintf('Loading model: {model_name}\\n');
-    try
-        load_system('{model_path.replace(os.sep, '/')}');
-    catch loadErr
-        error('Failed to load model: %s', loadErr.message);
-    end
-    
-    % Custom setup code
-    {custom_setup}
-    
-    % Configure simulation parameters
-    {MatlabScriptGenerator._generate_sim_config_block(config, model_name)}
-    
-    % Run simulation with monitoring
-    fprintf('Starting simulation (duration: {config.stop_time}s)...\\n');
-    sim_start = tic;
-    
-    try
-        simOut = sim('{model_name}', 'ReturnWorkspaceOutputs', 'on');
-        sim_duration = toc(sim_start);
-        
-        fprintf('Simulation completed in %.2f seconds\\n', sim_duration);
-        
-        % Process results
-        {MatlabScriptGenerator._generate_results_processing_block()}
-        
-        % Custom analysis code
-        {custom_analysis}
-        
-        % Generate final report
-        fprintf('MATLAB_SCRIPT_SUCCESS:Simulation completed successfully\\n');
-        
-    catch simErr
-        error('Simulation failed: %s', simErr.message);
-    end
-    
-catch err
-    fprintf('MATLAB_SCRIPT_FAILURE:%s\\n', err.message);
-    
-finally
-    % Cleanup
-    try
-        if bdIsLoaded('{model_name}')
-            close_system('{model_name}', 0);
-        end
-    catch
-    end
-end
-"""
-        return script_template
-    
-    @staticmethod
-    def _generate_sim_config_block(config: SimulationConfig, model_name: str) -> str:
-        """Generate simulation configuration block"""
-        config_lines = [
-            f"% Configure {model_name} for simulation",
-            "try"
-        ]
-        
-        # Add configuration commands from fixed config
-        params = config.to_matlab_params()
-        for param, value in params.items():
-            config_lines.append(f"    set_param('{model_name}', '{param}', '{value}');")
-        
-        config_lines.extend([
-            "catch configErr",
-            "    warning('Configuration error: %s', configErr.message);",
-            "end"
-        ])
-        
-        return "\n    ".join(config_lines)
-    
-    @staticmethod
-    def _generate_results_processing_block() -> str:
-        """Generate results processing block"""
-        return """
-        % Process simulation results
-        results = struct();
-        results.simulation_time = sim_duration;
-        
-        % Extract logged signals
-        if exist('state_names', 'var')
-            results.states = state_names;
-            results.final_state = state_names.Data(end);
-        end
-        
-        if exist('transition_counts', 'var')
-            results.transitions = transition_counts;
-            results.total_transitions = transition_counts.Data(end);
-        end
-        
-        % Save to workspace
-        assignin('base', 'FSM_results', results);
-        
-        fprintf('Results saved to workspace variable: FSM_results\\n');
-        """
-
-
-class MatlabErrorRecovery:
-    """Advanced error recovery and handling for MATLAB operations"""
-    
-    @staticmethod
-    def analyze_error(error_message: str) -> Dict[str, Any]:
-        """Analyze MATLAB error and provide recovery suggestions"""
-        error_patterns = {
-            'license': {
-                'patterns': ['license', 'checkout', 'not available'],
-                'category': 'licensing',
-                'suggestions': [
-                    'Check MATLAB license availability',
-                    'Verify toolbox licenses',
-                    'Contact system administrator'
-                ]
-            },
-            'memory': {
-                'patterns': ['out of memory', 'insufficient memory'],
-                'category': 'memory',
-                'suggestions': [
-                    'Close other applications',
-                    'Reduce model complexity',
-                    'Increase system memory'
-                ]
-            },
-            'compilation': {
-                'patterns': ['compilation error', 'undefined function', 'undefined variable'],
-                'category': 'model_error',
-                'suggestions': [
-                    'Check model for errors',
-                    'Verify block connections',
-                    'Update model to compatible version'
-                ]
-            },
-            'file_access': {
-                'patterns': ['permission denied', 'file not found', 'cannot open'],
-                'category': 'file_system',
-                'suggestions': [
-                    'Check file permissions',
-                    'Verify file path exists',
-                    'Run with appropriate privileges'
-                ]
-            },
-            'parameter_conflict': {
-                'patterns': ['parameter', 'ignored', 'constraint'],
-                'category': 'configuration',
-                'suggestions': [
-                    'Check solver configuration',
-                    'Verify parameter compatibility',
-                    'Use appropriate solver type'
-                ]
-            }
-        }
-        
-        error_lower = error_message.lower()
-        
-        for error_type, config in error_patterns.items():
-            if any(pattern in error_lower for pattern in config['patterns']):
-                return {
-                    'error_type': error_type,
-                    'category': config['category'],
-                    'suggestions': config['suggestions'],
-                    'recoverable': True
-                }
-        
-        return {
-            'error_type': 'unknown',
-            'category': 'general',
-            'suggestions': ['Check MATLAB command window for details', 'Restart MATLAB Engine'],
-            'recoverable': False
-        }
-    
-    @staticmethod
-    def suggest_recovery_actions(error_analysis: Dict[str, Any]) -> List[str]:
-        """Suggest specific recovery actions based on error analysis"""
-        base_suggestions = error_analysis.get('suggestions', [])
-        
-        # Add category-specific suggestions
-        category = error_analysis.get('category', 'general')
-        
-        if category == 'licensing':
-            base_suggestions.extend([
-                "Try running \"license('inuse')\" to check current usage",
-                "Restart MATLAB if license is stuck",
-                "Check network connection for floating licenses"
-            ])
-        elif category == 'memory':
-            base_suggestions.extend([
-                'Run "clear all" to free workspace memory',
-                'Reduce simulation time or complexity',
-                'Enable fast restart mode'
-            ])
-        elif category == 'model_error':
-            base_suggestions.extend([
-                'Run model advisor to check for issues',
-                'Verify all required toolboxes are installed',
-                'Check model file is not corrupted'
-            ])
-        elif category == 'configuration':
-            base_suggestions.extend([
-                'Use fixed-step solver for discrete systems',
-                'Check parameter compatibility',
-                'Review solver settings'
-            ])
-        
-        return base_suggestions

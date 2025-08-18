@@ -1,5 +1,4 @@
 # fsm_designer_project/ui/graphics/graphics_items.py
-
 import math
 import os
 from PyQt6.sip import isdeleted as sip_isdeleted
@@ -11,8 +10,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import (
     QBrush, QColor, QFont, QPen, QPainterPath, QPolygonF, QPainter,
-    QPainterPathStroker, QPixmap, QMouseEvent, QDrag, QPalette, QFocusEvent, QKeyEvent, QIcon, QTransform,
-    QLinearGradient
+    QPainterPathStroker, QPixmap, QMouseEvent, QDrag, QPalette, QFocusEvent, QKeyEvent, QIcon, QTransform
 )
 from PyQt6.QtCore import (
     Qt, QRectF, QPointF, QMimeData, QPoint, QLineF, QSize, pyqtSignal, QEvent, QObject,

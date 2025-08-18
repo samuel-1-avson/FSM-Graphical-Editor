@@ -589,14 +589,16 @@ class DiagramScene(QGraphicsScene):
         if self.current_mode == "state":
             grid_x = round(pos.x() / self.grid_size) * self.grid_size - 60
             grid_y = round(pos.y() / self.grid_size) * self.grid_size - 30
-            self._add_item_interactive(QPointF(grid_x, grid_y), item_type="State")
+            # --- MODIFIED: Call new direct creation method ---
+            self._create_item_at_pos(QPointF(grid_x, grid_y), item_type="State")
             event.accept()
             return
 
         if self.current_mode == "comment":
             grid_x = round(pos.x() / self.grid_size) * self.grid_size
             grid_y = round(pos.y() / self.grid_size) * self.grid_size
-            self._add_item_interactive(QPointF(grid_x, grid_y), item_type="Comment")
+            # --- MODIFIED: Call new direct creation method ---
+            self._create_item_at_pos(QPointF(grid_x, grid_y), item_type="Comment")
             event.accept()
             return
 
@@ -694,12 +696,13 @@ class DiagramScene(QGraphicsScene):
 
     def _show_scene_context_menu(self, event):
         menu = QMenu()
-        menu.addAction(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogNewFolder, "St"), "Add State Here", lambda: self._add_item_interactive(event.scenePos(), "State"))
-        menu.addAction(get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxInformation, "Cm"), "Add Comment Here", lambda: self._add_item_interactive(event.scenePos(), "Comment"))
+        # --- MODIFIED: Use the new direct creation method ---
+        menu.addAction(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogNewFolder, "St"), "Add State Here", lambda: self._create_item_at_pos(event.scenePos(), "State"))
+        menu.addAction(get_standard_icon(QStyle.StandardPixmap.SP_MessageBoxInformation, "Cm"), "Add Comment Here", lambda: self._create_item_at_pos(event.scenePos(), "Comment"))
         
         # --- NEW: Add actions for Frame and Display items ---
         menu.addSeparator()
-        menu.addAction(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogListView, "Frame"), "Add Frame Here...", lambda: self._add_item_interactive(event.scenePos(), "Frame"))
+        menu.addAction(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogListView, "Frame"), "Add Frame Here...", lambda: self._create_item_at_pos(event.scenePos(), "Frame"))
         menu.addAction(get_standard_icon(QStyle.StandardPixmap.SP_FileDialogInfoView, "Disp"), "Add Variable Display Here...", lambda: self._add_display_item_at_pos(event.scenePos()))
         
         if self.parent_window and hasattr(self.parent_window, 'ai_chatbot_manager') and self.parent_window.ai_chatbot_manager.is_configured():
@@ -970,125 +973,63 @@ class DiagramScene(QGraphicsScene):
                 item.setSelected(True)
             self.delete_selected_items()
 
-    def _add_item_interactive(self, pos: QPointF, item_type: str, name_prefix:str="Item", initial_data:dict=None):
-        from ..dialogs import StatePropertiesDialog, CommentPropertiesDialog
+    def _create_item_at_pos(self, pos: QPointF, item_type: str, initial_data: dict = None):
+        """Creates an item directly on the scene without a dialog, then initiates inline editing."""
         from .graphics_items import GraphicsStateItem, GraphicsCommentItem, GraphicsFrameItem
         from ...undo_commands import AddItemCommand
-        from ...managers.settings_manager import SettingsManager
 
-        current_item = None
         initial_data = initial_data or {}
-        is_initial_state_from_drag = initial_data.get('is_initial', False)
-        is_final_state_from_drag = initial_data.get('is_final', False)
+        new_item = None
+        undo_text = f"Add {item_type}"
 
-        dialog_parent = self.parent_window or (self.views()[0] if self.views() else None)
+        # Snap position to grid
+        grid_x = round(pos.x() / self.grid_size) * self.grid_size
+        grid_y = round(pos.y() / self.grid_size) * self.grid_size
 
-        if item_type == "State":
-            i = 1
-            base_name = name_prefix if name_prefix != "Item" else "State"
-            while self.get_state_by_name(f"{base_name}{i}"):
-                i += 1
-            default_name = f"{base_name}{i}"
+        if item_type in ["State", "Initial State", "Final State"]:
+            # Center the state on the grid point
+            grid_x -= 60
+            grid_y -= 30
+            
+            base_name = "State"
+            if item_type == "Initial State":
+                base_name = "Initial"
+                initial_data['is_initial'] = True
+            elif item_type == "Final State":
+                base_name = "Final"
+                initial_data['is_final'] = True
+            
+            unique_name = self._generate_unique_state_name(base_name)
+            undo_text = f"Add State '{unique_name}'"
 
-            initial_dialog_props = {
-                'name': default_name,
-                'is_initial': is_initial_state_from_drag,
-                'is_final': is_final_state_from_drag,
-                'color': initial_data.get('color', self.settings_manager.get("item_default_state_color")),
-                'action_language': config.DEFAULT_EXECUTION_ENV,
-                'entry_action':"", 'during_action':"", 'exit_action':"", 'description':"",
-                'is_superstate': False, 'sub_fsm_data': {'states':[], 'transitions':[], 'comments':[]},
-                'shape_type': initial_data.get('shape_type', self.settings_manager.get("state_default_shape")),
-                'font_family': initial_data.get('font_family', self.settings_manager.get("state_default_font_family")),
-                'font_size': initial_data.get('font_size', self.settings_manager.get("state_default_font_size")),
-                'font_bold': initial_data.get('font_bold', self.settings_manager.get("state_default_font_bold")),
-                'font_italic': initial_data.get('font_italic', self.settings_manager.get("state_default_font_italic")),
-                'border_style_str': initial_data.get('border_style_str', self.settings_manager.get("state_default_border_style_str")),
-                'border_width': initial_data.get('border_width', self.settings_manager.get("state_default_border_width")),
-                'icon_path': initial_data.get('icon_path', None)
-            }
-            props_dialog = StatePropertiesDialog(self.settings_manager, self.asset_manager, parent=dialog_parent, current_properties=initial_dialog_props, is_new_state=True, scene_ref=self)
-
-
-            if props_dialog.exec() == QDialog.DialogCode.Accepted:
-                final_props = props_dialog.get_properties()
-                if self.get_state_by_name(final_props['name']) and final_props['name'] != default_name:
-                    QMessageBox.warning(dialog_parent, "Duplicate Name", f"A state named '{final_props['name']}' already exists.")
-                else:
-                    current_item = GraphicsStateItem(
-                        pos.x(), pos.y(), 120, 60, 
-                        final_props['name'],
-                        final_props['is_initial'], final_props['is_final'],
-                        final_props.get('color'),
-                        final_props.get('entry_action',""),
-                        final_props.get('during_action',""),
-                        final_props.get('exit_action',""),
-                        final_props.get('description',""),
-                        final_props.get('is_superstate', False),
-                        final_props.get('sub_fsm_data', {'states':[], 'transitions':[], 'comments':[]}),
-                        action_language=final_props.get('action_language', config.DEFAULT_EXECUTION_ENV),
-                        shape_type=final_props.get('shape_type'),
-                        font_family=final_props.get('font_family'),
-                        font_size=final_props.get('font_size'),
-                        font_bold=final_props.get('font_bold'),
-                        font_italic=final_props.get('font_italic'),
-                        border_style_qt=SettingsManager.STRING_TO_QT_PEN_STYLE.get(final_props.get('border_style_str', "Solid")),
-                        custom_border_width=final_props.get('border_width'),
-                        icon_path=final_props.get('icon_path')
-                    )
-                    if self.parent_window and hasattr(self.parent_window, 'connect_state_item_signals'):
-                        self.parent_window.connect_state_item_signals(current_item)
-
-            if self.current_mode == "state": 
-                self.set_mode("select")
-            if not current_item: return 
+            new_item = GraphicsStateItem(
+                x=grid_x, y=grid_y, w=120, h=60, text=unique_name,
+                is_initial=initial_data.get('is_initial', False),
+                is_final=initial_data.get('is_final', False)
+                # Note: Other visual properties will use defaults from the item's __init__
+            )
+            # Connect signals for the new item
+            if self.parent_window and hasattr(self.parent_window, 'connect_state_item_signals'):
+                self.parent_window.connect_state_item_signals(new_item)
 
         elif item_type == "Comment":
-            initial_text = initial_data.get('text', "Comment" if name_prefix == "Item" else name_prefix)
-            initial_comment_props = {
-                'text': initial_text,
-                'font_family': initial_data.get('font_family', self.settings_manager.get("comment_default_font_family")),
-                'font_size': initial_data.get('font_size', self.settings_manager.get("comment_default_font_size")),
-                'font_italic': initial_data.get('font_italic', self.settings_manager.get("comment_default_font_italic"))
-            }
-            comment_props_dialog = CommentPropertiesDialog(dialog_parent, initial_comment_props)
-
-            if comment_props_dialog.exec() == QDialog.DialogCode.Accepted:
-                final_comment_props = comment_props_dialog.get_properties()
-                if final_comment_props['text']: 
-                     current_item = GraphicsCommentItem(
-                         pos.x(), pos.y(), final_comment_props['text'],
-                         font_family=final_comment_props.get('font_family'),
-                         font_size=final_comment_props.get('font_size'),
-                         font_italic=final_comment_props.get('font_italic')
-                    )
-                else: 
-                    self.set_mode("select" if self.current_mode == "comment" else self.current_mode)
-                    return
-            else: 
-                self.set_mode("select" if self.current_mode == "comment" else self.current_mode)
-                return
-        else:
-            self._log_to_parent("WARNING", f"Unknown item type for addition: {item_type}")
-            return
-
-
-        # --- NEW: Handle Frame item creation ---
-        if item_type == "Frame":
-            title, ok = QInputDialog.getText(self.parent_window, "New Frame", "Enter title for the frame:")
-            if ok and title.strip():
-                current_item = GraphicsFrameItem(pos.x(), pos.y(), 400, 300, title.strip())
-            else:
-                return # User cancelled or entered empty title
+            undo_text = "Add Comment"
+            new_item = GraphicsCommentItem(x=grid_x, y=grid_y, text="Comment...")
         
+        elif item_type == "Frame":
+            undo_text = "Add Frame"
+            new_item = GraphicsFrameItem(grid_x, grid_y, 400, 300, "Group")
 
-        if current_item:
-            cmd = AddItemCommand(self, current_item, f"Add {item_type}")
-            self.undo_stack.push(cmd) 
-            log_name = getattr(current_item, 'text_label', None) or \
-                       (getattr(current_item, 'toPlainText', lambda: "Item")() if isinstance(current_item, GraphicsCommentItem) else "Item")
-            self._log_to_parent("INFO", f"Added {item_type}: {log_name} at ({pos.x():.0f},{pos.y():.0f})")
-        
+        if new_item:
+            cmd = AddItemCommand(self, new_item, undo_text)
+            self.undo_stack.push(cmd)
+            self._log_to_parent("INFO", f"Added {item_type} at ({grid_x:.0f}, {grid_y:.0f})")
+            
+            # Start inline editing for relevant items after they are added to the scene
+            if isinstance(new_item, (GraphicsStateItem, GraphicsCommentItem)):
+                # Use a QTimer to ensure the item is fully processed before editing starts
+                QTimer.singleShot(0, new_item.start_inline_edit)
+
     def _cancel_transition_drawing(self):
         """Helper to reset all transition-drawing state variables."""
         if self.transition_start_item:
@@ -1282,37 +1223,8 @@ class DiagramScene(QGraphicsScene):
         if mime_data.hasFormat(config.MIME_TYPE_BSM_ITEMS):
             item_type_data_str = mime_data.data(config.MIME_TYPE_BSM_ITEMS).data().decode('utf-8')
 
-            grid_x = round(pos.x() / self.grid_size) * self.grid_size
-            grid_y = round(pos.y() / self.grid_size) * self.grid_size
-
-            if "State" in item_type_data_str: 
-                grid_x -= 60 
-                grid_y -= 30 
-
-            initial_props_for_add = {}
-            actual_item_type_to_add = "Item" 
-            name_prefix_for_add = "Item"
-
-            # --- NEW: Handle Frame drop ---
-            if item_type_data_str == "Frame":
-                actual_item_type_to_add = "Frame"; name_prefix_for_add = "Group"
-
-            if item_type_data_str == "State":
-                actual_item_type_to_add = "State"; name_prefix_for_add = "State"
-            elif item_type_data_str == "Initial State":
-                actual_item_type_to_add = "State"; name_prefix_for_add = "Initial"; initial_props_for_add['is_initial'] = True
-            elif item_type_data_str == "Final State":
-                actual_item_type_to_add = "State"; name_prefix_for_add = "Final"; initial_props_for_add['is_final'] = True
-            elif item_type_data_str == "Comment":
-                actual_item_type_to_add = "Comment"; name_prefix_for_add = "Note"
-            else:
-                self._log_to_parent("WARNING", f"Unknown item type dropped: {item_type_data_str}")
-                event.ignore(); return
-
-            self._add_item_interactive(QPointF(grid_x, grid_y),
-                                       item_type=actual_item_type_to_add,
-                                       name_prefix=name_prefix_for_add,
-                                       initial_data=initial_props_for_add)
+            # --- MODIFIED: Call the new direct creation method ---
+            self._create_item_at_pos(pos, item_type_data_str)
             event.acceptProposedAction()
         else:
             super().dropEvent(event)
@@ -1412,18 +1324,28 @@ class DiagramScene(QGraphicsScene):
                 self._log_to_parent("WARNING", f"Load Warning: Could not link transition '{label_info}' due to missing states: Source='{trans_data['source']}', Target='{trans_data['target']}'.")
 
         for comment_data in data.get('comments', []):
+            # --- MODIFIED: Pass bg_color on load ---
             comment_item = GraphicsCommentItem(
                 comment_data['x'], comment_data['y'], comment_data.get('text', ""),
                 font_family=comment_data.get('font_family', self.settings_manager.get("comment_default_font_family")),
                 font_size=comment_data.get('font_size', self.settings_manager.get("comment_default_font_size")),
-                font_italic=comment_data.get('font_italic', self.settings_manager.get("comment_default_font_italic"))
+                font_italic=comment_data.get('font_italic', self.settings_manager.get("comment_default_font_italic")),
+                bg_color=comment_data.get('bg_color')
             )
             comment_item.setTextWidth(comment_data.get('width', 150))
             self.addItem(comment_item)
 
-        for frame_data in data.get('frames', []): # Assuming you add 'frames' to your JSON
-            frame = GraphicsFrameItem(...)
+        # --- NEW: Load Frame items ---
+        for frame_data in data.get('frames', []):
+            frame = GraphicsFrameItem(
+                frame_data.get('x', 0),
+                frame_data.get('y', 0),
+                frame_data.get('width', 400),
+                frame_data.get('height', 300),
+                frame_data.get('title', "Group")
+            )
             self.addItem(frame)
+        # --- END NEW ---
         
         for display_data in data.get('displays', []): # Assuming 'displays' in JSON
             display = GraphicsDisplayItem(...)
@@ -1748,6 +1670,63 @@ class DiagramScene(QGraphicsScene):
                 if not combined_rect.isEmpty():
                     self.views()[0].ensureVisible(combined_rect, 50, 50)
 
+    # --- NEW METHOD ---
+    def _create_item_at_pos(self, pos: QPointF, item_type: str, initial_data: dict = None):
+        """Creates an item directly on the scene without a dialog, then initiates inline editing."""
+        from .graphics_items import GraphicsStateItem, GraphicsCommentItem, GraphicsFrameItem
+        from ...undo_commands import AddItemCommand
+
+        initial_data = initial_data or {}
+        new_item = None
+        undo_text = f"Add {item_type}"
+
+        # Snap position to grid
+        grid_x = round(pos.x() / self.grid_size) * self.grid_size
+        grid_y = round(pos.y() / self.grid_size) * self.grid_size
+
+        if item_type in ["State", "Initial State", "Final State"]:
+            # Center the state on the grid point
+            grid_x -= 60
+            grid_y -= 30
+            
+            base_name = "State"
+            if item_type == "Initial State":
+                base_name = "Initial"
+                initial_data['is_initial'] = True
+            elif item_type == "Final State":
+                base_name = "Final"
+                initial_data['is_final'] = True
+            
+            unique_name = self._generate_unique_state_name(base_name)
+            undo_text = f"Add State '{unique_name}'"
+
+            new_item = GraphicsStateItem(
+                x=grid_x, y=grid_y, w=120, h=60, text=unique_name,
+                is_initial=initial_data.get('is_initial', False),
+                is_final=initial_data.get('is_final', False)
+                # Note: Other visual properties will use defaults from the item's __init__
+            )
+            # Connect signals for the new item
+            if self.parent_window and hasattr(self.parent_window, 'connect_state_item_signals'):
+                self.parent_window.connect_state_item_signals(new_item)
+
+        elif item_type == "Comment":
+            undo_text = "Add Comment"
+            new_item = GraphicsCommentItem(x=grid_x, y=grid_y, text="Comment...")
+        
+        elif item_type == "Frame":
+            undo_text = "Add Frame"
+            new_item = GraphicsFrameItem(grid_x, grid_y, 400, 300, "Group")
+
+        if new_item:
+            cmd = AddItemCommand(self, new_item, undo_text)
+            self.undo_stack.push(cmd)
+            self._log_to_parent("INFO", f"Added {item_type} at ({grid_x:.0f}, {grid_y:.0f})")
+            
+            # Start inline editing for relevant items after they are added to the scene
+            if isinstance(new_item, (GraphicsStateItem, GraphicsCommentItem)):
+                # Use a QTimer to ensure the item is fully processed before editing starts
+                QTimer.singleShot(0, new_item.start_inline_edit)
     @pyqtSlot(QGraphicsItem, dict, dict)
     def on_item_properties_changed(self, item, old_props, new_props):
         """Creates an undo command when an item's propertiesChanged signal is emitted."""
