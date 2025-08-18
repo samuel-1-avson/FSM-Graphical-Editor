@@ -372,7 +372,8 @@ class MainWindow(QMainWindow):
     
         if app_instance: app_instance.processEvents()
         logger.info(f"Theme '{theme_name}' applied and UI refreshed.")
-
+        
+        
     def current_editor(self) -> EditorWidget | None:
         widget = self.tab_widget.currentWidget()
         if isinstance(widget, EditorWidget):
@@ -494,24 +495,32 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str)
     def _on_open_recent_project_from_welcome(self, project_path: str):
         """Opens a project file from the Welcome Screen's recent list."""
-        if not self.project_manager.is_project_open():
-            if project_path and os.path.exists(project_path):
-                if not self.project_manager.load_project(project_path):
-                    QMessageBox.warning(self, "Project Not Found", f"The project at '{project_path}' could not be loaded or was not found.")
-                    self.action_handler.file_handler.remove_from_recent_files(project_path)
-            else:
-                QMessageBox.warning(self, "File Not Found", f"The project file '{project_path}' could not be found.")
+        # --- FIX: Call the more robust on_close_project handler before loading. ---
+        if not self.action_handler.file_handler.on_close_project():
+            return # User cancelled closing the current project/tabs.
+
+        if project_path and os.path.exists(project_path):
+            if not self.project_manager.load_project(project_path):
+                QMessageBox.warning(self, "Project Not Found", f"The project at '{project_path}' could not be loaded or was not found.")
                 self.action_handler.file_handler.remove_from_recent_files(project_path)
         else:
-            logger.warning("Attempted to open recent project while another project is already open.")
+            QMessageBox.warning(self, "File Not Found", f"The project file '{project_path}' could not be found.")
+            self.action_handler.file_handler.remove_from_recent_files(project_path)
     
     @pyqtSlot(str, dict)
     def on_project_loaded(self, project_path: str, project_data: dict):
         """Handles the UI updates when a new project is loaded."""
         self.log_message("INFO", f"Project loaded: {project_data.get('name')}")
     
-        while self.tab_widget.count() > 0:
-            self.tab_widget.removeTab(0)
+        # --- FIX: Remove the unsafe tab closing loop. ---
+        # The action handlers (on_new_project, on_open_file) are now responsible
+        # for gracefully closing all tabs *before* this slot is called.
+        # This ensures the user is prompted to save any unsaved work.
+        if self.tab_widget.count() > 0:
+            logger.warning("on_project_loaded called, but tabs were not closed. This may indicate an issue in the calling logic.")
+            # As a fallback, we still clear them, but this should not happen in the new flow.
+            while self.tab_widget.count() > 0:
+                self.tab_widget.removeTab(0)
         
         project_dir = os.path.dirname(project_path)
         if self.project_fs_model:
@@ -530,7 +539,6 @@ class MainWindow(QMainWindow):
     
         self._update_project_actions_state()
         self._update_window_title()
-
     @pyqtSlot()
     def on_project_closed(self):
         """Handles UI updates when a project is closed."""

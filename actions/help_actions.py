@@ -5,6 +5,10 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QMessageBox
 from ..utils import _get_bundled_file_path
 
+# --- MODIFIED IMPORTS ---
+from ..utils import config
+from ..ui.dialogs import SystemInfoDialog
+
 logger = logging.getLogger(__name__)
 
 class HelpActionHandler(QObject):
@@ -15,7 +19,6 @@ class HelpActionHandler(QObject):
     @pyqtSlot()
     def on_show_quick_start(self):
         """Finds and opens the QUICK_START.html file in the default web browser."""
-        # --- FIX: Moved implementation from FileActionHandler to here ---
         quick_start_path = _get_bundled_file_path("QUICK_START.html", resource_prefix="docs")
         if quick_start_path:
             url = QUrl.fromLocalFile(quick_start_path)
@@ -26,11 +29,21 @@ class HelpActionHandler(QObject):
         
     @pyqtSlot()
     def on_about(self):
-        self.mw.action_handler.file_handler.on_about()
+        # --- FIX: Implement the 'About' dialog logic here directly ---
+        about_text = f"""
+            <h2>{config.APP_NAME}</h2>
+            <p>Version: {config.APP_VERSION}</p>
+            <p>A graphical editor for designing, simulating, and generating code for Finite State Machines.</p>
+            <p>Built with Python and PyQt6.</p>
+            <p>&copy; 2024 BSM-Devs. All rights reserved.</p>
+        """
+        QMessageBox.about(self.mw, f"About {config.APP_NAME}", about_text)
 
     @pyqtSlot()
     def on_show_system_info(self):
-        self.mw.action_handler.file_handler.on_show_system_info()
+        # --- FIX: Implement the 'System Info' dialog logic here directly ---
+        dialog = SystemInfoDialog(self.mw)
+        dialog.exec()
         
     @pyqtSlot()
     def on_customize_quick_access(self):

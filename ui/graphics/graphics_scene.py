@@ -188,6 +188,8 @@ class DiagramScene(QGraphicsScene):
 
     def apply_auto_layout(self):
         """Applies the auto-layout positions to the actual scene items."""
+        # --- FIX: Add the missing import ---
+        from .graphics_items import GraphicsStateItem
         from ...undo_commands import MoveItemsCommand
         
         new_positions = self._calculate_auto_layout()

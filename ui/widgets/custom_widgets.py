@@ -479,12 +479,24 @@ class DraggableToolButton(QToolButton):
     def _create_drag_pixmap(self) -> QPixmap:
         """Create a pixmap for drag visualization."""
         try:
+            # --- FIX: Ensure the widget has a valid size before creating a pixmap ---
+            widget_size = self.size()
+            if not widget_size.isValid() or widget_size.width() <= 0 or widget_size.height() <= 0:
+                logging.warning(f"Cannot create drag pixmap for '{self.text()}': widget size is invalid {widget_size}.")
+                # Return a default small, valid pixmap to avoid crashing the drag operation
+                return QPixmap(32, 32)
+
             # Create pixmap with better quality
-            pixmap = QPixmap(self.size() * 2)  # Higher resolution
+            pixmap = QPixmap(widget_size * 2)  # Higher resolution
             pixmap.fill(Qt.GlobalColor.transparent)
             
             # Render the button
             painter = QPainter(pixmap)
+            # --- FIX: Check if the QPainter was successfully activated ---
+            if not painter.isActive():
+                logging.error(f"Failed to activate QPainter for drag pixmap on '{self.text()}'. Pixmap might be invalid.")
+                return QPixmap(widget_size) # Return a blank pixmap of the correct size
+
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.scale(2.0, 2.0)  # Scale for higher resolution
             
@@ -497,12 +509,14 @@ class DraggableToolButton(QToolButton):
             
             painter.end()
             
-            return pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            return pixmap.scaled(widget_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             
         except Exception as e:
             logging.error(f"Error creating drag pixmap: {e}")
             # Fallback to simple pixmap
             fallback_pixmap = QPixmap(self.size())
+            if fallback_pixmap.isNull():
+                return QPixmap(32, 32)
             fallback_pixmap.fill(QColor(100, 100, 100, 150))
             return fallback_pixmap
             

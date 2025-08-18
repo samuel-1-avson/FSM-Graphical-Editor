@@ -32,7 +32,7 @@ class ThemeManager(QObject):
     themeModified = pyqtSignal(str)   # theme_name
     loadError = pyqtSignal(str)       # error_message
 
-    # ... (THEME_DATA dictionaries are unchanged) ...
+    # --- MODIFIED: Refined professional color palettes ---
     THEME_DATA_LIGHT = {
         "COLOR_BACKGROUND_APP": "#FAFAFA", "COLOR_BACKGROUND_LIGHT": "#FFFFFF",
         "COLOR_BACKGROUND_MEDIUM": "#F5F5F5", "COLOR_BACKGROUND_DARK": "#EEEEEE",
@@ -224,7 +224,7 @@ class ThemeManager(QObject):
     def load_themes(self) -> None:
         """Load default and user-defined themes with error handling."""
         self._theme_cache.clear()
-        # Load all professional themes
+        # --- MODIFIED: Load all professional themes ---
         self.themes = {
             "Light": self.THEME_DATA_LIGHT.copy(),
             "Dark": self.THEME_DATA_DARK.copy(),
@@ -417,7 +417,7 @@ class ThemeManager(QObject):
         /* Professional Dock Widget Styling */
         QDockWidget::title {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {grad_stop_1}, stop:1 {grad_stop_2});
-            padding: 8px 12px 8px 50px;
+            padding: 8px 50px 8px 12px;
             border: 1px solid {theme_data['COLOR_BORDER_LIGHT']};
             border-bottom: 2px solid {theme_data['COLOR_ACCENT_PRIMARY']};
             font-weight: 600;
@@ -430,8 +430,6 @@ class ThemeManager(QObject):
         QDockWidget {{
             border: 1px solid {theme_data['COLOR_BORDER_LIGHT']};
             color: {theme_data['COLOR_TEXT_PRIMARY']};
-            titlebar-close-icon: url(:/icons/close.png);
-            titlebar-normal-icon: url(:/icons/undock.png);
         }}
         
         QDockWidget QWidget {{
@@ -440,8 +438,8 @@ class ThemeManager(QObject):
         }}
         
         QDockWidget::close-button, QDockWidget::float-button {{
-            subcontrol-origin: margin;
-            subcontrol-position: top left;
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
             background: transparent;
             border: none;
             border-radius: 3px;
@@ -450,17 +448,21 @@ class ThemeManager(QObject):
         }}
         
         QDockWidget::close-button {{
-            left: 8px;
+            right: 8px;
             top: 6px;
         }}
         
         QDockWidget::float-button {{
-            left: 28px;
+            right: 28px;
             top: 6px;
         }}
         
-        QDockWidget::close-button:hover, QDockWidget::float-button:hover {{
+        QDockWidget::close-button:hover {{
             background-color: {theme_data['COLOR_ACCENT_ERROR']};
+        }}
+        
+        QDockWidget::float-button:hover {{
+            background-color: {theme_data['COLOR_ACCENT_PRIMARY_LIGHT']};
         }}
         
         /* Professional Toolbar Styling */

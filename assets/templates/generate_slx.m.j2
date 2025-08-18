@@ -1,4 +1,4 @@
-{# fsm_designer_project/assets/templates/generate_slx.m.j2 - Enhanced MATLAB Template #}
+{# fsm_designer_project/assets/templates/generate_slx.m.j2 - Enhanced MATLAB Template (Fixed) #}
 {# 
 Enhanced MATLAB Simulink Model Generation Script Template
 Features:
@@ -200,7 +200,7 @@ function validateEnvironmentRequirements()
     % Validate essential toolboxes
     essentialToolboxes = {'Simulink', 'Stateflow'};
     {% if required_toolboxes %}
-    additionalToolboxes = {{% for toolbox in required_toolboxes %}'{{ toolbox }}'{% if not loop.last %}, {% endif %}{% endfor %}};
+    additionalToolboxes = { {% for toolbox in required_toolboxes %}'{{ toolbox }}'{% if not loop.last %}, {% endif %}{% endfor %} };
     essentialToolboxes = [essentialToolboxes, additionalToolboxes];
     {% endif %}
     
@@ -236,7 +236,7 @@ function modelConfig = setupModelConfiguration()
     
     % Basic model information
     modelConfig.name = '{{ model_name }}';
-    modelConfig.description = '{{ model_description | default("Finite State Machine Model") }}';
+    modelConfig.description = '{{ model_description | default("Finite State Machine Model") | replace("'", "''") }}';
     modelConfig.outputDir = '{{ output_dir | replace('\\', '/') }}';
     modelConfig.fullPath = fullfile(modelConfig.outputDir, [modelConfig.name, '.slx']);
     
@@ -250,7 +250,7 @@ function modelConfig = setupModelConfiguration()
     modelConfig.chart.position = {{ chart_position | default(default_chart_position) }};
     {% if chart_properties %}
     {% for prop, value in chart_properties.items() %}
-    modelConfig.chart.{{ prop }} = {{ value if value is string else value | tojson }};
+    modelConfig.chart.{{ prop }} = {% if value is string %}'{{ value | replace("'", "''") }}'{% else %}{{ value | tojson }}{% endif %};
     {% endfor %}
     {% endif %}
     
@@ -264,7 +264,7 @@ function modelConfig = setupModelConfiguration()
     % Model properties and simulation settings
     {% if model_properties %}
     {% for prop, value in model_properties.items() %}
-    modelConfig.properties.{{ prop }} = {{ value if value is string else value | tojson }};
+    modelConfig.properties.{{ prop }} = {% if value is string %}'{{ value | replace("'", "''") }}'{% else %}{{ value | tojson }}{% endif %};
     {% endfor %}
     {% else %}
     % Default simulation properties
@@ -277,9 +277,9 @@ function modelConfig = setupModelConfiguration()
     {% endif %}
     
     % Generation statistics
-    modelConfig.stats.totalStates = {{ states | length }});
-    modelConfig.stats.totalTransitions = {{ transitions | length }});
-    modelConfig.stats.initialStates = {{ states | selectattr("is_initial") | list | length }});
+    modelConfig.stats.totalStates = {{ states | length }};
+    modelConfig.stats.totalTransitions = {{ transitions | length }};
+    modelConfig.stats.initialStates = {{ states | selectattr("is_initial") | list | length }};
     
     {% if enable_detailed_logging %}
     fprintf('Model configuration setup completed.\n');
@@ -372,7 +372,7 @@ function prepareWorkspaceForGeneration(modelConfig)
 end
 
 function modelHandle = createSimulinkModel(modelConfig)
-%CREATESIMULINKMMODEL Create and configure the base Simulink model
+%CREATESIMULINKMODEL Create and configure the base Simulink model
     
     {% if enable_detailed_logging %}
     fprintf('Creating Simulink model: %s\n', modelConfig.name);
@@ -383,13 +383,24 @@ function modelHandle = createSimulinkModel(modelConfig)
         modelHandle = new_system(modelConfig.name);
         
         % Set basic model properties
-        set_param(modelConfig.name, 'Description', modelConfig.description);
-        set_param(modelConfig.name, 'Creator', modelConfig.template.generatedBy);
+        try
+            set_param(modelConfig.name, 'Description', sprintf('%s (Template v%s)', modelConfig.description, modelConfig.template.version));
+        catch
+            % Ignore description errors
+        end
         
-        % Set model version information
-        if ~verLessThan('matlab', '9.4') % R2018a and later
-            set_param(modelConfig.name, 'ModelVersionFormat', ...
-                sprintf('Template v%s', modelConfig.template.version));
+        % Use a safe, standard version format
+        try
+            set_param(modelConfig.name, 'ModelVersionFormat', '1.%<AutoIncrement:2>');
+        catch
+            % Ignore if not supported
+        end
+        
+        % 'Creator' is often read-only; set defensively
+        try
+            set_param(modelConfig.name, 'Creator', modelConfig.template.generatedBy);
+        catch
+            % Ignore if not settable
         end
         
         {% if enable_detailed_logging %}
@@ -417,7 +428,8 @@ function chartHandle = addStateflowChart(modelHandle, modelConfig)
         add_block('sflib/Chart', chartPath, 'Position', modelConfig.chart.position);
         
         % Get chart object handle
-        chartHandle = find(sfroot, '-isa', 'Stateflow.Chart', 'Path', chartPath);
+        r = sfroot;
+        chartHandle = r.find('-isa', 'Stateflow.Chart', 'Path', chartPath);
         
         if isempty(chartHandle)
             error('FSMGenerator:ChartHandleNotFound', 'Could not obtain chart handle');
@@ -428,7 +440,7 @@ function chartHandle = addStateflowChart(modelHandle, modelConfig)
         {% if chart_properties %}
         {% for prop, value in chart_properties.items() %}
         try
-            chartHandle.{{ prop }} = {{ value if value is string else value | tojson }};
+            chartHandle.{{ prop }} = {% if value is string %}'{{ value | replace("'", "''") }}'{% else %}{{ value | tojson }}{% endif %};
         catch propErr
             warning('FSMGenerator:ChartPropertyFailed', ...
                 'Failed to set chart property %s: %s', '{{ prop }}', propErr.message);
@@ -500,8 +512,8 @@ function [stateMap, stats] = createAllStates(chartHandle, modelConfig)
         {% for prop, value in state.properties.items() %}
         {% if prop not in ['x', 'y', 'width', 'height'] %}
         try
-            if isprop(stateObj, '{{ prop | title }}')
-                stateObj.{{ prop | title }} = {{ value if value is string else value | tojson }};
+            if isprop(stateObj, '{{ prop }}')
+                stateObj.{{ prop }} = {% if value is string %}'{{ value | replace("'", "''") }}'{% else %}{{ value | tojson }}{% endif %};
             end
         catch propErr
             warning('FSMGenerator:StatePropertyFailed', ...
@@ -641,8 +653,8 @@ function [stats] = createAllTransitions(chartHandle, stateMap, modelConfig)
         {% if trans.properties %}
         {% for prop, value in trans.properties.items() %}
         try
-            if isprop(transitionObj, '{{ prop | title }}')
-                transitionObj.{{ prop | title }} = {{ value if value is string else value | tojson }};
+            if isprop(transitionObj, '{{ prop }}')
+                transitionObj.{{ prop }} = {% if value is string %}'{{ value | replace("'", "''") }}'{% else %}{{ value | tojson }}{% endif %};
             end
         catch propErr
             warning('FSMGenerator:TransitionPropertyFailed', ...
@@ -746,7 +758,7 @@ function validateModelIntegrity(chartHandle, stateMap)
             error('FSMGenerator:NoStates', 'No states were created');
         end
         
-        % Check for unreachable states
+        % Check for reachable initial state
         hasDefaultTransition = ~isempty(chartHandle.DefaultTransition.Destination);
         if ~hasDefaultTransition
             warning('FSMGenerator:NoInitialState', 'No initial state defined');
@@ -823,6 +835,7 @@ end
 function reportProgress(message, progress)
 %REPORTPROGRESS Report generation progress with formatted output
     
+    progress = max(0, min(1, progress));
     progressBar = repmat('█', 1, round(progress * 20));
     progressEmpty = repmat('░', 1, 20 - length(progressBar));
     
@@ -862,7 +875,7 @@ function generateSummaryReport(modelConfig, stateStats, transitionStats, executi
     % Calculate overall success rate
     totalElements = stateStats.created + stateStats.failed + transitionStats.created + transitionStats.failed;
     successfulElements = stateStats.created + transitionStats.created;
-    successRate = (successfulElements / totalElements) * 100;
+    successRate = (successfulElements / max(1, totalElements)) * 100;
     
     fprintf('Overall Results:\n');
     fprintf('  Success Rate:      %.1f%% (%d/%d elements)\n', ...

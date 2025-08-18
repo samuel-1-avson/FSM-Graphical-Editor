@@ -132,29 +132,35 @@ class PerspectiveManager(QObject):
         main_height = self.mw.height()
 
         if name == self.mw.PERSPECTIVE_DESIGN_FOCUS:
-            # Layout: Project/Elements on left, Properties/Minimap on right, Log/Problems on bottom.
+            # Layout: Project Explorer/Elements on left, Properties on right, Log/Problems at bottom.
+            # This is a classic, balanced IDE layout.
             self.mw.project_explorer_dock.setVisible(True)
             self.mw.elements_palette_dock.setVisible(True)
             self.mw.properties_dock.setVisible(True)
             self.mw.log_dock.setVisible(True)
+            self.mw.problems_dock.setVisible(True)
             
+            # Explicitly place docks in their final areas to ensure a clean layout
+            self.mw.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.mw.project_explorer_dock)
+            self.mw.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.mw.properties_dock)
+            self.mw.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.mw.log_dock)
+            
+            # Tabify docks in their respective areas
             self.mw.tabifyDockWidget(self.mw.project_explorer_dock, self.mw.elements_palette_dock)
-            
-            self.mw.tabifyDockWidget(self.mw.properties_dock, self.mw.minimap_dock)
             self.mw.tabifyDockWidget(self.mw.log_dock, self.mw.problems_dock)
-            self.mw.tabifyDockWidget(self.mw.log_dock, self.mw.live_preview_dock)
             
+            # Set the default visible tabs
             self.mw.project_explorer_dock.raise_()
             self.mw.properties_dock.raise_()
             self.mw.log_dock.raise_()
             
-            # Set smaller relative sizes for the dock areas
+            # --- MODIFIED: Adjust sizes to give more space to the canvas ---
             # Give ~15% to left dock, ~18% to right dock, leaving ~67% for the center.
             self.mw.resizeDocks([self.mw.project_explorer_dock, self.mw.properties_dock], 
                                 [int(main_width * 0.15), int(main_width * 0.18)], 
                                 Qt.Orientation.Horizontal)
-            # Give 25% of the remaining vertical space to the bottom dock
-            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.25)], Qt.Orientation.Vertical)
+            # Give ~20% of the vertical space to the bottom dock
+            self.mw.resizeDocks([self.mw.log_dock], [int(main_height * 0.20)], Qt.Orientation.Vertical)
 
         elif name == self.mw.PERSPECTIVE_LOGIC_EDITING:
             # Layout: Large properties panel on the right, large code preview on the bottom.

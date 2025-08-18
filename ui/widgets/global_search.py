@@ -213,7 +213,8 @@ class GlobalSearchHandler(QWidget):
 
     def eventFilter(self, source, event: QEvent) -> bool:
         if source == self.search_bar and event.type() == QEvent.Type.KeyPress:
-            key_event = QKeyEvent(event)
+            # --- FIX: The 'event' object is already a QKeyEvent, no need to create a new one. ---
+            key_event = event
             key = key_event.key()
 
             if self.isVisible():

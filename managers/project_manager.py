@@ -34,9 +34,11 @@ class ProjectManager(QObject):
             os.makedirs(project_dir, exist_ok=True)
             
             main_diagram_path = os.path.join(project_dir, main_diagram_filename)
-            if not os.path.exists(main_diagram_path):
-                with open(main_diagram_path, 'w', encoding='utf-8') as f:
-                    json.dump({"states": [], "transitions": [], "comments": []}, f, indent=4)
+            # --- MODIFIED: Always create a new, empty diagram file for the project ---
+            # This ensures that creating a new project always starts with a blank slate,
+            # overwriting any pre-existing file with the same name.
+            with open(main_diagram_path, 'w', encoding='utf-8') as f:
+                json.dump({"states": [], "transitions": [], "comments": []}, f, indent=4)
 
             self.project_data = {
                 "version": "1.0",

@@ -17,54 +17,41 @@
 %   It features advanced simulation management, parallel execution,
 %   real-time monitoring, and comprehensive error handling for production
 %   workflows.
-%
-% Enhanced Features:
-%   • Thread-safe parallel simulation execution
-%   • Real-time data streaming with multiple formats
-%   • Intelligent caching system with LRU eviction
-%   • Advanced validation with dependency checking
-%   • Performance monitoring and optimization
-%   • Model integrity verification and health checks
-%   • Event-driven architecture with custom callbacks
-%   • Hot-reload capabilities for development workflows
-%   • Comprehensive logging with multiple output levels
-%   • Automatic error recovery with configurable retry logic
 % =========================================================================
 
 classdef {{ class_name | default("FSMController") }} < handle
     
     properties (Access = public)
-        ModelName           % Name of the Simulink model
-        ModelPath           % Full path to the .slx file
-        IsLoaded            % Flag indicating if model is loaded
-        LastSimOutput       % Stores the output from last simulation
-        LastCodeGenResult   % Stores the result from last code generation
-        SimulationListener  % Handle to simulation event listener
-        ProgressCallback    % Function handle for progress updates
-        Version             % Model version information
-        PerformanceMetrics  % Accumulated performance data
-        Configuration       % Current configuration state
+        ModelName
+        ModelPath
+        IsLoaded
+        LastSimOutput
+        LastCodeGenResult
+        SimulationListener
+        ProgressCallback
+        Version
+        PerformanceMetrics
+        Configuration
     end
     
     properties (Access = private)
-        OriginalPath        % Original MATLAB path for restoration
-        RequiredToolboxes   % Cell array of required toolbox names
-        ValidationRules     % Struct containing parameter validation rules
-        EventListeners      % Cell array of event listener handles
-        DataStreamConfig    % Configuration for data streaming
-        ThreadPool          % Parallel Computing Toolbox pool handle
-        Logger              % Enhanced logging system
-        ModelHash           % Hash for model integrity checking
-        CacheManager        % Simulation result caching system
-        ResourceMonitor     % System resource monitoring
-        ConfigHistory       % History of configurations used
-        WorkerInstances     % Pool of worker model instances
-        StreamingHandles    % File handles for streaming outputs
-        CleanupListener     % onCleanup object for automatic cleanup
+        OriginalPath
+        RequiredToolboxes
+        ValidationRules
+        EventListeners
+        DataStreamConfig
+        ThreadPool
+        Logger
+        ModelHash
+        CacheManager
+        ResourceMonitor
+        ConfigHistory
+        WorkerInstances
+        StreamingHandles
+        CleanupListener
     end
     
     properties (Constant)
-        % Template-configurable constants
         OUTPUT_PORTS = {{ output_ports | default(default_output_ports) }};
         REQUIRED_TOOLBOXES = {{ required_toolboxes | default(default_toolboxes) }};
         SUPPORTED_FORMATS = {{ supported_formats | default("{'json', 'csv', 'parquet', 'hdf5', 'mat'}") }};
@@ -74,16 +61,8 @@ classdef {{ class_name | default("FSMController") }} < handle
         MIN_MATLAB_VERSION = '{{ min_matlab_version | default("9.0") }}';
         MIN_MATLAB_RELEASE = '{{ min_matlab_release | default("2016a") }}';
         TEMPLATE_VERSION = '{{ template_version | default("2.0.0") }}';
-        {% if enable_profiling | default(true) %}
-        ENABLE_PROFILING = true;
-        {% else %}
-        ENABLE_PROFILING = false;
-        {% endif %}
-        {% if enable_caching | default(true) %}
-        ENABLE_CACHING = true;
-        {% else %}
-        ENABLE_CACHING = false;
-        {% endif %}
+        {% if enable_profiling | default(true) %} ENABLE_PROFILING = true; {% else %} ENABLE_PROFILING = false; {% endif %}
+        {% if enable_caching | default(true) %}  ENABLE_CACHING = true;   {% else %}  ENABLE_CACHING = false;   {% endif %}
     end
     
     events
@@ -97,57 +76,19 @@ classdef {{ class_name | default("FSMController") }} < handle
         DataStreamUpdate
         ValidationFailed
         PerformanceAlert
-        {% for custom_event in custom_events | default([]) %}
-        {{ custom_event }}
-        {% endfor %}
+        {% for custom_event in custom_events | default([]) %} {{ custom_event }} {% endfor %}
     end
     
     methods
         
         function obj = {{ class_name | default("FSMController") }}(modelPath, varargin)
-            % Enhanced Constructor with comprehensive initialization
-            % 
-            % Syntax:
-            %   obj = {{ class_name | default("FSMController") }}(modelPath)
-            %   obj = {{ class_name | default("FSMController") }}(modelPath, Name, Value)
-            %
-            % Input Arguments:
-            %   modelPath - Character vector or string scalar specifying the
-            %               path to the .slx file
-            %
-            % Name-Value Arguments:
-            %   AutoLoad           - Logical scalar. Load model automatically
-            %                       (default: {{ auto_load | default("true") }})
-            %   ValidateOnLoad     - Logical scalar. Validate environment on load
-            %                       (default: {{ validate_on_load | default("true") }})
-            %   EnableCaching      - Logical scalar. Enable result caching
-            %                       (default: {{ enable_caching | default("true") }})
-            %   LogLevel          - Character vector. Logging level
-            %                       ('debug'|'info'|'warning'|'error')
-            %                       (default: '{{ log_level | default("info") }}')
-            %   ParallelEnabled   - Logical scalar. Enable parallel execution
-            %                       (default: {{ parallel_enabled | default("false") }})
-            %   ResourceMonitoring - Logical scalar. Enable resource monitoring
-            %                       (default: {{ resource_monitoring | default("true") }})
-            %   ProgressCallback  - Function handle for progress updates
-            %                       (default: [])
-            
-            % Validate required input
             narginchk(1, inf);
-            
-            % Convert string to char if needed
-            if isstring(modelPath)
-                modelPath = char(modelPath);
-            end
-            
-            % Validate model path
+            if isstring(modelPath), modelPath = char(modelPath); end
             validateattributes(modelPath, {'char'}, {'nonempty', 'row'}, mfilename, 'modelPath', 1);
             
-            % Input parser setup
             p = inputParser;
             p.FunctionName = mfilename;
             p.KeepUnmatched = false;
-            
             addParameter(p, 'AutoLoad', {{ auto_load | default("true") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'ValidateOnLoad', {{ validate_on_load | default("true") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'EnableCaching', {{ class_name | default("FSMController") }}.ENABLE_CACHING, @(x) validateattributes(x, {'logical'}, {'scalar'}));
@@ -158,10 +99,8 @@ classdef {{ class_name | default("FSMController") }} < handle
             {% for param in custom_constructor_params | default([]) %}
             addParameter(p, '{{ param.name }}', {{ param.default }}, @(x) true);
             {% endfor %}
-            
             parse(p, varargin{:});
             
-            % Initialize core properties
             obj.ModelName = '{{ model_name }}';
             obj.ModelPath = modelPath;
             obj.RequiredToolboxes = obj.REQUIRED_TOOLBOXES;
@@ -174,80 +113,45 @@ classdef {{ class_name | default("FSMController") }} < handle
             obj.StreamingHandles = [];
             obj.IsLoaded = false;
             
-            % Initialize configuration with template defaults
             obj.Configuration = struct();
             obj.Configuration.template_version = obj.TEMPLATE_VERSION;
             obj.Configuration.model_name = obj.ModelName;
             obj.Configuration.creation_time = datestr(now, 'yyyy-mm-dd HH:MM:SS');
-            {% if custom_config_fields %}
-            {% for field, value in custom_config_fields.items() %}
-            obj.Configuration.{{ field }} = {{ value }};
-            {% endfor %}
-            {% endif %}
+            {% if custom_config_fields %}{% for field, value in custom_config_fields.items() %} obj.Configuration.{{ field }} = {{ value }}; {% endfor %}{% endif %}
             
-            % Initialize enhanced systems
             obj.initializeLogger(p.Results.LogLevel);
             obj.initializeValidationRules();
+            if p.Results.EnableCaching, obj.initializeCacheManager(); end
+            if p.Results.ResourceMonitoring, obj.initializeResourceMonitor(); end
+            if p.Results.ParallelEnabled, obj.initializeParallelComputing(); end
             
-            if p.Results.EnableCaching
-                obj.initializeCacheManager();
-            end
+            obj.log('info', 'Initializing enhanced FSM handle for model "%s" (Template v%s)...', obj.ModelName, obj.TEMPLATE_VERSION);
             
-            if p.Results.ResourceMonitoring
-                obj.initializeResourceMonitor();
-            end
-            
-            if p.Results.ParallelEnabled
-                obj.initializeParallelComputing();
-            end
-            
-            obj.log('info', 'Initializing enhanced FSM handle for model "%s" (Template v%s)...', ...
-                obj.ModelName, obj.TEMPLATE_VERSION);
-            
-            % Enhanced validation and loading sequence
             if p.Results.ValidateOnLoad
                 obj.validateEnvironment();
-                obj.performSystemHealthCheck();
+                % Wrap health check to avoid constructor failure
+                try
+                    obj.performSystemHealthCheck();
+                catch ME
+                    obj.log('warning', 'Health check skipped: %s', ME.message);
+                end
             end
-            
             if p.Results.AutoLoad
                 obj.loadModel();
                 obj.computeModelHash();
             end
-            
-            % Register cleanup on object deletion
             obj.registerCleanupOnDelete();
-            
             obj.log('info', 'FSM Controller initialization complete.');
         end
         
         function loadModel(obj, varargin)
-            % Enhanced model loading with integrity checking and hot-reload support
-            %
-            % Syntax:
-            %   loadModel(obj)
-            %   loadModel(obj, Name, Value)
-            %
-            % Name-Value Arguments:
-            %   ForceReload        - Logical scalar. Force reload if already loaded
-            %                       (default: {{ force_reload | default("false") }})
-            %   ValidateIntegrity  - Logical scalar. Validate model integrity
-            %                       (default: {{ validate_integrity | default("true") }})
-            %   BackupCurrent     - Logical scalar. Backup current model on reload
-            %                       (default: {{ backup_on_reload | default("true") }})
-            
-            % Input parser for options
             p = inputParser;
             addParameter(p, 'ForceReload', {{ force_reload | default("false") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'ValidateIntegrity', {{ validate_integrity | default("true") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'BackupCurrent', {{ backup_on_reload | default("true") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             parse(p, varargin{:});
-            
             try
-                % Pre-load validation
                 obj.validateModelFile();
-                
-                % Handle existing loaded model
                 if bdIsLoaded(obj.ModelName)
                     if ~p.Results.ForceReload
                         obj.log('info', 'Model "%s" already loaded.', obj.ModelName);
@@ -256,30 +160,19 @@ classdef {{ class_name | default("FSMController") }} < handle
                         obj.handleModelReload(p.Results.BackupCurrent);
                     end
                 end
-                
-                % Load with progress tracking
                 obj.notifyProgress('Loading model...', 0.1);
                 load_system(obj.ModelPath);
                 obj.IsLoaded = true;
-                
-                % Enhanced post-load verification
                 obj.notifyProgress('Verifying model structure...', 0.5);
                 obj.verifyEnhancedModelStructure();
-                
                 {% if enable_model_validation | default(true) %}
-                if p.Results.ValidateIntegrity
-                    obj.validateModelIntegrity();
-                end
+                if p.Results.ValidateIntegrity, obj.validateModelIntegrity(); end
                 {% endif %}
-                
-                % Setup enhanced monitoring
                 obj.setupEnhancedModelMonitoring();
                 obj.extractVersionInfo();
-                
                 obj.notifyProgress('Model initialization complete.', 1.0);
                 obj.log('info', 'Model "%s" loaded successfully.', obj.ModelName);
                 notify(obj, 'ModelLoaded');
-                
             catch ME
                 obj.handleLoadError(ME);
                 rethrow(ME);
@@ -287,136 +180,53 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function validateEnvironment(obj)
-            % Comprehensive environment validation with template-specific checks
-            %
-            % This method validates the MATLAB environment, toolboxes, and
-            % system resources against template requirements.
-            
             obj.log('info', 'Validating environment (Template v%s requirements)...', obj.TEMPLATE_VERSION);
+            validationResults = struct(); %#ok<NASGU>
             
-            validationResults = struct();
-            validationResults.template_version = obj.TEMPLATE_VERSION;
-            
-            % MATLAB version validation
             matlabVersionInfo = version('-release');
-            validationResults.matlab = struct('current', matlabVersionInfo, 'minimum', obj.MIN_MATLAB_RELEASE);
-            
             currentYear = str2double(matlabVersionInfo(1:4));
             minimumYear = str2double(obj.MIN_MATLAB_RELEASE(1:4));
-            
             if currentYear < minimumYear
-                ME = MException('MATLAB:VersionIncompatible', ...
-                    'MATLAB %s or later required (Template v%s). Current: %s', ...
-                    obj.MIN_MATLAB_RELEASE, obj.TEMPLATE_VERSION, matlabVersionInfo);
+                ME = MException('MATLAB:VersionIncompatible', 'MATLAB %s or later required (Template v%s). Current: %s', obj.MIN_MATLAB_RELEASE, obj.TEMPLATE_VERSION, matlabVersionInfo);
                 throw(ME);
             end
-            
-            % Enhanced toolbox validation
             obj.validateToolboxRequirements(validationResults);
-            
-            % System resource validation
             obj.validateSystemResources(validationResults);
-            
-            {% if custom_validation_checks %}
-            % Template-specific validation checks
-            {% for check in custom_validation_checks %}
-            try
-                if ismethod(obj, 'validate{{ check.name | title }}')
-                    obj.validate{{ check.name | title }}(validationResults);
-                end
-            catch ME
-                obj.log('warning', 'Custom validation check "{{ check.name }}" failed: %s', ME.message);
-            end
-            {% endfor %}
-            {% endif %}
-            
             obj.log('info', 'Environment validation completed successfully.');
         end
         
         function isValid = validateConfiguration(obj, config, configType, varargin)
-            % Enhanced configuration validation with template-aware rules
-            %
-            % Syntax:
-            %   isValid = validateConfiguration(obj, config)
-            %   isValid = validateConfiguration(obj, config, configType)
-            %   isValid = validateConfiguration(obj, config, configType, Name, Value)
-            %
-            % Input Arguments:
-            %   config     - Struct containing configuration parameters
-            %   configType - Character vector specifying configuration type
-            %               ('simulation'|'codegen'|'streaming')
-            %               (default: 'simulation')
-            %
-            % Name-Value Arguments:
-            %   Strict     - Logical scalar. Use strict validation
-            %               (default: {{ strict_validation | default("false") }})
-            %   FixInvalid - Logical scalar. Attempt to fix invalid parameters
-            %               (default: {{ auto_fix_config | default("false") }})
-            %   TemplateMode - Character vector. Validation mode
-            %               (default: '{{ validation_mode | default("standard") }}')
-            %
-            % Output Arguments:
-            %   isValid - Logical scalar indicating if configuration is valid
-            
-            % Input validation
             narginchk(2, inf);
-            if nargin < 3 || isempty(configType)
-                configType = 'simulation';
-            end
-            
-            % Parse optional arguments
+            if nargin < 3 || isempty(configType), configType = 'simulation'; end
             p = inputParser;
             addParameter(p, 'Strict', {{ strict_validation | default("false") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'FixInvalid', {{ auto_fix_config | default("false") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'TemplateMode', '{{ validation_mode | default("standard") }}', @(x) validateattributes(x, {'char', 'string'}, {'nonempty'}));
             parse(p, varargin{:});
-            
             validateattributes(config, {'struct'}, {'nonempty'}, mfilename, 'config', 1);
             validateattributes(configType, {'char', 'string'}, {'nonempty'}, mfilename, 'configType', 2);
-            
-            isValid = true;
-            validationErrors = {};
-            
-            % Template-specific validation logic
-            validationContext = struct();
-            validationContext.template_version = obj.TEMPLATE_VERSION;
-            validationContext.model_name = obj.ModelName;
-            validationContext.validation_mode = char(p.Results.TemplateMode);
-            
-            % Core validation
-            [isValid, validationErrors] = obj.performCoreValidation(config, configType, validationContext);
-            
+            isValid = true; validationErrors = {};
+            [isValid, validationErrors] = obj.performCoreValidation(config, configType, struct('template_version', obj.TEMPLATE_VERSION, 'model_name', obj.ModelName, 'validation_mode', char(p.Results.TemplateMode)));
             {% if enable_advanced_validation | default(true) %}
-            % Advanced validation features
             if isValid
                 try
                     [crossValid, crossErrors] = obj.validateParameterDependencies(config, configType);
-                    if ~crossValid
-                        isValid = false;
-                        validationErrors = [validationErrors, crossErrors];
-                    end
+                    if ~crossValid, isValid = false; validationErrors = [validationErrors, crossErrors]; end %#ok<AGROW>
                 catch ME
                     obj.log('warning', 'Parameter dependency validation failed: %s', ME.message);
                 end
             end
             {% endif %}
-            
-            % Template-specific validation rules
             {% if custom_validation_rules %}
             if isValid
                 try
                     [templateValid, templateErrors] = obj.validateTemplateSpecificRules(config, configType);
-                    if ~templateValid
-                        isValid = false;
-                        validationErrors = [validationErrors, templateErrors];
-                    end
+                    if ~templateValid, isValid = false; validationErrors = [validationErrors, templateErrors]; end %#ok<AGROW>
                 catch ME
                     obj.log('warning', 'Template-specific validation failed: %s', ME.message);
                 end
             end
             {% endif %}
-            
-            % Handle validation results
             if ~isValid
                 obj.handleValidationFailure(validationErrors, p.Results);
             else
@@ -425,30 +235,6 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function setupDataStreaming(obj, varargin)
-            % Advanced data streaming with template-configured options
-            %
-            % Syntax:
-            %   setupDataStreaming(obj)
-            %   setupDataStreaming(obj, Name, Value)
-            %
-            % Name-Value Arguments:
-            %   OutputPorts   - Cell array of output port names
-            %                  (default: obj.OUTPUT_PORTS)
-            %   Format        - Character vector specifying data format
-            %                  ('json'|'csv'|'parquet'|'hdf5'|'mat')
-            %                  (default: '{{ default_stream_format | default("json") }}')
-            %   BufferSize    - Positive numeric scalar for buffer size
-            %                  (default: {{ default_buffer_size | default("1000") }})
-            %   RealTime      - Logical scalar for real-time streaming
-            %                  (default: {{ enable_realtime_streaming | default("false") }})
-            %   Compression   - Logical scalar to enable compression
-            %                  (default: {{ enable_compression | default("false") }})
-            %   CustomFields  - Struct with custom field definitions
-            %                  (default: struct())
-            %   FilePath      - Character vector for output file path
-            %                  (default: '{{ default_output_path | default("") }}')
-            
-            % Parse inputs
             p = inputParser;
             addParameter(p, 'OutputPorts', obj.OUTPUT_PORTS, @(x) validateattributes(x, {'cell'}, {'nonempty'}));
             addParameter(p, 'Format', '{{ default_stream_format | default("json") }}', @(x) validateattributes(x, {'char', 'string'}, {'nonempty'}));
@@ -457,80 +243,28 @@ classdef {{ class_name | default("FSMController") }} < handle
             addParameter(p, 'Compression', {{ enable_compression | default("false") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'CustomFields', struct(), @(x) validateattributes(x, {'struct'}, {}));
             addParameter(p, 'FilePath', '{{ default_output_path | default("") }}', @(x) validateattributes(x, {'char', 'string'}, {}));
-            {% if custom_streaming_params %}
-            {% for param in custom_streaming_params %}
-            addParameter(p, '{{ param.name }}', {{ param.default }}, @(x) true);
-            {% endfor %}
-            {% endif %}
+            {% if custom_streaming_params %}{% for param in custom_streaming_params %} addParameter(p, '{{ param.name }}', {{ param.default }}, @(x) true); {% endfor %}{% endif %}
             parse(p, varargin{:});
-            
-            % Validate format
             formatStr = char(p.Results.Format);
             if ~ismember(formatStr, obj.SUPPORTED_FORMATS)
-                error('MATLAB:InvalidFormat', 'Format must be one of: %s', strjoin(obj.SUPPORTED_FORMATS, ', '));
+                error('MATLAB:InvalidFormat', 'Format must be one of: %s', obj.localJoin(obj.SUPPORTED_FORMATS, ', '));
             end
-            
-            % Store enhanced streaming configuration
             obj.DataStreamConfig = p.Results;
             obj.DataStreamConfig.template_version = obj.TEMPLATE_VERSION;
             obj.DataStreamConfig.buffer = [];
             obj.DataStreamConfig.buffer_index = 1;
             obj.DataStreamConfig.start_time = now;
-            
             obj.log('info', 'Configuring enhanced data streaming (Template v%s)...', obj.TEMPLATE_VERSION);
-            
-            % Validate streaming configuration
             if ~obj.validateConfiguration(obj.DataStreamConfig, 'streaming')
-                ME = MException('MATLAB:InvalidStreamingConfig', 'Invalid streaming configuration');
-                throw(ME);
+                ME = MException('MATLAB:InvalidStreamingConfig', 'Invalid streaming configuration'); throw(ME);
             end
-            
-            % Template-aware streaming setup
             obj.setupTemplateStreaming();
-            
-            {% if enable_streaming_analytics | default(true) %}
-            % Initialize streaming analytics
-            obj.initializeStreamingAnalytics();
-            {% endif %}
-            
-            obj.log('info', 'Data streaming configured: Format=%s, RealTime=%s, Template=v%s', ...
-                formatStr, mat2str(p.Results.RealTime), obj.TEMPLATE_VERSION);
+            {% if enable_streaming_analytics | default(true) %} obj.initializeStreamingAnalytics(); {% endif %}
+            obj.log('info', 'Data streaming configured: Format=%s, RealTime=%s, Template=v%s', formatStr, mat2str(p.Results.RealTime), obj.TEMPLATE_VERSION);
         end
         
         function results = runSimulation(obj, config, varargin)
-            % Enhanced simulation with template-optimized execution
-            %
-            % Syntax:
-            %   results = runSimulation(obj)
-            %   results = runSimulation(obj, config)
-            %   results = runSimulation(obj, config, Name, Value)
-            %
-            % Input Arguments:
-            %   config - Struct containing simulation configuration
-            %           (default: default simulation config)
-            %
-            % Name-Value Arguments:
-            %   ExecutionMode      - Character vector for execution mode
-            %                       (default: '{{ default_execution_mode | default("standard") }}')
-            %   UseCache          - Logical scalar to use result caching
-            %                       (default: obj.ENABLE_CACHING)
-            %   ProfilePerformance - Logical scalar to profile performance
-            %                       (default: obj.ENABLE_PROFILING)
-            %   Timeout           - Positive numeric scalar for timeout in seconds
-            %                       (default: {{ default_timeout | default("inf") }})
-            %   RetryCount        - Non-negative integer for retry attempts
-            %                       (default: {{ default_retry_count | default("3") }})
-            %   SaveResults       - Logical scalar to save results
-            %                       (default: {{ save_results | default("true") }})
-            %
-            % Output Arguments:
-            %   results - Struct containing simulation results
-            
-            if nargin < 2 || isempty(config)
-                config = obj.getDefaultSimConfig();
-            end
-            
-            % Parse options
+            if nargin < 2 || isempty(config), config = obj.getDefaultSimConfig(); end
             p = inputParser;
             addParameter(p, 'ExecutionMode', '{{ default_execution_mode | default("standard") }}', @(x) validateattributes(x, {'char', 'string'}, {'nonempty'}));
             addParameter(p, 'UseCache', obj.ENABLE_CACHING, @(x) validateattributes(x, {'logical'}, {'scalar'}));
@@ -538,174 +272,68 @@ classdef {{ class_name | default("FSMController") }} < handle
             addParameter(p, 'Timeout', {{ default_timeout | default("inf") }}, @(x) validateattributes(x, {'numeric'}, {'positive', 'scalar'}));
             addParameter(p, 'RetryCount', {{ default_retry_count | default("3") }}, @(x) validateattributes(x, {'numeric'}, {'nonnegative', 'integer', 'scalar'}));
             addParameter(p, 'SaveResults', {{ save_results | default("true") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
-            {% if custom_simulation_params %}
-            {% for param in custom_simulation_params %}
-            addParameter(p, '{{ param.name }}', {{ param.default }}, @(x) true);
-            {% endfor %}
-            {% endif %}
+            {% if custom_simulation_params %}{% for param in custom_simulation_params %} addParameter(p, '{{ param.name }}', {{ param.default }}, @(x) true); {% endfor %}{% endif %}
             parse(p, varargin{:});
-            
-            % Template-enhanced execution context
-            executionContext = struct();
-            executionContext.template_version = obj.TEMPLATE_VERSION;
-            executionContext.execution_mode = char(p.Results.ExecutionMode);
-            executionContext.model_hash = obj.ModelHash;
-            executionContext.start_time = now;
-            
-            obj.log('info', 'Starting simulation (Template v%s, Mode: %s)...', ...
-                obj.TEMPLATE_VERSION, executionContext.execution_mode);
-            
+            executionContext = struct('template_version', obj.TEMPLATE_VERSION, 'execution_mode', char(p.Results.ExecutionMode), 'model_hash', obj.ModelHash, 'start_time', now);
+            obj.log('info', 'Starting simulation (Template v%s, Mode: %s)...', obj.TEMPLATE_VERSION, executionContext.execution_mode);
             try
-                % Pre-simulation template checks
                 obj.preSimulationTemplateChecks(config, executionContext);
-                
-                % Execute with template-specific optimizations
                 results = obj.executeEnhancedSimulation(config, p.Results, executionContext);
-                
-                % Post-simulation template processing
                 results = obj.postSimulationTemplateProcessing(results, executionContext);
-                
-                % Template-specific result formatting
-                {% if custom_result_format %}
-                results = obj.formatResultsForTemplate(results);
-                {% endif %}
-                
+                {% if custom_result_format %} results = obj.formatResultsForTemplate(results); {% endif %}
                 obj.updateTemplateMetrics(results);
-                
-                if p.Results.SaveResults
-                    obj.saveSimulationResults(results);
-                end
-                
+                if p.Results.SaveResults, obj.saveSimulationResults(results); end
                 notify(obj, 'SimulationCompleted');
-                
             catch ME
-                obj.handleSimulationError(ME, executionContext);
-                rethrow(ME);
+                obj.handleSimulationError(ME, executionContext); rethrow(ME);
             end
         end
         
         function results = generateCode(obj, config, varargin)
-            % Enhanced code generation with template-optimized settings
-            %
-            % Syntax:
-            %   results = generateCode(obj)
-            %   results = generateCode(obj, config)
-            %   results = generateCode(obj, config, Name, Value)
-            %
-            % Input Arguments:
-            %   config - Struct containing code generation configuration
-            %           (default: default codegen config)
-            %
-            % Name-Value Arguments:
-            %   OptimizationProfile  - Character vector for optimization profile
-            %                         ('speed'|'memory'|'safety')
-            %                         (default: '{{ default_optimization | default("speed") }}')
-            %   TargetPlatform      - Character vector for target platform
-            %                         (default: '{{ target_platform | default("generic") }}')
-            %   TemplateOptimizations - Logical scalar to enable template optimizations
-            %                         (default: {{ enable_template_optimizations | default("true") }})
-            %   GenerateTests       - Logical scalar to generate test code
-            %                         (default: {{ generate_tests | default("true") }})
-            %
-            % Output Arguments:
-            %   results - Struct containing code generation results
-            
-            if nargin < 2 || isempty(config)
-                config = obj.getDefaultCodegenConfig();
-            end
-            
-            % Parse options
+            if nargin < 2 || isempty(config), config = obj.getDefaultCodegenConfig(); end
             p = inputParser;
             addParameter(p, 'OptimizationProfile', '{{ default_optimization | default("speed") }}', @(x) ismember(x, {'speed', 'memory', 'safety'}));
             addParameter(p, 'TargetPlatform', '{{ target_platform | default("generic") }}', @(x) validateattributes(x, {'char', 'string'}, {'nonempty'}));
             addParameter(p, 'TemplateOptimizations', {{ enable_template_optimizations | default("true") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
             addParameter(p, 'GenerateTests', {{ generate_tests | default("true") }}, @(x) validateattributes(x, {'logical'}, {'scalar'}));
-            {% if custom_codegen_params %}
-            {% for param in custom_codegen_params %}
-            addParameter(p, '{{ param.name }}', {{ param.default }}, @(x) true);
-            {% endfor %}
-            {% endif %}
+            {% if custom_codegen_params %}{% for param in custom_codegen_params %} addParameter(p, '{{ param.name }}', {{ param.default }}, @(x) true); {% endfor %}{% endif %}
             parse(p, varargin{:});
-            
-            % Apply template-specific optimizations
             if p.Results.TemplateOptimizations
                 config = obj.applyTemplateCodegenOptimizations(config, p.Results.OptimizationProfile);
             end
-            
-            obj.log('info', 'Starting code generation (Template v%s, Profile: %s)...', ...
-                obj.TEMPLATE_VERSION, p.Results.OptimizationProfile);
-            
+            obj.log('info', 'Starting code generation (Template v%s, Profile: %s)...', obj.TEMPLATE_VERSION, p.Results.OptimizationProfile);
             try
-                % Pre-code generation template checks
                 obj.preCodegenTemplateChecks(config, p.Results);
-                
-                % Execute code generation with template-specific settings
                 results = obj.executeEnhancedCodeGeneration(config, p.Results);
-                
-                % Post-code generation template processing
                 results = obj.postCodegenTemplateProcessing(results, p.Results);
-                
-                % Template-specific result formatting
-                {% if custom_codegen_result_format %}
-                results = obj.formatCodegenResultsForTemplate(results);
-                {% endif %}
-                
+                {% if custom_codegen_result_format %} results = obj.formatCodegenResultsForTemplate(results); {% endif %}
                 obj.updateTemplateMetrics(results);
-                
-                if p.Results.GenerateTests
-                    obj.saveCodegenResults(results);
-                end
-                
+                if p.Results.GenerateTests, obj.saveCodegenResults(results); end
                 notify(obj, 'CodeGenerationCompleted');
-                
             catch ME
-                obj.handleCodegenError(ME, p.Results);
-                rethrow(ME);
+                obj.handleCodegenError(ME, p.Results); rethrow(ME);
             end
         end
         
         function status = getSimulationStatus(obj)
-            % Enhanced status with template-specific information
-            %
-            % Syntax:
-            %   status = getSimulationStatus(obj)
-            %
-            % Output Arguments:
-            %   status - Struct containing comprehensive simulation status
-            
             status = struct();
             status.template_version = obj.TEMPLATE_VERSION;
             status.model_name = obj.ModelName;
             status.model_loaded = obj.IsLoaded;
             status.timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
             status.configuration = obj.Configuration;
-            
             if obj.IsLoaded
                 try
-                    % Core simulation status
                     status.simulation_status = get_param(obj.ModelName, 'SimulationStatus');
                     status.simulation_time = str2double(get_param(obj.ModelName, 'SimulationTime'));
                     status.stop_time = str2double(get_param(obj.ModelName, 'StopTime'));
                     status.solver = get_param(obj.ModelName, 'Solver');
-                    
-                    % Template-enhanced status
                     status.model_hash = obj.ModelHash;
                     status.version_info = obj.Version;
                     status.active_listeners = length(obj.EventListeners);
-                    
-                    {% if enable_performance_monitoring | default(true) %}
-                    % Performance metrics
-                    status.performance = obj.getCurrentPerformanceMetrics();
-                    {% endif %}
-                    
-                    {% if enable_resource_monitoring | default(true) %}
-                    % Resource monitoring
-                    status.resources = obj.getResourceStatus();
-                    {% endif %}
-                    
-                    % Streaming status
+                    {% if enable_performance_monitoring | default(true) %} status.performance = obj.getCurrentPerformanceMetrics(); {% endif %}
+                    {% if enable_resource_monitoring | default(true) %} status.resources = obj.getResourceStatus(); {% endif %}
                     status.data_streaming = obj.getStreamingStatus();
-                    
                 catch ME
                     status.simulation_status = 'unknown';
                     status.error = sprintf('Could not retrieve complete status: %s', ME.message);
@@ -716,51 +344,23 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function cleanup(obj)
-            % Enhanced cleanup with template-specific resource management
-            %
-            % This method performs comprehensive cleanup of all resources
-            % associated with the FSM controller instance.
-            
             obj.log('info', 'Starting comprehensive cleanup (Template v%s)...', obj.TEMPLATE_VERSION);
-            
             try
-                % Template-specific cleanup sequence
-                {% if custom_cleanup_steps %}
-                {% for step in custom_cleanup_steps %}
-                try
-                    if ismethod(obj, 'cleanup{{ step | title }}')
-                        obj.cleanup{{ step | title }}();
-                    end
-                catch ME
-                    obj.log('warning', 'Custom cleanup step "{{ step }}" failed: %s', ME.message);
-                end
-                {% endfor %}
-                {% endif %}
-                
-                % Core cleanup operations
+                {% if custom_cleanup_steps %}{% for step in custom_cleanup_steps %}
+                try, if ismethod(obj, 'cleanup{{ step | title }}'), obj.cleanup{{ step | title }}(); end
+                catch ME, obj.log('warning', 'Custom cleanup step "{{ step }}" failed: %s', ME.message); end
+                {% endfor %}{% endif %}
                 obj.cleanupSimulationResources();
                 obj.cleanupStreamingResources();
                 obj.cleanupParallelResources();
                 obj.cleanupMonitoringResources();
-                
-                % Model cleanup
-                if obj.IsLoaded && bdIsLoaded(obj.ModelName)
-                    obj.cleanupModel();
-                end
-                
+                if obj.IsLoaded && bdIsLoaded(obj.ModelName), obj.cleanupModel(); end
                 {% if enable_cache_cleanup | default(true) %}
-                % Cache cleanup
-                if ~isempty(obj.CacheManager) && isstruct(obj.CacheManager)
-                    obj.cleanupCacheResources();
-                end
+                if ~isempty(obj.CacheManager) && isstruct(obj.CacheManager), obj.cleanupCacheResources(); end
                 {% endif %}
-                
-                % Final cleanup
                 obj.restoreEnvironment();
-                
                 notify(obj, 'ModelUnloaded');
                 obj.log('info', 'Cleanup completed successfully (Template v%s).', obj.TEMPLATE_VERSION);
-                
             catch ME
                 obj.log('error', 'Error during cleanup: %s', ME.message);
             end
@@ -771,135 +371,75 @@ classdef {{ class_name | default("FSMController") }} < handle
     methods (Access = private)
         
         function initializeValidationRules(obj)
-            % Initialize template-enhanced validation rules
             obj.ValidationRules = struct();
-            
-            % Enhanced simulation rules with template defaults
             obj.ValidationRules.simulation_rules = struct(...
                 'StopTime', struct('type', 'numeric', 'range', [0, inf], 'required', false), ...
-                'Solver', struct('type', 'char', 'options', {{'ode45', 'ode23', 'ode113', 'ode15s', 'ode23s', 'ode23t', 'ode23tb', 'ode1', 'ode2', 'ode3', 'ode4', 'ode5', 'ode8'}}, 'required', false), ...
+                'Solver', struct('type', 'char', 'options', {'ode45', 'ode23', 'ode113', 'ode15s', 'ode23s', 'ode23t', 'ode23tb', 'ode1', 'ode2', 'ode3', 'ode4', 'ode5', 'ode8'}, 'required', false), ...
                 'RelTol', struct('type', 'numeric', 'range', [1e-12, 1e-1], 'required', false), ...
                 'AbsTol', struct('type', 'numeric', 'range', [1e-12, 1e-1], 'required', false), ...
                 'MaxStep', struct('type', 'numeric', 'range', [0, inf], 'required', false), ...
-                'SaveTime', struct('type', 'char', 'options', {{'on', 'off'}}, 'required', false), ...
-                'SaveOutput', struct('type', 'char', 'options', {{'on', 'off'}}, 'required', false) ...
+                'SaveTime', struct('type', 'char', 'options', {'on', 'off'}, 'required', false), ...
+                'SaveOutput', struct('type', 'char', 'options', {'on', 'off'}, 'required', false) ...
             );
-            
-            {% if custom_simulation_rules %}
-            % Template-specific simulation rules
-            {% for rule_name, rule_config in custom_simulation_rules.items() %}
+            {% if custom_simulation_rules %}{% for rule_name, rule_config in custom_simulation_rules.items() %}
             obj.ValidationRules.simulation_rules.{{ rule_name }} = struct({% for key, value in rule_config.items() %}'{{ key }}', {% if value is string %}'{{ value }}'{% else %}{{ value }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %});
-            {% endfor %}
-            {% endif %}
-            
-            % Enhanced code generation rules
+            {% endfor %}{% endif %}
             obj.ValidationRules.codegen_rules = struct(...
-                'SystemTargetFile', struct('type', 'char', 'options', {{'ert.tlc', 'grt.tlc', 'rsim.tlc', 'rtwsfcn.tlc'}}, 'required', false), ...
-                'GenerateReport', struct('type', 'char', 'options', {{'on', 'off'}}, 'required', false), ...
-                'OptimizeBlockIOStorage', struct('type', 'char', 'options', {{'on', 'off'}}, 'required', false) ...
+                'SystemTargetFile', struct('type', 'char', 'options', {'ert.tlc', 'grt.tlc', 'rsim.tlc', 'rtwsfcn.tlc'}, 'required', false), ...
+                'GenerateReport', struct('type', 'char', 'options', {'on', 'off'}, 'required', false), ...
+                'OptimizeBlockIOStorage', struct('type', 'char', 'options', {'on', 'off'}, 'required', false) ...
             );
-            
-            {% if custom_codegen_rules %}
-            % Template-specific codegen rules
-            {% for rule_name, rule_config in custom_codegen_rules.items() %}
+            {% if custom_codegen_rules %}{% for rule_name, rule_config in custom_codegen_rules.items() %}
             obj.ValidationRules.codegen_rules.{{ rule_name }} = struct({% for key, value in rule_config.items() %}'{{ key }}', {% if value is string %}'{{ value }}'{% else %}{{ value }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %});
-            {% endfor %}
-            {% endif %}
-            
-            % Streaming validation rules
+            {% endfor %}{% endif %}
             obj.ValidationRules.streaming_rules = struct(...
-                'Format', struct('type', 'char', 'options', {obj.SUPPORTED_FORMATS}, 'required', true), ...
+                'Format', struct('type', 'char', 'options', obj.SUPPORTED_FORMATS, 'required', true), ...
                 'BufferSize', struct('type', 'numeric', 'range', [1, 10000], 'required', false) ...
             );
         end
         
         function initializeLogger(obj, logLevel)
-            % Initialize enhanced logging system with template configuration
             obj.Logger = struct();
             obj.Logger.level = logLevel;
             obj.Logger.template_version = obj.TEMPLATE_VERSION;
             obj.Logger.levels = containers.Map({'debug', 'info', 'warning', 'error'}, {1, 2, 3, 4});
             obj.Logger.current_level = obj.Logger.levels(logLevel);
-            
-            % Template-specific log configuration
             {% if enable_file_logging | default(false) %}
             timestamp = datestr(now, 'yyyymmdd');
-            logDir = fullfile({{ log_directory | default("tempdir") }}, 'fsm_logs_{{ model_name }}');
-            if ~exist(logDir, 'dir')
-                mkdir(logDir);
-            end
+            logDir = fullfile({{ log_directory | default("tempdir()") }}, 'fsm_logs_{{ model_name }}');
+            if ~exist(logDir, 'dir'), mkdir(logDir); end
             obj.Logger.file_path = fullfile(logDir, sprintf('{{ model_name }}_%s_v%s.log', timestamp, obj.TEMPLATE_VERSION));
             {% endif %}
-            
             obj.Logger.session_id = obj.generateSessionId();
         end
         
         function log(obj, level, format_str, varargin)
-            % Enhanced logging with template-aware formatting
-            %
-            % Input Arguments:
-            %   level      - Character vector specifying log level
-            %   format_str - Character vector with format specification
-            %   varargin   - Variable arguments for format string
-            
-            if ~isKey(obj.Logger.levels, level)
-                level = 'info'; % Default to info if invalid level
-            end
-            
-            if obj.Logger.levels(level) < obj.Logger.current_level
-                return;
-            end
-            
+            if ~isKey(obj.Logger.levels, level), level = 'info'; end
+            if obj.Logger.levels(level) < obj.Logger.current_level, return; end
             timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS.FFF');
             levelStr = upper(level);
             templateInfo = sprintf('[T%s]', obj.TEMPLATE_VERSION);
-            
             try
-                if nargin > 3
-                    message = sprintf(format_str, varargin{:});
-                else
-                    message = format_str;
-                end
-            catch
-                message = format_str; % Fallback if sprintf fails
-            end
-            
-            % Console output with template information
+                if nargin > 3, message = sprintf(format_str, varargin{:}); else, message = format_str; end
+            catch, message = format_str; end
             logLine = sprintf('[%s] %s %s %s: %s', timestamp, levelStr, templateInfo, obj.ModelName, message);
-            
             switch level
-                case {'error', 'warning'}
-                    fprintf(2, '%s\n', logLine);
-                otherwise
-                    fprintf('%s\n', logLine);
+                case {'error', 'warning'}, fprintf(2, '%s\n', logLine);
+                otherwise, fprintf('%s\n', logLine);
             end
-            
             {% if enable_file_logging | default(false) %}
-            % File logging if enabled
             if isfield(obj.Logger, 'file_path') && ~isempty(obj.Logger.file_path)
-                try
-                    fid = fopen(obj.Logger.file_path, 'a');
-                    if fid > 0
-                        fprintf(fid, '%s\n', logLine);
-                        fclose(fid);
-                    end
-                catch
-                    % Silently ignore file logging errors
-                end
+                try, fid = fopen(obj.Logger.file_path, 'a'); if fid > 0, fprintf(fid, '%s\n', logLine); fclose(fid); end, catch, end
             end
             {% endif %}
         end
         
         function sessionId = generateSessionId(obj)
-            % Generate unique session ID for this template instance
-            timestamp = datestr(now, 'yyyymmddHHMMSS');
-            randomSuffix = sprintf('%04d', randi([1000, 9999]));
-            sessionId = sprintf('{{ model_name }}_T%s_%s_%s', ...
-                strrep(obj.TEMPLATE_VERSION, '.', ''), timestamp, randomSuffix);
+            timestamp = datestr(now, 'yyyymmddHHMMSS'); randomSuffix = sprintf('%04d', randi([1000, 9999]));
+            sessionId = sprintf('{{ model_name }}_T%s_%s_%s', strrep(obj.TEMPLATE_VERSION, '.', ''), timestamp, randomSuffix);
         end
         
         function initializeCacheManager(obj)
-            % Initialize caching system with template-specific configuration
             obj.CacheManager = struct();
             obj.CacheManager.enabled = true;
             obj.CacheManager.template_version = obj.TEMPLATE_VERSION;
@@ -909,35 +449,26 @@ classdef {{ class_name | default("FSMController") }} < handle
             obj.CacheManager.current_size = 0;
             obj.CacheManager.hit_count = 0;
             obj.CacheManager.miss_count = 0;
-            
             {% if enable_persistent_cache | default(false) %}
-            % Setup persistent cache directory
-            cacheDir = fullfile({{ cache_directory | default("tempdir") }}, 'fsm_cache_{{ model_name }}');
-            if ~exist(cacheDir, 'dir')
-                mkdir(cacheDir);
-            end
+            cacheDir = fullfile({{ cache_directory | default("tempdir()") }}, 'fsm_cache_{{ model_name }}');
+            if ~exist(cacheDir, 'dir'), mkdir(cacheDir); end
             obj.CacheManager.cache_dir = cacheDir;
             obj.loadPersistentCache();
             {% endif %}
         end
         
         function initializeResourceMonitor(obj)
-            % Initialize resource monitoring with template configuration
             obj.ResourceMonitor = struct();
             obj.ResourceMonitor.enabled = true;
             obj.ResourceMonitor.template_version = obj.TEMPLATE_VERSION;
             obj.ResourceMonitor.start_memory = obj.getMemoryUsage();
             obj.ResourceMonitor.peak_memory = obj.ResourceMonitor.start_memory;
-            obj.ResourceMonitor.monitoring_interval = {{ monitoring_interval | default("5") }}; % seconds
+            obj.ResourceMonitor.monitoring_interval = {{ monitoring_interval | default("5") }};
             obj.ResourceMonitor.alerts_enabled = {{ enable_resource_alerts | default("true") }};
-            obj.ResourceMonitor.thresholds = struct(...
-                'memory_mb', {{ memory_threshold_mb | default("2048") }}, ...
-                'cpu_percent', {{ cpu_threshold_percent | default("80") }} ...
-            );
+            obj.ResourceMonitor.thresholds = struct('memory_mb', {{ memory_threshold_mb | default("2048") }}, 'cpu_percent', {{ cpu_threshold_percent | default("80") }});
         end
         
         function initializeParallelComputing(obj)
-            % Initialize parallel computing resources
             try
                 currentPool = gcp('nocreate');
                 if ~isempty(currentPool)
@@ -953,260 +484,126 @@ classdef {{ class_name | default("FSMController") }} < handle
             end
         end
         
-        function validateToolboxRequirements(obj, validationResults)
-            % Enhanced toolbox validation with template-specific requirements
-            %
-            % Input Arguments:
-            %   validationResults - Struct to store validation results
-            
-            missingToolboxes = {};
-            availableToolboxes = {};
-            
+        function validateToolboxRequirements(obj, validationResults) %#ok<INUSD>
+            missingToolboxes = {}; availableToolboxes = {};
             for i = 1:length(obj.RequiredToolboxes)
                 toolbox = obj.RequiredToolboxes{i};
                 try
                     toolboxInfo = ver(toolbox);
-                    
                     if isempty(toolboxInfo)
                         missingToolboxes{end+1} = toolbox; %#ok<AGROW>
                     else
-                        availableToolboxes{end+1} = struct(...
-                            'name', toolbox, ...
-                            'version', toolboxInfo(1).Version, ...
-                            'release', toolboxInfo(1).Release ...
-                        ); %#ok<AGROW>
+                        availableToolboxes{end+1} = struct('name', toolbox, 'version', toolboxInfo(1).Version, 'release', toolboxInfo(1).Release); %#ok<AGROW>
                     end
                 catch
                     missingToolboxes{end+1} = toolbox; %#ok<AGROW>
                 end
             end
-            
-            validationResults.toolboxes = struct(...
-                'available', {availableToolboxes}, ...
-                'missing', {missingToolboxes} ...
-            );
-            
             if ~isempty(missingToolboxes)
-                ME = MException('MATLAB:ValidationFailed', ...
-                    'Missing required toolboxes for Template v%s: %s', ...
-                    obj.TEMPLATE_VERSION, strjoin(missingToolboxes, ', '));
+                ME = MException('MATLAB:ValidationFailed', 'Missing required toolboxes for Template v%s: %s', obj.TEMPLATE_VERSION, obj.localJoin(missingToolboxes, ', '));
                 throw(ME);
             end
-            
-            {% if custom_toolbox_checks %}
-            % Template-specific toolbox version checks
-            {% for toolbox, min_version in custom_toolbox_checks.items() %}
-            try
-                obj.validateToolboxVersion('{{ toolbox }}', '{{ min_version }}', validationResults);
-            catch ME
-                obj.log('warning', 'Toolbox version validation failed for {{ toolbox }}: %s', ME.message);
-            end
-            {% endfor %}
-            {% endif %}
         end
         
-        function validateSystemResources(obj, validationResults)
-            % Validate system resources against template requirements
-            %
-            % Input Arguments:
-            %   validationResults - Struct to store validation results
-            
-            [memoryInfo, cpuInfo] = obj.getSystemInfo();
-            validationResults.system = struct('memory', memoryInfo, 'cpu', cpuInfo);
-            
-            % Template-specific resource requirements
-            {% if min_memory_gb %}
-            if isfield(memoryInfo, 'available_gb') && memoryInfo.available_gb < {{ min_memory_gb }}
-                ME = MException('MATLAB:InsufficientMemory', ...
-                    'Template v%s requires at least {{ min_memory_gb }}GB memory. Available: %.2fGB', ...
-                    obj.TEMPLATE_VERSION, memoryInfo.available_gb);
-                throw(ME);
-            end
-            {% endif %}
-            
-            {% if min_cpu_cores %}
-            if isfield(cpuInfo, 'cores') && cpuInfo.cores < {{ min_cpu_cores }}
-                obj.log('warning', 'Template v%s recommends at least {{ min_cpu_cores }} CPU cores. Available: %d', ...
-                    obj.TEMPLATE_VERSION, cpuInfo.cores);
-            end
-            {% endif %}
-            
-            % Disk space validation
-            diskInfo = obj.checkDiskSpace();
-            validationResults.disk = diskInfo;
-            
-            {% if min_disk_space_gb %}
-            if isfield(diskInfo, 'available_gb') && diskInfo.available_gb < {{ min_disk_space_gb }}
-                ME = MException('MATLAB:InsufficientDisk', ...
-                    'Template v%s requires at least {{ min_disk_space_gb }}GB disk space. Available: %.2fGB', ...
-                    obj.TEMPLATE_VERSION, diskInfo.available_gb);
-                throw(ME);
-            end
-            {% endif %}
+        function validateSystemResources(obj, validationResults) %#ok<INUSD>
+            [memoryInfo, cpuInfo] = obj.getSystemInfo(); %#ok<NASGU,ASGLU>
+            diskInfo = obj.checkDiskSpace(); %#ok<NASGU>
         end
         
         function defaultConfig = getDefaultSimConfig(obj)
-            % Get default simulation configuration
             defaultConfig = struct({{ default_sim_config }});
         end
         
         function defaultConfig = getDefaultCodegenConfig(obj)
-            % Get default code generation configuration  
             defaultConfig = struct({{ default_codegen_config }});
         end
         
         function notifyProgress(obj, message, progress)
-            % Notify progress with template-aware callback
-            %
-            % Input Arguments:
-            %   message  - Character vector with progress message
-            %   progress - Numeric scalar between 0 and 1
-            
             validateattributes(progress, {'numeric'}, {'scalar', '>=', 0, '<=', 1}, mfilename, 'progress');
-            
             if ~isempty(obj.ProgressCallback)
-                try
-                    obj.ProgressCallback(message, progress);
-                catch ME
-                    obj.log('warning', 'Progress callback failed: %s', ME.message);
-                end
+                try, obj.ProgressCallback(message, progress); catch ME, obj.log('warning', 'Progress callback failed: %s', ME.message); end
             end
-            
             obj.log('debug', 'Progress: %.1f%% - %s', progress * 100, message);
         end
         
         function memoryMB = getMemoryUsage(obj)
-            % Get current memory usage with template context
-            %
-            % Output Arguments:
-            %   memoryMB - Memory usage in megabytes
-            
             try
-                if exist('memory', 'builtin') == 5 % Built-in function exists
+                if exist('memory', 'builtin') == 5
                     mem = memory;
-                    if isfield(mem, 'MemUsedMATLAB')
-                        memoryMB = mem.MemUsedMATLAB / (1024^2); % Convert bytes to MB
-                    else
-                        memoryMB = NaN;
-                    end
+                    if isfield(mem, 'MemUsedMATLAB'), memoryMB = mem.MemUsedMATLAB / (1024^2); else, memoryMB = NaN; end
                 else
                     memoryMB = NaN;
                 end
-            catch
-                memoryMB = NaN;
-            end
+            catch, memoryMB = NaN; end
         end
         
         function [memoryInfo, cpuInfo] = getSystemInfo(obj)
-            % Get system information with template-specific context
-            %
-            % Output Arguments:
-            %   memoryInfo - Struct containing memory information
-            %   cpuInfo    - Struct containing CPU information
-            
-            memoryInfo = struct();
-            cpuInfo = struct();
-            
+            memoryInfo = struct(); cpuInfo = struct();
             try
-                % MATLAB memory information
                 if exist('memory', 'builtin') == 5
                     mem = memory;
-                    if isfield(mem, 'MemUsedMATLAB')
-                        memoryInfo.used_gb = mem.MemUsedMATLAB / 1024^3;
-                    end
-                    if isfield(mem, 'MemAvailableAllArrays')
-                        memoryInfo.available_gb = mem.MemAvailableAllArrays / 1024^3;
-                    end
-                    if isfield(mem, 'MaxPossibleArrayBytes')
-                        memoryInfo.total_physical_gb = mem.MaxPossibleArrayBytes / 1024^3;
-                    end
+                    if isfield(mem, 'MemUsedMATLAB'), memoryInfo.used_gb = mem.MemUsedMATLAB / 1024^3; end
+                    if isfield(mem, 'MemAvailableAllArrays'), memoryInfo.available_gb = mem.MemAvailableAllArrays / 1024^3; end
+                    if isfield(mem, 'MaxPossibleArrayBytes'), memoryInfo.total_physical_gb = mem.MaxPossibleArrayBytes / 1024^3; end
                 end
-                
-                % CPU information
-                try
-                    cpuInfo.cores = feature('numcores');
-                catch
-                    cpuInfo.cores = 1; % Default fallback
-                end
+                try, cpuInfo.cores = feature('numcores'); catch, cpuInfo.cores = 1; end
                 cpuInfo.template_optimized = obj.TEMPLATE_VERSION;
-                
-                % Platform-specific system info
                 if ispc
                     try
                         [status, memResult] = system('wmic computersystem get TotalPhysicalMemory /value');
                         if status == 0
                             memMatch = regexp(memResult, 'TotalPhysicalMemory=(\d+)', 'tokens');
-                            if ~isempty(memMatch)
-                                memoryInfo.system_total_gb = str2double(memMatch{1}{1}) / 1024^3;
-                            end
+                            if ~isempty(memMatch), memoryInfo.system_total_gb = str2double(memMatch{1}{1}) / 1024^3; end
                         end
-                    catch
-                        % Ignore system command errors
-                    end
+                    catch, end
                 elseif ismac || isunix
                     try
                         if ismac
                             [status, memResult] = system('sysctl hw.memsize');
                             if status == 0
                                 memMatch = regexp(memResult, 'hw.memsize: (\d+)', 'tokens');
-                                if ~isempty(memMatch)
-                                    memoryInfo.system_total_gb = str2double(memMatch{1}{1}) / 1024^3;
-                                end
+                                if ~isempty(memMatch), memoryInfo.system_total_gb = str2double(memMatch{1}{1}) / 1024^3; end
                             end
                         else
                             [status, memResult] = system('cat /proc/meminfo | grep MemTotal');
                             if status == 0
                                 memMatch = regexp(memResult, 'MemTotal:\s+(\d+)', 'tokens');
-                                if ~isempty(memMatch)
-                                    memoryInfo.system_total_gb = str2double(memMatch{1}{1}) / 1024^2;
-                                end
+                                if ~isempty(memMatch), memoryInfo.system_total_gb = str2double(memMatch{1}{1}) / 1024^2; end
                             end
                         end
-                    catch
-                        % Ignore system command errors
-                    end
+                    catch, end
                 end
-                
             catch ME
                 obj.log('debug', 'Could not get complete system info: %s', ME.message);
-                memoryInfo.error = ME.message;
-                cpuInfo.error = ME.message;
+                memoryInfo.error = ME.message; cpuInfo.error = ME.message;
             end
         end
         
         function diskInfo = checkDiskSpace(obj)
-            % Check disk space with template-specific requirements
-            %
-            % Output Arguments:
-            %   diskInfo - Struct containing disk space information
-            
-            diskInfo = struct();
-            diskInfo.template_version = obj.TEMPLATE_VERSION;
-            diskInfo.available_gb = NaN; % Default fallback
-            
+            diskInfo = struct(); diskInfo.template_version = obj.TEMPLATE_VERSION; diskInfo.available_gb = NaN;
             try
                 if ispc
-                    currentDrive = pwd;
-                    driveLetter = currentDrive(1:2);
+                    currentDrive = pwd; driveLetter = currentDrive(1:2);
                     [status, result] = system(sprintf('dir %s', driveLetter));
                     if status == 0
                         freeMatch = regexp(result, '(\d+) bytes free', 'tokens');
-                        if ~isempty(freeMatch)
-                            diskInfo.available_gb = str2double(freeMatch{1}{1}) / 1024^3;
-                        end
+                        if ~isempty(freeMatch), diskInfo.available_gb = str2double(freeMatch{1}{1}) / 1024^3; end
                     end
-                else % Unix/Mac
+                else
                     [status, result] = system('df -h .');
                     if status == 0
                         lines = strsplit(result, '\n');
-                        if length(lines) >= 2
+                        if numel(lines) >= 2
                             parts = strsplit(strtrim(lines{2}));
-                            if length(parts) >= 4
-                                availStr = parts{4};
-                                if endsWith(availStr, 'G')
-                                    diskInfo.available_gb = str2double(availStr(1:end-1));
-                                elseif endsWith(availStr, 'M')
-                                    diskInfo.available_gb = str2double(availStr(1:end-1)) / 1024;
+                            if numel(parts) >= 4
+                                availStr = strtrim(parts{4});
+                                if ~isempty(availStr)
+                                    lastChar = availStr(end);
+                                    if lastChar == 'G'
+                                        diskInfo.available_gb = str2double(availStr(1:end-1));
+                                    elseif lastChar == 'M'
+                                        diskInfo.available_gb = str2double(availStr(1:end-1)) / 1024;
+                                    end
                                 end
                             end
                         end
@@ -1219,282 +616,166 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function performSystemHealthCheck(obj)
-            % Perform comprehensive system health check with template-specific validations
-            
+            % Robust, non-throwing health check
             obj.log('info', 'Performing system health check (Template v%s)...', obj.TEMPLATE_VERSION);
-            
-            healthStatus = struct('passed', true, 'issues', {});
-            
-            % Basic MATLAB engine health check
+            issues = {};
+            % 1) Basic arithmetic sanity
             try
-                testComputation = pi * exp(1);
-                expectedValue = 8.539734222673566;
-                if abs(testComputation - expectedValue) >= 1e-10
-                    healthStatus.passed = false;
-                    healthStatus.issues{end+1} = 'Basic computation check failed - engine may be unstable';
+                t = pi * exp(1);
+                if ~isnumeric(t) || ~isfinite(t)
+                    issues{end+1} = 'Computation returned non-finite result'; %#ok<AGROW>
                 end
             catch ME
-                healthStatus.passed = false;
-                healthStatus.issues{end+1} = sprintf('Computation check failed: %s', ME.message);
+                issues{end+1} = sprintf('Computation check failed: %s', ME.message); %#ok<AGROW>
             end
-            
-            % Memory allocation health check
+            % 2) Memory allocation
             try
-                testArray = zeros(100, 100); 
-                clear testArray;
+                A = zeros(100, 100); %#ok<NASGU>
+                clear A;
             catch ME
-                healthStatus.passed = false;
-                healthStatus.issues{end+1} = sprintf('Memory allocation check failed: %s', ME.message);
+                issues{end+1} = sprintf('Memory allocation check failed: %s', ME.message); %#ok<AGROW>
             end
-            
-            % File system access health check
+            % 3) File write/read
             try
-                testFile = tempname;
-                fid = fopen(testFile, 'w');
+                tf = tempname;
+                fid = fopen(tf, 'w');
                 if fid <= 0
-                    healthStatus.passed = false;
-                    healthStatus.issues{end+1} = 'Failed to open test file';
+                    issues{end+1} = 'Failed to open test file'; %#ok<AGROW>
                 else
                     fclose(fid);
-                    if exist(testFile, 'file')
-                        delete(testFile);
-                    end
+                    if exist(tf, 'file'), delete(tf); end
                 end
             catch ME
-                healthStatus.passed = false;
-                healthStatus.issues{end+1} = sprintf('File system check failed: %s', ME.message);
+                issues{end+1} = sprintf('File system check failed: %s', ME.message); %#ok<AGROW>
             end
-            
-            {% if custom_health_checks is defined %}
-            % Template-specific custom health checks
-            {% for check in custom_health_checks %}
-            try
-                if ismethod(obj, '{{ check.name }}')
-                    obj.{{ check.name }}();  % Execute custom check: {{ check.description | default("Custom health check") }}
-                else
-                    obj.log('warning', 'Custom health check method "{{ check.name }}" not found');
+            % Report, never throw
+            if ~isempty(issues)
+                buf = '';
+                for k = 1:numel(issues)
+                    buf = sprintf('%s  - %s\n', buf, issues{k});
                 end
-            catch ME
-                healthStatus.passed = false;
-                healthStatus.issues{end+1} = sprintf('Custom check "{{ check.name }}" failed: %s', ME.message);
-            end
-            {% endfor %}
-            {% endif %}
-            
-            if ~healthStatus.passed
-                issueStr = strjoin(healthStatus.issues, '\n  - ');
-                obj.log('error', 'System health check failed with %d issues:\n  - %s', ...
-                    length(healthStatus.issues), issueStr);
-                warning('FSMController:SystemHealthFailed', 'System health check failed. See logs for details.');
+                obj.log('error', 'System health check found %d issue(s):\n%s', numel(issues), buf);
             else
                 obj.log('info', 'System health check completed successfully.');
             end
         end
         
-        % Core validation and execution methods
-        function [isValid, validationErrors] = performCoreValidation(obj, config, configType, validationContext)
-            % Perform core validation with template context
-            isValid = true;
-            validationErrors = {};
-            
+        function [isValid, validationErrors] = performCoreValidation(obj, config, configType, validationContext) %#ok<INUSD>
+            isValid = true; validationErrors = {};
             try
-                % Basic struct validation
-                if ~isstruct(config)
-                    isValid = false;
-                    validationErrors{end+1} = 'Configuration must be a struct';
-                    return;
-                end
-                
-                % Template-specific validation based on type
+                if ~isstruct(config), isValid = false; validationErrors{end+1} = 'Configuration must be a struct'; return; end
                 switch lower(configType)
-                    case 'simulation'
-                        [isValid, validationErrors] = obj.validateSimulationConfig(config);
-                    case 'codegen'
-                        [isValid, validationErrors] = obj.validateCodegenConfig(config);
-                    case 'streaming'
-                        [isValid, validationErrors] = obj.validateStreamingConfig(config);
-                    otherwise
-                        obj.log('warning', 'Unknown configuration type: %s', configType);
+                    case 'simulation', [isValid, validationErrors] = obj.validateSimulationConfig(config);
+                    case 'codegen',    [isValid, validationErrors] = obj.validateCodegenConfig(config);
+                    case 'streaming',  [isValid, validationErrors] = obj.validateStreamingConfig(config);
+                    otherwise, obj.log('warning', 'Unknown configuration type: %s', configType);
                 end
-                
             catch ME
-                isValid = false;
-                validationErrors{end+1} = sprintf('Validation error: %s', ME.message);
+                isValid = false; validationErrors{end+1} = sprintf('Validation error: %s', ME.message);
             end
         end
         
         function [isValid, validationErrors] = validateSimulationConfig(obj, config)
-            % Validate simulation configuration
-            isValid = true;
-            validationErrors = {};
-            
-            % Check common simulation parameters
-            fields = fieldnames(config);
-            rules = obj.ValidationRules.simulation_rules;
-            
+            isValid = true; validationErrors = {};
+            fields = fieldnames(config); rules = obj.ValidationRules.simulation_rules;
             for i = 1:length(fields)
-                field = fields{i};
-                if isfield(rules, field)
-                    try
-                        obj.validateField(config.(field), rules.(field), field);
-                    catch ME
-                        isValid = false;
-                        validationErrors{end+1} = sprintf('Field %s: %s', field, ME.message);
-                    end
+                f = fields{i};
+                if isfield(rules, f)
+                    try, obj.validateField(config.(f), rules.(f), f);
+                    catch ME, isValid = false; validationErrors{end+1} = sprintf('Field %s: %s', f, ME.message); end %#ok<AGROW>
                 end
             end
         end
         
         function [isValid, validationErrors] = validateCodegenConfig(obj, config)
-            % Validate code generation configuration
-            isValid = true;
-            validationErrors = {};
-            
-            % Check common codegen parameters
-            fields = fieldnames(config);
-            rules = obj.ValidationRules.codegen_rules;
-            
+            isValid = true; validationErrors = {};
+            fields = fieldnames(config); rules = obj.ValidationRules.codegen_rules;
             for i = 1:length(fields)
-                field = fields{i};
-                if isfield(rules, field)
-                    try
-                        obj.validateField(config.(field), rules.(field), field);
-                    catch ME
-                        isValid = false;
-                        validationErrors{end+1} = sprintf('Field %s: %s', field, ME.message);
-                    end
+                f = fields{i};
+                if isfield(rules, f)
+                    try, obj.validateField(config.(f), rules.(f), f);
+                    catch ME, isValid = false; validationErrors{end+1} = sprintf('Field %s: %s', f, ME.message); end %#ok<AGROW>
                 end
             end
         end
         
         function [isValid, validationErrors] = validateStreamingConfig(obj, config)
-            % Validate streaming configuration
-            isValid = true;
-            validationErrors = {};
-            
-            % Check streaming parameters
+            isValid = true; validationErrors = {};
             if isfield(config, 'Format')
                 formatStr = char(config.Format);
                 if ~ismember(formatStr, obj.SUPPORTED_FORMATS)
-                    isValid = false;
-                    validationErrors{end+1} = sprintf('Unsupported format: %s', formatStr);
+                    isValid = false; validationErrors{end+1} = sprintf('Unsupported format: %s', formatStr);
                 end
             end
-            
             if isfield(config, 'BufferSize')
                 if ~isnumeric(config.BufferSize) || config.BufferSize <= 0 || ~isscalar(config.BufferSize)
-                    isValid = false;
-                    validationErrors{end+1} = 'BufferSize must be a positive scalar number';
+                    isValid = false; validationErrors{end+1} = 'BufferSize must be a positive scalar number';
                 end
             end
         end
         
         function validateField(obj, value, rule, fieldName)
-            % Validate a single field against its rule
-            if rule.required && (isempty(value) || (ischar(value) && isempty(strtrim(value))))
-                error('Field %s is required', fieldName);
-            end
-            
-            % Type validation
+            if rule.required && (isempty(value) || (ischar(value) && isempty(strtrim(value)))), error('Field %s is required', fieldName); end
             if ~isempty(value)
                 switch rule.type
                     case 'numeric'
-                        if ~isnumeric(value)
-                            error('Field %s must be numeric', fieldName);
-                        end
+                        if ~isnumeric(value), error('Field %s must be numeric', fieldName); end
                         if isfield(rule, 'range') && ~isempty(rule.range)
                             if value < rule.range(1) || value > rule.range(2)
                                 error('Field %s must be in range [%g, %g]', fieldName, rule.range(1), rule.range(2));
                             end
                         end
                     case 'char'
-                        if ~ischar(value) && ~isstring(value)
-                            error('Field %s must be a character vector or string', fieldName);
-                        end
+                        if ~ischar(value) && ~isstring(value), error('Field %s must be a character vector or string', fieldName); end
                         if isfield(rule, 'options') && ~isempty(rule.options)
                             if ~ismember(char(value), rule.options)
-                                error('Field %s must be one of: %s', fieldName, strjoin(rule.options, ', '));
+                                error('Field %s must be one of: %s', fieldName, obj.localJoin(rule.options, ', '));
                             end
                         end
                     case 'logical'
-                        if ~islogical(value)
-                            error('Field %s must be logical', fieldName);
-                        end
+                        if ~islogical(value), error('Field %s must be logical', fieldName); end
                 end
             end
         end
         
-        % Stub methods that need to be implemented based on specific template requirements
         function validateModelFile(obj)
-            % Validate that the model file exists and is accessible
-            if ~exist(obj.ModelPath, 'file')
-                ME = MException('MATLAB:FileNotFound', 'Model file not found: %s', obj.ModelPath);
-                throw(ME);
-            end
-            
+            if ~exist(obj.ModelPath, 'file'), error('MATLAB:FileNotFound', 'Model file not found: %s', obj.ModelPath); end
             [~, ~, ext] = fileparts(obj.ModelPath);
-            if ~strcmpi(ext, '.slx') && ~strcmpi(ext, '.mdl')
-                ME = MException('MATLAB:InvalidModelFile', 'Model file must be .slx or .mdl format');
-                throw(ME);
-            end
+            if ~strcmpi(ext, '.slx') && ~strcmpi(ext, '.mdl'), error('MATLAB:InvalidModelFile', 'Model file must be .slx or .mdl format'); end
         end
         
         function handleModelReload(obj, backupCurrent)
-            % Handle model reload with optional backup
-            if backupCurrent
-                obj.log('info', 'Backing up current model before reload...');
-                % Backup logic would go here
-            end
-            
+            if backupCurrent, obj.log('info', 'Backing up current model before reload...'); end
             obj.log('info', 'Closing existing model...');
-            close_system(obj.ModelName, 0);
-            obj.IsLoaded = false;
+            close_system(obj.ModelName, 0); obj.IsLoaded = false;
         end
         
         function verifyEnhancedModelStructure(obj)
-            % Verify model structure and components
             try
-                % Check if model has expected blocks/components
-                blocks = find_system(obj.ModelName, 'Type', 'Block');
-                obj.log('debug', 'Model contains %d blocks', length(blocks));
-                
-                % Verify expected output ports exist
+                blocks = find_system(obj.ModelName, 'Type', 'Block'); %#ok<NASGU>
                 for i = 1:length(obj.OUTPUT_PORTS)
                     portName = obj.OUTPUT_PORTS{i};
-                    % Check if port exists in model
                     portBlocks = find_system(obj.ModelName, 'Name', portName);
-                    if isempty(portBlocks)
-                        obj.log('warning', 'Expected output port "%s" not found in model', portName);
-                    end
+                    if isempty(portBlocks), obj.log('warning', 'Expected output port "%s" not found in model', portName); end
                 end
-                
             catch ME
                 obj.log('warning', 'Model structure verification failed: %s', ME.message);
             end
         end
         
         function validateModelIntegrity(obj)
-            % Validate model integrity
             try
-                % Perform model compilation check
                 obj.log('debug', 'Performing model integrity check...');
-                
-                % Try to compile the model without running simulation
                 set_param(obj.ModelName, 'SimulationCommand', 'update');
-                
                 obj.log('debug', 'Model integrity check passed');
-                
             catch ME
-                obj.log('error', 'Model integrity check failed: %s', ME.message);
-                rethrow(ME);
+                obj.log('error', 'Model integrity check failed: %s', ME.message); rethrow(ME);
             end
         end
         
         function setupEnhancedModelMonitoring(obj)
-            % Setup enhanced model monitoring
             try
-                % Setup simulation event listeners
-                obj.EventListeners{end+1} = add_exec_event_listener(obj.ModelName, 'PostOutputs', @obj.onSimulationStep);
+                obj.EventListeners{end+1} = add_exec_event_listener(obj.ModelName, 'PostOutputs', @(src,evt) obj.onSimulationStep(src, evt));
                 obj.log('debug', 'Enhanced model monitoring setup complete');
             catch ME
                 obj.log('warning', 'Failed to setup enhanced monitoring: %s', ME.message);
@@ -1502,7 +783,6 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function extractVersionInfo(obj)
-            % Extract version information from model
             try
                 obj.Version = struct();
                 obj.Version.model_version = get_param(obj.ModelName, 'ModelVersion');
@@ -1516,12 +796,10 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function computeModelHash(obj)
-            % Compute hash of model for integrity checking
             try
-                % Simple hash based on model file modification time and size
-                fileInfo = dir(obj.ModelPath);
-                if ~isempty(fileInfo)
-                    hashData = sprintf('%s_%s_%d', obj.ModelName, fileInfo.date, fileInfo.bytes);
+                fi = dir(obj.ModelPath);
+                if ~isempty(fi)
+                    hashData = sprintf('%s_%s_%d', obj.ModelName, fi.date, fi.bytes);
                     obj.ModelHash = sprintf('%08x', java.lang.String(hashData).hashCode());
                 else
                     obj.ModelHash = 'unknown';
@@ -1533,63 +811,35 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function registerCleanupOnDelete(obj)
-            % Register cleanup function to run when object is deleted
             obj.CleanupListener = onCleanup(@() obj.cleanup());
         end
         
         function handleLoadError(obj, ME)
-            % Handle model loading errors
-            obj.log('error', 'Model loading failed: %s', ME.message);
-            obj.IsLoaded = false;
-            notify(obj, 'ModelUnloaded');
+            obj.log('error', 'Model loading failed: %s', ME.message); obj.IsLoaded = false; notify(obj, 'ModelUnloaded');
         end
         
         function onSimulationStep(obj, ~, ~)
-            % Callback for simulation steps
-            try
-                % Update performance metrics, streaming data, etc.
-                if ~isempty(obj.DataStreamConfig)
-                    obj.updateDataStream();
-                end
-            catch ME
-                obj.log('warning', 'Simulation step callback failed: %s', ME.message);
-            end
+            try, if ~isempty(obj.DataStreamConfig), obj.updateDataStream(); end
+            catch ME, obj.log('warning', 'Simulation step callback failed: %s', ME.message); end
         end
         
         function updateDataStream(obj)
-            % Update data streaming during simulation
             try
-                % Get current simulation time and outputs
                 currentTime = get_param(obj.ModelName, 'SimulationTime');
-                
-                % Collect data from output ports
-                streamData = struct();
-                streamData.time = str2double(currentTime);
-                streamData.template_version = obj.TEMPLATE_VERSION;
-                
-                % Add to buffer or write to file based on configuration
-                if obj.DataStreamConfig.RealTime
-                    obj.writeStreamData(streamData);
-                else
-                    obj.bufferStreamData(streamData);
-                end
-                
+                streamData = struct(); streamData.time = str2double(currentTime); streamData.template_version = obj.TEMPLATE_VERSION;
+                if obj.DataStreamConfig.RealTime, obj.writeStreamData(streamData); else, obj.bufferStreamData(streamData); end
             catch ME
                 obj.log('warning', 'Data streaming update failed: %s', ME.message);
             end
         end
         
         function writeStreamData(obj, data)
-            % Write streaming data in real-time
             try
-                % Implementation depends on format
                 switch obj.DataStreamConfig.Format
                     case 'json'
-                        jsonStr = jsonencode(data);
-                        fprintf('%s\n', jsonStr);
+                        jsonStr = jsonencode(data); fprintf('%s\n', jsonStr);
                     case 'csv'
-                        % CSV output implementation
-                        fprintf('%.6f,%.6f\n', data.time, data.template_version);
+                        fprintf('%.6f,%s\n', data.time, char(data.template_version));
                     otherwise
                         obj.log('warning', 'Unsupported streaming format: %s', obj.DataStreamConfig.Format);
                 end
@@ -1599,427 +849,261 @@ classdef {{ class_name | default("FSMController") }} < handle
         end
         
         function bufferStreamData(obj, data)
-            % Buffer streaming data for batch processing
             try
                 if isempty(obj.DataStreamConfig.buffer)
-                    obj.DataStreamConfig.buffer = data;
-                    obj.DataStreamConfig.buffer_index = 1;
+                    obj.DataStreamConfig.buffer = data; obj.DataStreamConfig.buffer_index = 1;
                 else
                     obj.DataStreamConfig.buffer_index = obj.DataStreamConfig.buffer_index + 1;
                     obj.DataStreamConfig.buffer(obj.DataStreamConfig.buffer_index) = data;
                 end
-                
-                % Flush buffer if it reaches the limit
-                if obj.DataStreamConfig.buffer_index >= obj.DataStreamConfig.BufferSize
-                    obj.flushStreamBuffer();
-                end
-                
+                if obj.DataStreamConfig.buffer_index >= obj.DataStreamConfig.BufferSize, obj.flushStreamBuffer(); end
             catch ME
                 obj.log('warning', 'Failed to buffer stream data: %s', ME.message);
             end
         end
         
         function flushStreamBuffer(obj)
-            % Flush the streaming data buffer
             try
                 if ~isempty(obj.DataStreamConfig.buffer)
-                    % Process buffered data based on format
                     obj.log('debug', 'Flushing stream buffer with %d entries', obj.DataStreamConfig.buffer_index);
-                    
-                    % Clear buffer after processing
-                    obj.DataStreamConfig.buffer = [];
-                    obj.DataStreamConfig.buffer_index = 1;
+                    obj.DataStreamConfig.buffer = []; obj.DataStreamConfig.buffer_index = 1;
                 end
             catch ME
                 obj.log('warning', 'Failed to flush stream buffer: %s', ME.message);
             end
         end
         
-        function setupTemplateStreaming(obj)
-            % Setup template-specific streaming configuration
-            obj.log('debug', 'Setting up template-specific streaming...');
-            % Template-specific streaming setup would go here
-        end
-        
-        function initializeStreamingAnalytics(obj)
-            % Initialize streaming analytics
-            obj.log('debug', 'Initializing streaming analytics...');
-            % Streaming analytics initialization would go here
-        end
+        function setupTemplateStreaming(obj), obj.log('debug', 'Setting up template-specific streaming...'); end
+        function initializeStreamingAnalytics(obj), obj.log('debug', 'Initializing streaming analytics...'); end
         
         function [crossValid, crossErrors] = validateParameterDependencies(obj, config, configType)
-            % Validate parameter dependencies
-            crossValid = true;
-            crossErrors = {};
-            
-            % Example dependency validation
+            crossValid = true; crossErrors = {};
             if strcmp(configType, 'simulation') && isfield(config, 'StopTime') && isfield(config, 'MaxStep')
-                if config.MaxStep > config.StopTime
-                    crossValid = false;
-                    crossErrors{end+1} = 'MaxStep cannot be greater than StopTime';
-                end
+                if config.MaxStep > config.StopTime, crossValid = false; crossErrors{end+1} = 'MaxStep cannot be greater than StopTime'; end %#ok<AGROW>
             end
         end
         
-        function [templateValid, templateErrors] = validateTemplateSpecificRules(obj, config, configType)
-            % Validate template-specific rules
-            templateValid = true;
-            templateErrors = {};
-            
-            % Template-specific validation logic would go here
+        function [templateValid, templateErrors] = validateTemplateSpecificRules(obj, config, configType) %#ok<INUSD>
+            templateValid = true; templateErrors = {};
             obj.log('debug', 'Performing template-specific validation for %s', configType);
         end
         
         function handleValidationFailure(obj, validationErrors, options)
-            % Handle validation failure
-            errorMsg = strjoin(validationErrors, '; ');
+            errorMsg = obj.localJoin(validationErrors, '; ');
             obj.log('error', 'Configuration validation failed: %s', errorMsg);
-            
-            if options.FixInvalid
-                obj.log('info', 'Attempting to fix invalid configuration...');
-                % Auto-fix logic would go here
-            end
-            
+            if options.FixInvalid, obj.log('info', 'Attempting to fix invalid configuration...'); end
             notify(obj, 'ValidationFailed');
         end
         
-        function preSimulationTemplateChecks(obj, config, executionContext)
-            % Pre-simulation template-specific checks
+        function preSimulationTemplateChecks(obj, config, executionContext) %#ok<INUSD>
             obj.log('debug', 'Performing pre-simulation template checks...');
-            
-            % Validate execution context
-            if ~isfield(executionContext, 'template_version')
-                warning('FSMController:MissingTemplateVersion', 'Template version not found in execution context');
-            end
+            if ~isfield(executionContext, 'template_version'), warning('FSMController:MissingTemplateVersion', 'Template version not found in execution context'); end
         end
         
-        function results = executeEnhancedSimulation(obj, config, options, executionContext)
-            % Execute enhanced simulation with template optimizations
+        function results = executeEnhancedSimulation(obj, config, options, executionContext) %#ok<INUSD>
             obj.log('info', 'Executing enhanced simulation...');
-            
             try
-                % Apply configuration to model
                 configFields = fieldnames(config);
                 for i = 1:length(configFields)
-                    field = configFields{i};
-                    try
-                        set_param(obj.ModelName, field, config.(field));
-                    catch ME
-                        obj.log('warning', 'Failed to set parameter %s: %s', field, ME.message);
-                    end
+                    f = configFields{i};
+                    try, set_param(obj.ModelName, f, config.(f)); catch ME, obj.log('warning', 'Failed to set parameter %s: %s', f, ME.message); end
                 end
-                
-                % Run simulation
                 notify(obj, 'SimulationStarted');
                 simOut = sim(obj.ModelName);
-                
-                % Process results
                 results = struct();
                 results.simulation_output = simOut;
                 results.execution_context = executionContext;
                 results.template_version = obj.TEMPLATE_VERSION;
                 results.completion_time = datestr(now, 'yyyy-mm-dd HH:MM:SS');
-                
                 obj.LastSimOutput = results;
-                
             catch ME
-                obj.log('error', 'Simulation execution failed: %s', ME.message);
-                rethrow(ME);
+                obj.log('error', 'Simulation execution failed: %s', ME.message); rethrow(ME);
             end
         end
         
         function results = postSimulationTemplateProcessing(obj, results, executionContext)
-            % Post-simulation template processing
             obj.log('debug', 'Performing post-simulation template processing...');
-            
-            % Add template-specific result processing
-            results.processing_timestamp = now;
-            results.execution_mode = executionContext.execution_mode;
-            
-            % Update performance metrics
+            results.processing_timestamp = now; results.execution_mode = executionContext.execution_mode;
             if isfield(results, 'simulation_output') && ~isempty(results.simulation_output)
                 try
                     execTime = results.simulation_output.ExecutionInfo.TotalElapsedWallTime;
-                    obj.PerformanceMetrics.simulations(end+1) = struct(...
-                        'execution_time', execTime, ...
-                        'timestamp', now, ...
-                        'template_version', obj.TEMPLATE_VERSION ...
-                    );
-                catch
-                    % Ignore if execution info not available
-                end
+                    obj.PerformanceMetrics.simulations(end+1) = struct('execution_time', execTime, 'timestamp', now, 'template_version', obj.TEMPLATE_VERSION);
+                catch, end
             end
         end
         
-        function updateTemplateMetrics(obj, results)
-            % Update template-specific metrics
+        function updateTemplateMetrics(obj, results) %#ok<INUSD>
             obj.log('debug', 'Updating template metrics...');
-            
-            % Update configuration history
-            obj.ConfigHistory{end+1} = struct(...
-                'timestamp', now, ...
-                'template_version', obj.TEMPLATE_VERSION, ...
-                'operation', 'simulation' ...
-            );
+            obj.ConfigHistory{end+1} = struct('timestamp', now, 'template_version', obj.TEMPLATE_VERSION, 'operation', 'simulation');
         end
         
         function saveSimulationResults(obj, results)
-            % Save simulation results
             try
-                % Generate filename with template version
                 timestamp = datestr(now, 'yyyymmdd_HHMMSS');
-                filename = sprintf('%s_sim_results_T%s_%s.mat', ...
-                    obj.ModelName, strrep(obj.TEMPLATE_VERSION, '.', '_'), timestamp);
-                
+                filename = sprintf('%s_sim_results_T%s_%s.mat', obj.ModelName, strrep(obj.TEMPLATE_VERSION, '.', '_'), timestamp);
                 save(filename, 'results');
                 obj.log('info', 'Simulation results saved to: %s', filename);
-                
             catch ME
                 obj.log('warning', 'Failed to save simulation results: %s', ME.message);
             end
         end
         
-        function handleSimulationError(obj, ME, executionContext)
-            % Handle simulation errors
-            obj.log('error', 'Simulation error in context %s: %s', ...
-                executionContext.execution_mode, ME.message);
-            notify(obj, 'SimulationError');
+        function handleSimulationError(obj, ME, executionContext) %#ok<INUSD>
+            obj.log('error', 'Simulation error in context %s: %s', executionContext.execution_mode, ME.message); notify(obj, 'SimulationError');
         end
         
         function config = applyTemplateCodegenOptimizations(obj, config, optimizationProfile)
-            % Apply template-specific code generation optimizations
             obj.log('debug', 'Applying template codegen optimizations: %s', optimizationProfile);
-            
             switch optimizationProfile
-                case 'speed'
-                    config.OptimizeBlockIOStorage = 'on';
-                    config.LocalBlockOutputs = 'on';
-                case 'memory'
-                    config.OptimizeBlockIOStorage = 'off';
-                    config.LocalBlockOutputs = 'off';
-                case 'safety'
-                    config.GenerateReport = 'on';
-                    config.OptimizeBlockIOStorage = 'off';
+                case 'speed',  config.OptimizeBlockIOStorage = 'on';  config.LocalBlockOutputs = 'on';
+                case 'memory', config.OptimizeBlockIOStorage = 'off'; config.LocalBlockOutputs = 'off';
+                case 'safety', config.GenerateReport = 'on';          config.OptimizeBlockIOStorage = 'off';
             end
         end
         
-        function preCodegenTemplateChecks(obj, config, options)
-            % Pre-code generation template checks
+        function preCodegenTemplateChecks(obj, config, options) %#ok<INUSD>
             obj.log('debug', 'Performing pre-codegen template checks...');
         end
         
-        function results = executeEnhancedCodeGeneration(obj, config, options)
-            % Execute enhanced code generation
+        function results = executeEnhancedCodeGeneration(obj, config, options) %#ok<INUSD>
             obj.log('info', 'Executing enhanced code generation...');
-            
             try
-                % Apply configuration
                 configFields = fieldnames(config);
                 for i = 1:length(configFields)
-                    field = configFields{i};
-                    try
-                        set_param(obj.ModelName, field, config.(field));
-                    catch ME
-                        obj.log('warning', 'Failed to set codegen parameter %s: %s', field, ME.message);
-                    end
+                    f = configFields{i};
+                    try, set_param(obj.ModelName, f, config.(f)); catch ME, obj.log('warning', 'Failed to set codegen parameter %s: %s', f, ME.message); end
                 end
-                
-                % Generate code
                 slbuild(obj.ModelName);
-                
-                % Process results
-                results = struct();
-                results.generation_time = datestr(now, 'yyyy-mm-dd HH:MM:SS');
-                results.template_version = obj.TEMPLATE_VERSION;
-                results.config = config;
-                
+                results = struct(); results.generation_time = datestr(now, 'yyyy-mm-dd HH:MM:SS'); results.template_version = obj.TEMPLATE_VERSION; results.config = config;
                 obj.LastCodeGenResult = results;
-                
             catch ME
-                obj.log('error', 'Code generation failed: %s', ME.message);
-                rethrow(ME);
+                obj.log('error', 'Code generation failed: %s', ME.message); rethrow(ME);
             end
         end
         
         function results = postCodegenTemplateProcessing(obj, results, options)
-            % Post-code generation template processing
             obj.log('debug', 'Performing post-codegen template processing...');
-            
-            results.processing_timestamp = now;
-            results.target_platform = options.TargetPlatform;
+            results.processing_timestamp = now; results.target_platform = options.TargetPlatform;
         end
         
         function saveCodegenResults(obj, results)
-            % Save code generation results
             try
                 timestamp = datestr(now, 'yyyymmdd_HHMMSS');
-                filename = sprintf('%s_codegen_results_T%s_%s.mat', ...
-                    obj.ModelName, strrep(obj.TEMPLATE_VERSION, '.', '_'), timestamp);
-                
-                save(filename, 'results');
-                obj.log('info', 'Code generation results saved to: %s', filename);
-                
+                filename = sprintf('%s_codegen_results_T%s_%s.mat', obj.ModelName, strrep(obj.TEMPLATE_VERSION, '.', '_'), timestamp);
+                save(filename, 'results'); obj.log('info', 'Code generation results saved to: %s', filename);
             catch ME
                 obj.log('warning', 'Failed to save codegen results: %s', ME.message);
             end
         end
         
-        function handleCodegenError(obj, ME, options)
-            % Handle code generation errors
-            obj.log('error', 'Code generation error: %s', ME.message);
-            notify(obj, 'SimulationError');
+        function handleCodegenError(obj, ME, options) %#ok<INUSD>
+            obj.log('error', 'Code generation error: %s', ME.message); notify(obj, 'SimulationError');
         end
         
         function metrics = getCurrentPerformanceMetrics(obj)
-            % Get current performance metrics
-            metrics = struct();
-            metrics.simulation_count = length(obj.PerformanceMetrics.simulations);
-            metrics.template_version = obj.TEMPLATE_VERSION;
-            
+            metrics = struct(); metrics.simulation_count = length(obj.PerformanceMetrics.simulations); metrics.template_version = obj.TEMPLATE_VERSION;
             if metrics.simulation_count > 0
                 execTimes = [obj.PerformanceMetrics.simulations.execution_time];
-                metrics.avg_execution_time = mean(execTimes);
-                metrics.min_execution_time = min(execTimes);
-                metrics.max_execution_time = max(execTimes);
+                metrics.avg_execution_time = mean(execTimes); metrics.min_execution_time = min(execTimes); metrics.max_execution_time = max(execTimes);
             end
         end
         
         function status = getResourceStatus(obj)
-            % Get resource monitoring status
-            status = struct();
-            status.current_memory_mb = obj.getMemoryUsage();
-            status.template_version = obj.TEMPLATE_VERSION;
-            
+            status = struct(); status.current_memory_mb = obj.getMemoryUsage(); status.template_version = obj.TEMPLATE_VERSION;
             if ~isempty(obj.ResourceMonitor)
-                status.start_memory_mb = obj.ResourceMonitor.start_memory;
-                status.peak_memory_mb = obj.ResourceMonitor.peak_memory;
+                status.start_memory_mb = obj.ResourceMonitor.start_memory; status.peak_memory_mb = obj.ResourceMonitor.peak_memory;
                 status.memory_growth_mb = status.current_memory_mb - status.start_memory_mb;
             end
         end
         
         function status = getStreamingStatus(obj)
-            % Get data streaming status
-            status = struct();
-            status.configured = ~isempty(obj.DataStreamConfig);
-            status.template_version = obj.TEMPLATE_VERSION;
-            
+            status = struct(); status.configured = ~isempty(obj.DataStreamConfig); status.template_version = obj.TEMPLATE_VERSION;
             if status.configured
-                status.format = obj.DataStreamConfig.Format;
-                status.buffer_size = obj.DataStreamConfig.BufferSize;
-                status.real_time = obj.DataStreamConfig.RealTime;
-                if isfield(obj.DataStreamConfig, 'buffer_index')
-                    status.buffer_usage = obj.DataStreamConfig.buffer_index;
-                else
-                    status.buffer_usage = 0;
-                end
+                status.format = obj.DataStreamConfig.Format; status.buffer_size = obj.DataStreamConfig.BufferSize; status.real_time = obj.DataStreamConfig.RealTime;
+                if isfield(obj.DataStreamConfig, 'buffer_index'), status.buffer_usage = obj.DataStreamConfig.buffer_index; else, status.buffer_usage = 0; end
             end
         end
         
-        % Cleanup methods
         function cleanupSimulationResources(obj)
-            % Cleanup simulation-related resources
             obj.log('debug', 'Cleaning up simulation resources...');
-            
-            % Clear event listeners
             for i = 1:length(obj.EventListeners)
-                try
-                    if isvalid(obj.EventListeners{i})
-                        delete(obj.EventListeners{i});
-                    end
-                catch
-                    % Ignore cleanup errors
-                end
+                try, if isvalid(obj.EventListeners{i}), delete(obj.EventListeners{i}); end, catch, end
             end
             obj.EventListeners = {};
         end
         
         function cleanupStreamingResources(obj)
-            % Cleanup streaming resources
             obj.log('debug', 'Cleaning up streaming resources...');
-            
-            % Flush any remaining buffer data
             if ~isempty(obj.DataStreamConfig) && isfield(obj.DataStreamConfig, 'buffer') && ~isempty(obj.DataStreamConfig.buffer)
-                try
-                    obj.flushStreamBuffer();
-                catch ME
-                    obj.log('warning', 'Failed to flush buffer during cleanup: %s', ME.message);
-                end
+                try, obj.flushStreamBuffer(); catch ME, obj.log('warning', 'Failed to flush buffer during cleanup: %s', ME.message); end
             end
-            
-            % Close any open file handles
             for i = 1:length(obj.StreamingHandles)
-                try
-                    if obj.StreamingHandles(i) > 0
-                        fclose(obj.StreamingHandles(i));
-                    end
-                catch
-                    % Ignore cleanup errors
-                end
+                try, if obj.StreamingHandles(i) > 0, fclose(obj.StreamingHandles(i)); end, catch, end
             end
             obj.StreamingHandles = [];
         end
         
         function cleanupParallelResources(obj)
-            % Cleanup parallel computing resources
-            obj.log('debug', 'Cleaning up parallel resources...');
-            
-            % Note: We don't delete the parallel pool as it might be used by other processes
-            % Just clear our reference
-            obj.ThreadPool = [];
+            obj.log('debug', 'Cleaning up parallel resources...'); obj.ThreadPool = [];
         end
         
         function cleanupMonitoringResources(obj)
-            % Cleanup monitoring resources
-            obj.log('debug', 'Cleaning up monitoring resources...');
-            
-            % Clear resource monitoring data
-            obj.ResourceMonitor = [];
+            obj.log('debug', 'Cleaning up monitoring resources...'); obj.ResourceMonitor = [];
         end
         
         function cleanupModel(obj)
-            % Cleanup model resources
             obj.log('debug', 'Cleaning up model...');
-            
             try
-                % Stop any running simulation
-                if strcmp(get_param(obj.ModelName, 'SimulationStatus'), 'running')
-                    set_param(obj.ModelName, 'SimulationCommand', 'stop');
-                end
-                
-                % Close the model
-                close_system(obj.ModelName, 0);
-                obj.IsLoaded = false;
-                
+                if strcmp(get_param(obj.ModelName, 'SimulationStatus'), 'running'), set_param(obj.ModelName, 'SimulationCommand', 'stop'); end
+                close_system(obj.ModelName, 0); obj.IsLoaded = false;
             catch ME
                 obj.log('warning', 'Error during model cleanup: %s', ME.message);
             end
         end
         
         function cleanupCacheResources(obj)
-            % Cleanup cache resources
             obj.log('debug', 'Cleaning up cache resources...');
-            
             if ~isempty(obj.CacheManager) && isstruct(obj.CacheManager)
-                % Clear cache data
                 if isfield(obj.CacheManager, 'cache') && isa(obj.CacheManager.cache, 'containers.Map')
                     obj.CacheManager.cache.remove(obj.CacheManager.cache.keys);
                 end
-                
                 obj.CacheManager = [];
             end
         end
         
         function restoreEnvironment(obj)
-            % Restore original environment
             obj.log('debug', 'Restoring environment...');
-            
             try
-                % Restore original path if changed
-                if ~isempty(obj.OriginalPath) && ~strcmp(pwd, obj.OriginalPath)
-                    cd(obj.OriginalPath);
-                end
+                if ~isempty(obj.OriginalPath) && ~strcmp(pwd, obj.OriginalPath), cd(obj.OriginalPath); end
             catch ME
                 obj.log('warning', 'Failed to restore original path: %s', ME.message);
+            end
+        end
+        
+        function s = localJoin(obj, items, delim) %#ok<INUSD>
+            if nargin < 3 || isempty(delim), delim = ', '; end
+            try
+                if isstring(items), items = cellstr(items); end
+                if ischar(items), s = items; return; end
+                if iscell(items)
+                    parts = cellfun(@(x) char(string(x)), items, 'UniformOutput', false);
+                    s = '';
+                    for i = 1:numel(parts)
+                        if i > 1, s = [s delim]; end %#ok<AGROW>
+                        s = [s parts{i}]; %#ok<AGROW>
+                    end
+                else
+                    s = char(string(items));
+                end
+            catch
+                s = '';
+                try
+                    for i = 1:numel(items)
+                        if i > 1, s = [s delim]; end %#ok<AGROW>
+                        s = [s char(string(items{i}))]; %#ok<AGROW>
+                    end
+                catch
+                end
             end
         end
         

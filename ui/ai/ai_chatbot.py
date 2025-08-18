@@ -758,7 +758,7 @@ class AIChatUIManager(QObject):
     def on_clear_ai_chat_history(self):
         logger.info("AIChatUI: on_clear_ai_chat_history CALLED!")
         if self.mw.ai_chatbot_manager:
-            reply = QMessageBox.question(self, "Clear Chat History",
+            reply = QMessageBox.question(self.mw, "Clear Chat History",
                                          "Are you sure you want to clear the entire AI chat history?",
                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:

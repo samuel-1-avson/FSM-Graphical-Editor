@@ -154,10 +154,11 @@ class RemoveItemsCommand(QUndoCommand):
                 item_to_remove = self.scene.get_state_by_name(item_data['name'])
             elif item_data['_type'] == GraphicsCommentItem.Type:
                 for scene_item in self.scene.items():
+                    # --- FIX: Compare HTML to HTML, not plain text ---
                     if isinstance(scene_item, GraphicsCommentItem) and \
                        scene_item.x() == item_data['x'] and \
                        scene_item.y() == item_data['y'] and \
-                       scene_item.toPlainText() == item_data['text']:
+                       scene_item.toHtml() == item_data['text']:
                         item_to_remove = scene_item
                         break
             elif item_data['_type'] == GraphicsTransitionItem.Type:

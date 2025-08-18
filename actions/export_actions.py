@@ -136,7 +136,7 @@ class ExportActionHandler(QObject):
         if output_dir:
             sketch_name, ok = QInputDialog.getText(self.mw, "Arduino Sketch Name",
                                                    "Enter a name for the Arduino sketch (this will be the folder and .ino file name):",
-                                                   QLineEdit.Normal, default_filename_base)
+                                                   QLineEdit.EchoMode.Normal, default_filename_base)
             if not (ok and sketch_name.strip()):
                 return
             
@@ -183,7 +183,7 @@ class ExportActionHandler(QObject):
 
         class_name, ok = QInputDialog.getText(self.mw, "FSM Class Name",
                                               "Enter a name for the Python FSM class:",
-                                              QLineEdit.Normal, default_classname_base)
+                                              QLineEdit.EchoMode.Normal, default_classname_base)
         if not (ok and class_name.strip()):
             return
 
@@ -211,11 +211,47 @@ class ExportActionHandler(QObject):
             QMessageBox.critical(self.mw, "Python FSM Generation Error", f"Failed to generate Python FSM: {e}")
             logger.error(f"Error generating Python FSM: {e}", exc_info=True)
 
+    def on_export_with_plugin(self, plugin: BsmExporterPlugin):
+        """Handles the generic export process using a plugin."""
+        editor = self.mw.current_editor()
+        if not editor or not editor.scene.items():
+            QMessageBox.information(self.mw, "Empty Diagram", "Cannot export an empty diagram.")
+            return
+
+        default_filename = "fsm_diagram"
+        if editor.file_path:
+            default_filename = os.path.splitext(os.path.basename(editor.file_path))[0]
+        
+        start_dir = os.path.dirname(editor.file_path) if editor.file_path else QDir.homePath()
+        
+        file_path, _ = QFileDialog.getSaveFileName(self.mw, f"Export as {plugin.name}", os.path.join(start_dir, default_filename), plugin.file_filter)
+        
+        if not file_path:
+            return
+
+        diagram_data = editor.scene.get_diagram_data()
+        try:
+            exported_content_dict = plugin.export(diagram_data, base_filename=os.path.splitext(os.path.basename(file_path))[0])
+            
+            # The plugin can return multiple files, although most will return one
+            base_dir = os.path.dirname(file_path)
+            saved_paths = []
+            for fname, content in exported_content_dict.items():
+                path = os.path.join(base_dir, fname)
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                saved_paths.append(path)
+
+            QMessageBox.information(self.mw, "Export Successful", f"Diagram successfully exported as {plugin.name}:\n" + "\n".join(saved_paths))
+        except Exception as e:
+            QMessageBox.critical(self.mw, "Export Error", f"Failed to export diagram: {e}")
+            logger.error(f"Error exporting with plugin '{plugin.name}': {e}", exc_info=True)
+
     @pyqtSlot()
     def on_export_plantuml(self):
         plantuml_plugin = next((p for p in self.mw.plugin_manager.exporter_plugins if "PlantUML" in p.name), None)
         if plantuml_plugin:
-            self.mw.action_handler.file_handler.on_export_with_plugin(plantuml_plugin)
+            self.on_export_with_plugin(plantuml_plugin)
         else:
             QMessageBox.critical(self.mw, "Plugin Error", "PlantUML exporter plugin not found.")
 
@@ -223,7 +259,7 @@ class ExportActionHandler(QObject):
     def on_export_mermaid(self):
         mermaid_plugin = next((p for p in self.mw.plugin_manager.exporter_plugins if "Mermaid" in p.name), None)
         if mermaid_plugin:
-            self.mw.action_handler.file_handler.on_export_with_plugin(mermaid_plugin)
+            self.on_export_with_plugin(mermaid_plugin)
         else:
             QMessageBox.critical(self.mw, "Plugin Error", "Mermaid exporter plugin not found.")
 
@@ -239,7 +275,7 @@ class ExportActionHandler(QObject):
             base_name = os.path.splitext(os.path.basename(editor.file_path))[0]
             default_entity_name = sanitize_vhdl_identifier(base_name)
         
-        entity_name, ok = QInputDialog.getText(self.mw, "VHDL Entity Name", "Enter a name for the VHDL entity:", QLineEdit.Normal, default_entity_name)
+        entity_name, ok = QInputDialog.getText(self.mw, "VHDL Entity Name", "Enter a name for the VHDL entity:", QLineEdit.EchoMode.Normal, default_entity_name)
         if not (ok and entity_name.strip()): return
         entity_name = entity_name.strip()
         
@@ -270,7 +306,7 @@ class ExportActionHandler(QObject):
             base_name = os.path.splitext(os.path.basename(editor.file_path))[0]
             default_module_name = sanitize_verilog_identifier(base_name)
         
-        module_name, ok = QInputDialog.getText(self.mw, "Verilog Module Name", "Enter a name for the Verilog module:", QLineEdit.Normal, default_module_name)
+        module_name, ok = QInputDialog.getText(self.mw, "Verilog Module Name", "Enter a name for the Verilog module:", QLineEdit.EchoMode.Normal, default_module_name)
         if not (ok and module_name.strip()): return
         module_name = module_name.strip()
         

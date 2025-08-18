@@ -370,6 +370,15 @@ class UIBuilder:
         for attr_name, (object_name, title) in docks_to_create.items():
             setattr(mw, attr_name, QDockWidget(title, mw, objectName=object_name))
 
+        # --- MODIFIED: Explicitly set features to allow user interaction ---
+        dock_list = [getattr(mw, attr_name) for attr_name in docks_to_create.keys()]
+        for dock in dock_list:
+            if dock:
+                dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable | 
+                                 QDockWidget.DockWidgetFeature.DockWidgetFloatable | 
+                                 QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        # --- END MODIFICATION ---
+
         left_right_area = Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
         bottom_only = Qt.DockWidgetArea.BottomDockWidgetArea
         all_areas = left_right_area | bottom_only

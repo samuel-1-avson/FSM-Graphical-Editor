@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox, QInputDialog, QLineEdit, Q
 from ..managers.signal_bus import signal_bus
 
 from ..utils.config import FILE_EXTENSION, FILE_FILTER, PROJECT_FILE_EXTENSION, PROJECT_FILE_FILTER
-from ..plugins.api import BsmExporterPlugin
+from ..plugins.api import BsmExporterPlugin, BsmImporterPlugin
 from ..codegen import parse_plantuml, parse_mermaid
 # --- REMOVED: Top-level import is no longer needed ---
 # from ..ui.dialogs import ImportFromTextDialog
@@ -28,6 +28,9 @@ class FileActionHandler(QObject):
     @pyqtSlot()
     def on_new_project(self):
         """Shows the New Project dialog and creates a project structure."""
+        if not self.on_close_project():
+            return
+
         from ..ui.dialogs import NewProjectDialog
         
         dialog = NewProjectDialog(self.mw)
@@ -114,6 +117,8 @@ class FileActionHandler(QObject):
             if len(project_files) > 1:
                 QMessageBox.information(self.mw, "Multiple Projects Selected", "Please open only one project at a time.")
         
+            if not self.on_close_project():
+                return
             if not self.mw.project_manager.load_project(project_files[0]):
                 QMessageBox.critical(self.mw, "Project Load Failed", f"Could not load the project file:\n{project_files[0]}")
             return
@@ -136,13 +141,15 @@ class FileActionHandler(QObject):
         action = self.mw.sender()
         if isinstance(action, QAction):
             file_path = action.data()
-            if not self.mw._prompt_save_if_dirty():
-                return
             if file_path.endswith(PROJECT_FILE_EXTENSION):
+                if not self.on_close_project():
+                    return
                 if not self.mw.project_manager.load_project(file_path):
                      QMessageBox.critical(self.mw, "Project Load Failed", f"Could not load project: {file_path}")
                      self.remove_from_recent_files(file_path)
             elif file_path.endswith(FILE_EXTENSION):
+                if not self.mw._prompt_save_if_dirty():
+                    return
                 if self.mw.find_editor_by_path(file_path):
                     self.mw.tab_widget.setCurrentWidget(self.mw.find_editor_by_path(file_path))
                 else:
@@ -151,20 +158,23 @@ class FileActionHandler(QObject):
                  QMessageBox.warning(self.mw, "Unsupported File", f"The recent file '{os.path.basename(file_path)}' has an unsupported type.")
     
     @pyqtSlot()
-    def on_close_project(self):
-        """Closes the current project after ensuring all files are saved."""
-        if not self.mw.project_manager.is_project_open():
-            return
-
+    def on_close_project(self) -> bool:
+        """
+        Closes the current project and all open tabs after ensuring all files are saved.
+        Returns False if the user cancels the operation, True otherwise.
+        """
         # Iterate backwards to safely remove tabs
         for i in range(self.mw.tab_widget.count() - 1, -1, -1):
             editor = self.mw.tab_widget.widget(i)
             if not self.mw._prompt_save_on_close(editor):
                 # User cancelled the save/close operation
-                return
+                return False
 
         # If we get here, all tabs were either saved or discarded
-        self.mw.project_manager.close_project()
+        if self.mw.project_manager.is_project_open():
+            self.mw.project_manager.close_project()
+        
+        return True
 
     @pyqtSlot()
     def on_save_file(self) -> bool:
@@ -241,12 +251,9 @@ class FileActionHandler(QObject):
             QMessageBox.critical(self, "Parsing Error", f"Failed to parse the diagram text: {e}")
             logger.error(f"Error syncing FSM from text: {e}", exc_info=True)
             
-    # --- MODIFIED METHOD ---
     @pyqtSlot()
     def on_import_from_text(self):
         """Requests that the 'Import from Text' dialog be shown via the signal bus."""
-        # This method is now decoupled from the UI. It emits a signal.
-        # The UIManager will handle the request and show the dialog.
         signal_bus.dialog_requested.emit("import_from_text", {})
 
     @pyqtSlot()
@@ -361,16 +368,130 @@ class FileActionHandler(QObject):
         else:
             QMessageBox.warning(self.mw, "Example Not Found", f"Could not locate the example file: {filename}")
 
-
     @pyqtSlot()
     def on_export_png(self):
-        # Implementation moved from UIManager
-        pass # Placeholder for brevity
+        editor = self.mw.current_editor()
+        if not editor or not editor.scene.items():
+            QMessageBox.information(self.mw, "Empty Diagram", "Cannot export an empty diagram.")
+            return
+            
+        default_filename = "diagram.png"
+        if editor.file_path:
+            default_filename = os.path.splitext(os.path.basename(editor.file_path))[0] + ".png"
+        
+        file_path, _ = QFileDialog.getSaveFileName(self.mw, "Export as PNG", default_filename, "PNG Images (*.png)")
+        
+        if not file_path:
+            return
+        
+        try:
+            # Get the bounding rectangle of all items to export
+            rect = editor.scene.itemsBoundingRect()
+            # Add some padding
+            rect.adjust(-20, -20, 20, 20)
+            
+            # Create an image to render the scene onto
+            image = QImage(rect.size().toSize(), QImage.Format.Format_ARGB32_Premultiplied)
+            image.fill(Qt.GlobalColor.transparent)
+            
+            # Create a painter to draw the scene
+            painter = QPainter(image)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            
+            # Render the specified portion of the scene to the painter
+            editor.scene.render(painter, target=image.rect(), source=rect)
+            painter.end()
+            
+            # Save the image
+            if image.save(file_path):
+                QMessageBox.information(self.mw, "Export Successful", f"Diagram exported successfully to:\n{file_path}")
+                self.mw.log_message("INFO", f"Diagram exported as PNG to {file_path}")
+            else:
+                raise IOError("Failed to save the image.")
+                
+        except Exception as e:
+            QMessageBox.critical(self.mw, "Export Error", f"Failed to export diagram as PNG: {e}")
+            logger.error(f"Error exporting as PNG: {e}", exc_info=True)
 
     @pyqtSlot()
     def on_export_svg(self):
-        # Implementation moved from UIManager
-        pass # Placeholder for brevity
+        editor = self.mw.current_editor()
+        if not editor or not editor.scene.items():
+            QMessageBox.information(self.mw, "Empty Diagram", "Cannot export an empty diagram.")
+            return
+
+        default_filename = "diagram.svg"
+        if editor.file_path:
+            default_filename = os.path.splitext(os.path.basename(editor.file_path))[0] + ".svg"
+        
+        file_path, _ = QFileDialog.getSaveFileName(self.mw, "Export as SVG", default_filename, "SVG Images (*.svg)")
+        
+        if not file_path:
+            return
+
+        try:
+            # Get the bounding rectangle of all items
+            rect = editor.scene.itemsBoundingRect()
+            rect.adjust(-20, -20, 20, 20)
+
+            # Create an SVG generator
+            generator = QSvgGenerator()
+            generator.setFileName(file_path)
+            generator.setSize(rect.size().toSize())
+            generator.setViewBox(rect)
+            generator.setTitle("FSM Diagram")
+            generator.setDescription("Generated by BSM Designer")
+
+            # Create a painter to render to the SVG generator
+            painter = QPainter(generator)
+            editor.scene.render(painter)
+            painter.end()
+            
+            QMessageBox.information(self.mw, "Export Successful", f"Diagram exported successfully to:\n{file_path}")
+            self.mw.log_message("INFO", f"Diagram exported as SVG to {file_path}")
+
+        except Exception as e:
+            QMessageBox.critical(self.mw, "Export Error", f"Failed to export diagram as SVG: {e}")
+            logger.error(f"Error exporting as SVG: {e}", exc_info=True)
+            
+    # --- MODIFIED: The on_export_with_plugin method has been moved to ExportActionHandler ---
+    
+    def _find_importer_by_extension(self, file_path: str):
+        """Finds a suitable importer plugin based on the file extension."""
+        if not hasattr(self.mw, 'plugin_manager'):
+            return None
+        
+        file_extension = os.path.splitext(file_path)[1].lower()
+        if not file_extension:
+            return None
+            
+        for plugin in self.mw.plugin_manager.importer_plugins:
+            # The filter might contain multiple patterns, e.g., "*.puml *.plantuml"
+            filters = plugin.file_filter.split(';;')[0].split(' ')
+            for filt in filters:
+                if filt.endswith(file_extension):
+                    return plugin
+        return None
+
+    def _import_with_plugin(self, file_path: str, plugin: BsmImporterPlugin):
+        """Handles the generic import process using a plugin."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            diagram_data = plugin.import_data(content)
+            if diagram_data:
+                new_editor = self.mw.add_new_editor_tab()
+                new_editor.scene.load_diagram_data(diagram_data)
+                new_editor.set_dirty(True)
+                self.mw.action_handler.view_handler.on_fit_diagram_in_view()
+                self.mw.log_message("INFO", f"Successfully imported '{os.path.basename(file_path)}' using '{plugin.name}' importer.")
+            else:
+                QMessageBox.warning(self.mw, "Import Failed", "The selected plugin could not parse the file into a valid FSM diagram.")
+
+        except Exception as e:
+            QMessageBox.critical(self.mw, "Import Error", f"An error occurred while importing the file with {plugin.name}:\n{e}")
+            logger.error(f"Error importing with plugin '{plugin.name}': {e}", exc_info=True)
 
     def add_to_recent_files(self, file_path):
         if not self.mw.settings_manager:
