@@ -46,6 +46,24 @@ class FindItemDialog(QDialog):
         self.search_input.returnPressed.connect(self._on_return_pressed)
         layout.addWidget(self.search_input)
         self.results_list = QListWidget()
+        # --- MODIFICATION: Apply theme-aware stylesheet ---
+        self.results_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {theme_config.COLOR_BACKGROUND_LIGHT};
+                color: {theme_config.COLOR_TEXT_PRIMARY};
+                border: 1px solid {theme_config.COLOR_BORDER_MEDIUM};
+                border-radius: 4px;
+            }}
+            QListWidget::item {{
+                padding: 4px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {theme_config.COLOR_ACCENT_PRIMARY_LIGHT};
+                color: {theme_config.COLOR_TEXT_PRIMARY}; /* Use primary text for better readability on light accent */
+                border-radius: 3px;
+            }}
+        """)
+        # --- END MODIFICATION ---
         self.results_list.itemActivated.connect(self._on_item_activated)
         layout.addWidget(self.results_list)
         self._populate_initial_list()
@@ -563,6 +581,22 @@ class QuickAccessSettingsDialog(QDialog):
 
         self.setWindowTitle("Customize Quick Access Toolbar")
         self.setMinimumSize(600, 400)
+        # --- FIX: Apply theme-aware styling ---
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {theme_config.COLOR_BACKGROUND_DIALOG};
+            }}
+            QListWidget {{
+                background-color: {theme_config.COLOR_BACKGROUND_LIGHT};
+                color: {theme_config.COLOR_TEXT_PRIMARY};
+                border: 1px solid {theme_config.COLOR_BORDER_MEDIUM};
+                border-radius: 4px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {theme_config.COLOR_ACCENT_PRIMARY_LIGHT};
+                color: {theme_config.COLOR_TEXT_PRIMARY};
+            }}
+        """)
 
         layout = QVBoxLayout(self)
         main_hbox = QHBoxLayout()

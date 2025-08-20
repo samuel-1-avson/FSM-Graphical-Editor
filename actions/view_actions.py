@@ -46,3 +46,17 @@ class ViewActionHandler(QObject):
     @pyqtSlot()
     def on_auto_layout_diagram(self):
         self.mw.action_handler.edit_handler.on_auto_layout_diagram()
+
+    @pyqtSlot(str)
+    def on_align_items(self, alignment_type: str):
+        """Aligns selected items in the current editor."""
+        if editor := self.mw.current_editor():
+            if hasattr(editor.scene, 'align_selected_items'):
+                editor.scene.align_selected_items(alignment_type)
+
+    @pyqtSlot(str)
+    def on_distribute_items(self, distribution_type: str):
+        """Distributes selected items in the current editor."""
+        if editor := self.mw.current_editor():
+            if hasattr(editor.scene, 'distribute_selected_items'):
+                editor.scene.distribute_selected_items(distribution_type)

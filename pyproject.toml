@@ -1,0 +1,19 @@
+[tool.ruff]
+# Same as Black.
+line-length = 88
+
+[tool.ruff.lint]
+# Enable a broad set of rules for high-quality checks.
+# 'E' and 'F' are standard pyflakes/pep8 checks.
+# 'I' is for sorting imports.
+# 'B' is from flake8-bugbear (finds likely bugs).
+# 'UP' is from pyupgrade (modernizes syntax).
+select = ["E", "F", "I", "B", "UP"]
+
+# Ignore specific rules if needed. For example, E501 (line too long)
+# is already handled by the formatter.
+ignore = ["E501"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"

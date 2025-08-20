@@ -1,5 +1,3 @@
-# fsm_designer_project/ui/simulation/ui_virtual_hardware_manager.py
-
 import logging
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QFormLayout, QLabel, 
                              QSlider, QComboBox, QPushButton, QProgressBar, QFrame, QGridLayout,
@@ -28,10 +26,17 @@ class VirtualHardwareUIManager(QObject):
         self.hardware_link_manager.connectionStatusChanged.connect(self.on_connection_status_changed)
         self.hardware_link_manager.hardwareEventReceived.connect(self.on_hardware_event)
         self.hardware_link_manager.hardwareDataReceived.connect(self.on_hardware_data)
+        # Keep existing behavior, also update our own UI when link is lost.
         self.hardware_link_manager.hardwareLinkLost.connect(self.mw.py_sim_ui_manager.on_hardware_link_lost)
+        self.hardware_link_manager.hardwareLinkLost.connect(self.on_hardware_link_lost)
         
+        # Connection indicator animation state
         self.status_timer = QTimer()
+        self.status_timer.setInterval(80)  # smooth but not too frequent
         self.status_timer.timeout.connect(self.update_connection_indicator)
+        self._connection_state = 'disconnected'  # 'disconnected' | 'connecting' | 'connected'
+        self._pulse_t = 0.0
+        self._pulse_dir = 1.0
         
         logger.info("VirtualHardwareUIManager initialized.")
 
@@ -71,11 +76,77 @@ class VirtualHardwareUIManager(QObject):
         indicator_layout.setContentsMargins(0, 0, 0, 0)
         
         self.status_dot = QLabel("●")
+        self.status_dot.setToolTip("Connection status")
+        self.status_dot.setAccessibleName("Connection Status Indicator")
         self.status_dot.setStyleSheet("color: #ff0000; font-size: 12px;")
         indicator_layout.addWidget(self.status_dot)
         indicator_layout.addStretch()
         
         return indicator_widget
+
+    def _set_state(self, state: str, message: str = None):
+        """
+        Centralized connection state handler.
+        state: 'disconnected' | 'connecting' | 'connected'
+        """
+        self._connection_state = state
+        if message:
+            self.connection_status_label.setText(f"Status: {message}")
+        
+        if state == 'connecting':
+            self._pulse_t = 0.0
+            self._pulse_dir = 1.0
+            if not self.status_timer.isActive():
+                self.status_timer.start()
+            # Button communicates in-progress action
+            self.connect_btn.setText("🔌 Connecting...")
+            self.connect_btn.setChecked(True)
+            self.connect_btn.setToolTip("Connecting... Click again to cancel")
+            # Lock port selector while connecting
+            self.port_combo.setEnabled(False)
+            self.refresh_ports_btn.setEnabled(False)
+
+        elif state == 'connected':
+            self._pulse_t = 0.0
+            self._pulse_dir = 1.0
+            # Slow heartbeat to indicate link is alive
+            if not self.status_timer.isActive():
+                self.status_timer.start()
+            self.connect_btn.setText("🔌 Disconnect")
+            self.connect_btn.setChecked(True)
+            self.connect_btn.setToolTip("Disconnect from hardware")
+            # Remember last port if config supports it
+            try:
+                if hasattr(config, 'set'):
+                    config.set('hardware.last_port', self.port_combo.currentText())
+                elif hasattr(config, '__setitem__'):
+                    config['hardware.last_port'] = self.port_combo.currentText()
+                if hasattr(config, 'save'):
+                    config.save()
+            except Exception:
+                pass
+
+        elif state == 'disconnected':
+            self.status_timer.stop()
+            # Red static indicator
+            self.status_dot.setStyleSheet("color: #ff3b3b; font-size: 12px;")
+            self.connect_btn.setText("🔌 Connect")
+            self.connect_btn.setChecked(False)
+            self.connect_btn.setToolTip("Connect to selected serial port")
+            # Unlock inputs
+            self.port_combo.setEnabled(True)
+            self.refresh_ports_btn.setEnabled(True)
+
+    def _lerp_color(self, c1, c2, t: float) -> str:
+        """Linear interpolate two RGB tuples, return hex string."""
+        r = int(c1[0] + (c2[0] - c1[0]) * t)
+        g = int(c1[1] + (c2[1] - c1[1]) * t)
+        b = int(c1[2] + (c2[2] - c1[2]) * t)
+        return f"#{r:02x}{g:02x}{b:02x}"
+
+    def _set_status_dot_color(self, rgb_tuple):
+        hex_color = f"#{rgb_tuple[0]:02x}{rgb_tuple[1]:02x}{rgb_tuple[2]:02x}"
+        self.status_dot.setStyleSheet(f"color: {hex_color}; font-size: 12px;")
 
     def create_dock_widget_contents(self) -> QWidget:
         scroll_area = QScrollArea()
@@ -101,6 +172,8 @@ class VirtualHardwareUIManager(QObject):
         config_layout.addWidget(port_label, 0, 0)
         
         self.port_combo = QComboBox()
+        self.port_combo.setAccessibleName("Serial Port Selection")
+        self.port_combo.setToolTip("Select a serial port for the hardware link")
         self.port_combo.setStyleSheet("""
             QComboBox {
                 padding: 4px 8px;
@@ -115,6 +188,8 @@ class VirtualHardwareUIManager(QObject):
         config_layout.addWidget(self.port_combo, 0, 1)
         
         self.refresh_ports_btn = QPushButton("⟳ Refresh")
+        self.refresh_ports_btn.setAccessibleName("Refresh Ports")
+        self.refresh_ports_btn.setToolTip("Scan for available serial ports")
         self.refresh_ports_btn.setStyleSheet("""
             QPushButton {
                 padding: 4px 10px;
@@ -132,6 +207,8 @@ class VirtualHardwareUIManager(QObject):
         
         self.connect_btn = QPushButton("🔌 Connect")
         self.connect_btn.setCheckable(True)
+        self.connect_btn.setAccessibleName("Connect Button")
+        self.connect_btn.setToolTip("Connect to selected serial port")
         self.connect_btn.setStyleSheet("""
             QPushButton {
                 padding: 6px 12px;
@@ -155,8 +232,10 @@ class VirtualHardwareUIManager(QObject):
         status_layout.addWidget(self._create_status_indicator())
         
         self.connection_status_label = QLabel("Status: Disconnected")
+        self.connection_status_label.setAccessibleName("Connection Status Label")
         self.connection_status_label.setStyleSheet("font-family: Arial; color: #cccccc; font-weight: bold;")
         status_layout.addWidget(self.connection_status_label)
+        status_layout.addStretch()
         hil_layout.addWidget(status_frame)
         main_layout.addWidget(hil_group)
         
@@ -175,6 +254,8 @@ class VirtualHardwareUIManager(QObject):
         for i in range(4):
             led_key = f"LED{i}"
             led = VirtualLedWidget()
+            led.setAccessibleName(f"LED {i}")
+            led.setToolTip(f"Digital output indicator LED {i}")
             self.virtual_leds[led_key] = led
             led_frame = QFrame()
             led_frame.setStyleSheet("background-color: #4a4a4a; border-radius: 4px; padding: 4px;")
@@ -192,6 +273,8 @@ class VirtualHardwareUIManager(QObject):
         for i in range(4):
             button_key = f"Button{i}"
             button = VirtualButtonWidget(f"Trigger B{i}")
+            button.setAccessibleName(f"Virtual Button {i}")
+            button.setToolTip(f"Trigger mapped hardware event from Button{i}")
             button.setStyleSheet("""
                 QPushButton {
                     padding: 6px 10px;
@@ -218,6 +301,8 @@ class VirtualHardwareUIManager(QObject):
             slider_container_layout = QHBoxLayout(slider_container)
             slider = VirtualSliderWidget(Qt.Orientation.Horizontal)
             slider.setRange(0, 1023)
+            slider.setAccessibleName(f"Analog Input Slider A{i}")
+            slider.setToolTip(f"Simulate analog input A{i} (0-1023)")
             slider.setStyleSheet("""
                 QSlider::groove:horizontal {
                     height: 6px;
@@ -248,6 +333,8 @@ class VirtualHardwareUIManager(QObject):
         for i in range(2):
             gauge_key = f"Gauge{i}"
             gauge = VirtualGaugeWidget()
+            gauge.setAccessibleName(f"Analog Output Gauge PWM {i}")
+            gauge.setToolTip(f"Analog output PWM {i} level")
             gauge.setStyleSheet("""
                 QProgressBar {
                     border: 1px solid #555555;
@@ -269,6 +356,30 @@ class VirtualHardwareUIManager(QObject):
         io_grid.setColumnStretch(0, 1)
         io_grid.setColumnStretch(1, 1)
         main_layout.addWidget(io_container)
+
+        # Quick actions row (Reset I/O)
+        actions_frame = QFrame()
+        actions_frame.setStyleSheet("background-color: #3a3a3a; border: 1px solid #555555; border-radius: 4px; padding: 6px;")
+        actions_layout = QHBoxLayout(actions_frame)
+        actions_layout.addStretch()
+        self.reset_io_btn = QPushButton("↺ Reset I/O")
+        self.reset_io_btn.setAccessibleName("Reset IO Button")
+        self.reset_io_btn.setToolTip("Reset sliders to 0 and gauges to 0%")
+        self.reset_io_btn.setStyleSheet("""
+            QPushButton {
+                padding: 6px 12px;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                background-color: #404040;
+                color: #ffffff;
+                font-family: Arial;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #505050; }
+        """)
+        self.reset_io_btn.clicked.connect(self.on_reset_io_clicked)
+        actions_layout.addWidget(self.reset_io_btn)
+        main_layout.addWidget(actions_frame)
 
         main_layout.addStretch()
 
@@ -294,45 +405,106 @@ class VirtualHardwareUIManager(QObject):
         return wrapper
 
     def update_connection_indicator(self):
-        pass
+        """
+        Animate the status dot according to connection state.
+        - connecting: amber pulse
+        - connected: subtle green heartbeat
+        - disconnected: timer stopped elsewhere, dot stays red
+        """
+        # Pulse parameter oscillates between 0 and 1
+        self._pulse_t += 0.06 * self._pulse_dir
+        if self._pulse_t >= 1.0:
+            self._pulse_t = 1.0
+            self._pulse_dir = -1.0
+        elif self._pulse_t <= 0.0:
+            self._pulse_t = 0.0
+            self._pulse_dir = 1.0
+
+        if self._connection_state == 'connecting':
+            base = (192, 127, 0)   # amber base
+            hi = (240, 180, 41)    # amber highlight
+            hex_color = self._lerp_color(base, hi, self._pulse_t)
+            self.status_dot.setStyleSheet(f"color: {hex_color}; font-size: 12px;")
+        elif self._connection_state == 'connected':
+            base = (42, 77, 42)    # dark green
+            hi = (85, 170, 85)     # brighter green
+            hex_color = self._lerp_color(base, hi, self._pulse_t * 0.65)  # subtle heartbeat
+            self.status_dot.setStyleSheet(f"color: {hex_color}; font-size: 12px;")
 
     @pyqtSlot()
     def on_refresh_ports(self):
-        ports = self.hardware_link_manager.list_available_ports()
+        try:
+            ports = self.hardware_link_manager.list_available_ports()
+        except Exception as e:
+            logger.exception("Error listing ports: %s", e)
+            ports = []
+
+        # Optional: recall last used port if config supports it
+        last_port = None
+        try:
+            if hasattr(config, 'get'):
+                last_port = config.get('hardware.last_port', None)
+            elif hasattr(config, '__getitem__'):
+                last_port = config.get('hardware.last_port', None)
+        except Exception:
+            last_port = None
+
         current_selection = self.port_combo.currentText()
         self.port_combo.clear()
-        self.port_combo.addItems(ports)
-        if current_selection in ports:
-            self.port_combo.setCurrentText(current_selection)
-        self.port_combo.setEnabled(bool(ports))
-        self.connect_btn.setEnabled(bool(ports))
+        if ports:
+            self.port_combo.addItems(ports)
+            # Prefer current, then last used
+            if current_selection in ports:
+                self.port_combo.setCurrentText(current_selection)
+            elif last_port in ports:
+                self.port_combo.setCurrentText(last_port)
+            self.port_combo.setEnabled(True)
+            self.connect_btn.setEnabled(True)
+            self.port_combo.setToolTip("Select a serial port for the hardware link")
+        else:
+            # No ports available: disable and inform user
+            self.port_combo.addItem("No ports found")
+            self.port_combo.setEnabled(False)
+            self.connect_btn.setEnabled(False)
+            self.port_combo.setToolTip("No serial ports detected")
 
     @pyqtSlot(bool)
     def on_connect_toggle(self, checked: bool):
         if checked:
             port = self.port_combo.currentText()
-            if port:
+            if not port or port == "No ports found":
+                self.connect_btn.setChecked(False)
+                return
+            try:
+                # Enter 'connecting' state immediately for responsive UX
+                self._set_state('connecting', f"Connecting to {port}...")
                 self.hardware_link_manager.connect_to_port(port)
-                self.port_combo.setEnabled(False)
-                self.refresh_ports_btn.setEnabled(False)
-                self.connect_btn.setText("🔌 Connecting...")
+            except Exception as e:
+                logger.exception("Error initiating connection: %s", e)
+                self._set_state('disconnected', "Disconnected")
         else:
-            self.hardware_link_manager.disconnect_from_port()
-            self.connect_btn.setText("🔌 Disconnecting...")
+            try:
+                self.connection_status_label.setText("Status: Disconnecting...")
+                self.connect_btn.setText("🔌 Disconnecting...")
+                self.hardware_link_manager.disconnect_from_port()
+            except Exception as e:
+                logger.exception("Error initiating disconnect: %s", e)
+                # Fall back to disconnected state
+                self._set_state('disconnected', "Disconnected")
 
     @pyqtSlot(bool, str)
     def on_connection_status_changed(self, is_connected: bool, message: str):
+        # Update label with message from backend
         self.connection_status_label.setText(f"Status: {message}")
         if is_connected:
-            self.connect_btn.setText("🔌 Disconnect")
-            self.connect_btn.setChecked(True)
-            self.status_dot.setStyleSheet("color: #2a4d2a; font-size: 12px;")
+            self._set_state('connected', message)
         else:
-            self.connect_btn.setText("🔌 Connect")
-            self.connect_btn.setChecked(False)
-            self.port_combo.setEnabled(True)
-            self.refresh_ports_btn.setEnabled(True)
-            self.status_dot.setStyleSheet("color: #ff0000; font-size: 12px;")
+            self._set_state('disconnected', message)
+
+    @pyqtSlot()
+    def on_hardware_link_lost(self):
+        # Ensure our UI reflects link loss immediately
+        self._set_state('disconnected', "Link lost")
 
     @pyqtSlot(str)
     def on_virtual_button_clicked(self, button_key: str):
@@ -362,37 +534,70 @@ class VirtualHardwareUIManager(QObject):
         if not triggered_event:
             logger.info(f"Hardware component '{component_key}' was activated, but it's not mapped to any transition's event.")
 
+    def _set_led_widget_state(self, widget: QWidget, on: bool):
+        """
+        Try common APIs to set a LED state without knowing exact implementation.
+        """
+        try:
+            if hasattr(widget, "set_on"):
+                widget.set_on(on)
+            elif hasattr(widget, "setChecked"):
+                widget.setChecked(on)
+            elif hasattr(widget, "setValue"):
+                widget.setValue(100 if on else 0)
+        except Exception as e:
+            logger.debug("Could not set LED state: %s", e)
+
     @pyqtSlot(str, object)
     def on_hardware_data(self, component_name: str, value: object):
         editor = self.mw.current_editor()
         if not editor or not editor.py_fsm_engine or not editor.py_sim_active:
             return
 
-        editor.py_fsm_engine._variables[component_name] = value
+        # reflect variables in engine
+        try:
+            editor.py_fsm_engine._variables[component_name] = value
+        except Exception:
+            pass
         
+        # Synchronize sliders (analog inputs)
         if component_name in self.virtual_sliders:
             slider = self.virtual_sliders[component_name]
             slider.blockSignals(True)
             try:
                 slider_val = int(value)
-                if slider.minimum() <= slider_val <= slider.maximum():
-                    slider.setValue(slider_val)
+                slider_val = max(slider.minimum(), min(slider.maximum(), slider_val))
+                slider.setValue(slider_val)
             except (ValueError, TypeError):
                 logger.warning(f"Could not convert value '{value}' to integer for slider '{component_name}'.")
             finally:
                 slider.blockSignals(False)
         
+        # Synchronize gauges (analog outputs)
         if component_name in self.virtual_gauges:
             gauge = self.virtual_gauges[component_name]
             try:
                 gauge_val = int(value)
-                if gauge.minimum() <= gauge_val <= gauge.maximum():
-                    gauge.setValue(gauge_val)
+                gauge_val = max(gauge.minimum(), min(gauge.maximum(), gauge_val))
+                gauge.setValue(gauge_val)
             except (ValueError, TypeError):
                 logger.warning(f"Could not convert value '{value}' for gauge '{component_name}'.")
 
+        # Synchronize LEDs (digital outputs)
+        if component_name in self.virtual_leds:
+            led = self.virtual_leds[component_name]
+            try:
+                # interpret numbers/strings as boolean where possible
+                if isinstance(value, str):
+                    on = value.strip().lower() in ("1", "true", "on", "yes", "high")
+                else:
+                    on = bool(value)
+                self._set_led_widget_state(led, on)
+            except Exception as e:
+                logger.debug("Error updating LED '%s': %s", component_name, e)
+
+        # Update any dependent UI (kept from your original behavior)
         self.mw.py_sim_ui_manager.update_dock_ui_contents()
-        
         
     @pyqtSlot()
     def on_send_serial_data(self):
@@ -405,3 +610,20 @@ class VirtualHardwareUIManager(QObject):
         if text_to_send:
             self.hardware_link_manager.send_command(text_to_send)
             main_window.serial_input_edit.clear()
+
+    @pyqtSlot()
+    def on_reset_io_clicked(self):
+        """Reset sliders to 0 and gauges to 0, leaving LEDs as-is (outputs)."""
+        for key, slider in self.virtual_sliders.items():
+            try:
+                slider.blockSignals(True)
+                slider.setValue(slider.minimum())
+            finally:
+                slider.blockSignals(False)
+
+        for key, gauge in self.virtual_gauges.items():
+            try:
+                # Assuming minimum is 0; clamp just in case
+                gauge.setValue(max(gauge.minimum(), 0))
+            except Exception:
+                pass

@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QLabel, QGroupBox, QStyle, QMainWindow, QFontComboBox, QDoubleSpinBox,
     QGraphicsScene, QGraphicsView, QScrollArea, QFrame,
     QMessageBox, QTabWidget, QWidget,
-    QVBoxLayout, QMenu
+    QVBoxLayout, QMenu, QToolBar, QInputDialog
 )
 from PyQt6.QtGui import QColor, QFont, QIcon, QPixmap, QPen, QUndoStack, QAction
 from PyQt6.QtCore import Qt, QSize, QPointF, QDir

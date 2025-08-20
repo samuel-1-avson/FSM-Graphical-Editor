@@ -1,4 +1,4 @@
-{# fsm_designer_project/assets/templates/generate_slx.m.j2 - Enhanced MATLAB Template (Fixed + Layout-safe) #}
+{# fsm_designer_project/assets/templates/generate_slx.m.j2 - Enhanced MATLAB Template (Fixed + Layout-safe + Default MidPoint) #}
 {% set template_version = "2.1.0" %}
 {% set enable_validation = enable_validation | default(true) %}
 {% set enable_detailed_logging = enable_detailed_logging | default(true) %}
@@ -115,9 +115,9 @@ function modelConfig = setupModelConfiguration()
     modelConfig.layout.stateSize = {{ state_size | default(default_state_size) }};
     modelConfig.layout.spacing = {{ state_spacing | default(default_state_spacing) }};
     modelConfig.layout.arrangement = '{{ state_arrangement | default("auto") }}';
-    % Move states away from the chart's default junction (safer defaults)
-    modelConfig.layout.marginX = {{ layout_margin_x | default("200") }};
-    modelConfig.layout.marginY = {{ layout_margin_y | default("200") }};
+    % Safer defaults to avoid default-junction overlap
+    modelConfig.layout.marginX = {{ layout_margin_x | default("220") }};
+    modelConfig.layout.marginY = {{ layout_margin_y | default("220") }};
     {% if model_properties %}{% for prop, value in model_properties.items() %}
     modelConfig.properties.{{ prop }} = {% if value is string %}'{{ value | replace("'", "''") }}'{% else %}{{ value | tojson }}{% endif %};
     {% endfor %}{% else %}
@@ -214,7 +214,7 @@ function [stateMap, stats] = createAllStates(chartHandle, modelConfig)
         stateObj = Stateflow.State(chartHandle);
         stateObj.Name = stateName;
 
-        % Compute safe position (avoid default junction at top-left)
+        % Compute safe position (avoid default junction at top-left). Clamp IR x/y if too small.
         statePosition = calculateStatePosition({{ loop.index0 }}, layoutParams, modelConfig.layout);
         {% if state.properties and state.properties.x is defined and state.properties.y is defined %}
         try
@@ -222,8 +222,9 @@ function [stateMap, stats] = createAllStates(chartHandle, modelConfig)
             sy = {{ state.properties.y }};
             sw = {{ state.properties.get('width', 120) }};
             sh = {{ state.properties.get('height', 80) }};
-            if ~isnumeric(sx) || isempty(sx) || sx < 100, sx = statePosition(1); end
-            if ~isnumeric(sy) || isempty(sy) || sy < 100, sy = statePosition(2); end
+            % Require reasonably large coords to override layout
+            if ~isnumeric(sx) || isempty(sx) || sx < (modelConfig.layout.marginX - 50), sx = statePosition(1); end
+            if ~isnumeric(sy) || isempty(sy) || sy < (modelConfig.layout.marginY - 50), sy = statePosition(2); end
             if ~isnumeric(sw) || isempty(sw) || sw < 80,  sw = statePosition(3); end
             if ~isnumeric(sh) || isempty(sh) || sh < 50,  sh = statePosition(4); end
             statePosition = [sx, sy, sw, sh];
@@ -250,16 +251,16 @@ function [stateMap, stats] = createAllStates(chartHandle, modelConfig)
         stateMap(stateName) = stateObj;
         if isempty(firstStateObj), firstStateObj = stateObj; firstStateName = stateName; end
 
-        % Initial state: create unguarded default transition (only first time)
+        % Initial state: create unguarded default transition (only first time) and place its origin safely
         {% if state.is_initial %}
         if ~stats.initialSet
             try
-                dft = chartHandle.DefaultTransition;
-                if isempty(dft)
-                    dft = Stateflow.Transition(chartHandle);
-                end
+                dft = Stateflow.Transition(chartHandle);
                 dft.Destination = stateObj;
                 try, dft.LabelString = ''; catch, end
+                % Move default origin "dot" away from state grid (to the left of margins)
+                try, dft.MidPoint = [modelConfig.layout.marginX - 80, modelConfig.layout.marginY + 20]; catch, end
+                try, dft.DestinationOClock = 12; catch, end
                 stats.initialSet = true;
                 {% if enable_detailed_logging %} fprintf('    ✓ Set as initial state (unguarded default)\n'); {% endif %}
             catch initErr
@@ -283,15 +284,14 @@ function [stateMap, stats] = createAllStates(chartHandle, modelConfig)
     end
     {% endfor %}
 
-    % Fallback: ensure there is one unguarded default transition
+    % Fallback: ensure there is one unguarded default transition and place its origin safely
     try
         if ~stats.initialSet && ~isempty(firstStateObj)
-            dft2 = chartHandle.DefaultTransition;
-            if isempty(dft2)
-                dft2 = Stateflow.Transition(chartHandle);
-            end
+            dft2 = Stateflow.Transition(chartHandle);
             dft2.Destination = firstStateObj;
             try, dft2.LabelString = ''; catch, end
+            try, dft2.MidPoint = [modelConfig.layout.marginX - 80, modelConfig.layout.marginY + 20]; catch, end
+            try, dft2.DestinationOClock = 12; catch, end
             stats.initialSet = true;
             {% if enable_detailed_logging %} fprintf('  ✓ Set "%s" as fallback default initial state\n', firstStateName); {% endif %}
         end
@@ -376,17 +376,18 @@ function validateModelIntegrity(chartHandle, stateMap)
         stateCount = length(stateNames);
         if stateCount == 0, error('FSMGenerator:NoStates', 'No states were created'); end
 
-        % Robust default transition check (avoid errors if it doesn't exist yet)
+        % Robust default transition check
         hasDefaultTransition = false;
         try
-            dft = chartHandle.DefaultTransition;
-            if ~isempty(dft) && ~isempty(dft.Destination)
-                hasDefaultTransition = true;
+            dfts = chartHandle.find('-isa','Stateflow.Transition');
+            for kk = 1:numel(dfts)
+                if isempty(dfts(kk).Source) && ~isempty(dfts(kk).Destination)
+                    hasDefaultTransition = true; break;
+                end
             end
         catch
             hasDefaultTransition = false;
         end
-
         if ~hasDefaultTransition
             warning('FSMGenerator:NoInitialState', 'No initial (default) state defined');
         end

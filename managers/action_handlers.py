@@ -1,4 +1,4 @@
-# fsm_designer_project/managers/action_handlers.py
+# fsm_designer_project/actions/action_handlers.py
 import logging
 from PyQt6.QtCore import QObject
 from ..actions import (
@@ -123,15 +123,17 @@ class ActionHandler(QObject):
         self.mw.customize_quick_access_action.triggered.connect(self.help_handler.on_customize_quick_access)
         self.mw.open_example_traffic_action.triggered.connect(lambda: self.file_handler._open_example_file("traffic_light.bsm"))
         self.mw.open_example_toggle_action.triggered.connect(lambda: self.file_handler._open_example_file("simple_toggle.bsm"))
-        self.mw.open_example_coffee_action.triggered.connect(lambda: self.file_handler._open_example_file("coffee_machine.bsm"))
+        self.mw.open_example_coffee_action.triggered.connect(lambda: self.file_handler._open_example_file("coffee_machine.bsm")) 
         
+        # --- NEW CONNECTION ---
+        self.mw.generate_docs_action.triggered.connect(self.mw.ai_chat_ui_manager.on_generate_docs_with_ai)
+        # --- END NEW ---
+
         # Log Actions
         if hasattr(self.mw, 'log_save_action'):
             self.mw.log_save_action.triggered.connect(self.file_handler.on_save_log)
         if hasattr(self.mw, 'log_copy_action'):
             self.mw.log_copy_action.triggered.connect(self.edit_handler.on_copy_log)
-
-
 
     def on_open_recent_file(self):
         self.file_handler.on_open_recent_file()

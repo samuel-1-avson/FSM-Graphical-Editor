@@ -21,7 +21,7 @@ def toggle_fsm_data():
 def test_fsm_initialization(toggle_fsm_data):
     # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
     fsm_model = parse_diagram_to_ir(toggle_fsm_data)
-    sim = FSMSimulator(fsm_model)
+    sim = FSMSimulator(fsm_model, context_object=None)
     # --- END MODIFICATION ---
     assert sim.get_current_state_name() == "Off"
     assert sim.get_variables()['is_on'] is False
@@ -29,7 +29,7 @@ def test_fsm_initialization(toggle_fsm_data):
 def test_fsm_simple_transition(toggle_fsm_data):
     # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
     fsm_model = parse_diagram_to_ir(toggle_fsm_data)
-    sim = FSMSimulator(fsm_model)
+    sim = FSMSimulator(fsm_model, context_object=None)
     # --- END MODIFICATION ---
     sim.step(event_name="toggle")
     assert sim.get_current_state_name() == "On"
@@ -47,7 +47,7 @@ def test_fsm_conditional_transition():
     }
     # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
     fsm_model = parse_diagram_to_ir(fsm_data)
-    sim = FSMSimulator(fsm_model)
+    sim = FSMSimulator(fsm_model, context_object=None)
     # --- END MODIFICATION ---
     sim._variables['x'] = 3
     
@@ -78,7 +78,7 @@ def test_fsm_hierarchical_step():
     }
     # --- MODIFICATION: Instantiate simulator with FsmModel IR ---
     fsm_model = parse_diagram_to_ir(fsm_data)
-    sim = FSMSimulator(fsm_model)
+    sim = FSMSimulator(fsm_model, context_object=None)
     # --- END MODIFICATION ---
     sim.step("start")
     assert sim.get_current_state_name() == "Processing (SubIdle)"

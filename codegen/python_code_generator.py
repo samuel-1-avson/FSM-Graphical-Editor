@@ -23,7 +23,9 @@ def generate_python_fsm_code(diagram_data: Dict, class_name: str) -> str:
     
     # Prepare states for the template
     for state in diagram_data.get('states', []):
-        state['py_var_name'] = sanitize_python_identifier(state.get('name', 'unnamed_state'))
+        state_name = state.get('name', 'unnamed_state')
+        state['original_name'] = state_name
+        state['py_var_name'] = sanitize_python_identifier(state_name)
         if state.get('entry_action'):
             state['entry_method'] = f"on_enter_{state['py_var_name']}"
             state['entry_action_code'] = state.get('entry_action', '')
@@ -43,6 +45,8 @@ def generate_python_fsm_code(diagram_data: Dict, class_name: str) -> str:
         target_state = next((s for s in diagram_data['states'] if s['name'] == trans['target']), None)
 
         if source_state and target_state:
+            trans['source_name'] = source_state.get('name')
+            trans['target_name'] = target_state.get('name')
             trans['source_py_var'] = sanitize_python_identifier(source_state['name'])
             trans['target_py_var'] = sanitize_python_identifier(target_state['name'])
             trans['event_str'] = trans.get('event', f"event_{trans['source_py_var']}_to_{trans['target_py_var']}")

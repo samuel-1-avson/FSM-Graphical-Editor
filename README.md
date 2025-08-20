@@ -2,7 +2,7 @@
 # FSM Designer
 
 FSM Designer is a graphical desktop application for creating, editing, and simulating Finite State Machines (FSMs), with a focus on embedded systems and mechatronics. Built with PyQt5, it provides an intuitive drag-and-drop interface, a real-time Python simulation engine, an integrated IDE, and an AI assistant to accelerate the design process.
-
+ 
 The full academic project report and detailed documentation can be found in the `/docs` directory.
 
 ## 🚀 Core Features
@@ -10,7 +10,7 @@ The full academic project report and detailed documentation can be found in the 
 - 🎨 **Visual FSM Editing**: Drag-and-drop states and transitions on an infinite canvas with snapping and alignment tools.
 - ιε **Hierarchical State Machines**: Create complex, nested FSMs by turning any state into a "Superstate" with its own internal sub-machine.
 - ⚙️ **Interactive Python Simulation**: Simulate your FSM step-by-step, trigger events, modify variables in real-time, and set breakpoints on state entry.
-- 🧠 **Multi-Provider AI Assistant**: Integrate with various AI models (Groq, OpenAI, Anthropic, etc.) to generate FSMs from descriptions, explain code, or help debug.
+- 🧠 **Multi-Provider AI Assistant**: Integrate with various AI models (Groq, OpenAI, Anthropic, etc.) to generate FSMs from descriptions, explain code, or help debug. 
 - 💻 **Integrated Development Environment (IDE)**: A built-in code editor for writing, running, and saving Python helper scripts without leaving the application.
 - 💾 **Extensive Export Options**:
   - **Images**: PNG, SVG
@@ -21,7 +21,7 @@ The full academic project report and detailed documentation can be found in the 
 ## 🛠️ Installation
 
 ### Requirements
-
+ 
 - Python 3.9+
 - PyQt5
 - See `requirements.txt` for a full list of dependencies.

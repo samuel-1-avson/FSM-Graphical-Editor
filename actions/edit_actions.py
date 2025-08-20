@@ -112,6 +112,30 @@ class EditActionHandler(QObject):
                 cmd = RemoveItemsCommand(scene, [item_to_delete], f"AI: Delete '{name}'")
                 undo_stack.push(cmd)
 
+            # --- NEW ACTION HANDLER ---
+            elif action == "modify_state":
+                state_name = details.get("name")
+                updates = details.get("updates")
+                if not state_name or not isinstance(updates, dict):
+                    raise ValueError("State name and an 'updates' dictionary are required for modification.")
+                
+                item_to_modify = scene.get_state_by_name(state_name)
+                if not item_to_modify:
+                    raise ValueError(f"State '{state_name}' not found for modification.")
+
+                old_props = item_to_modify.get_data()
+                new_props = old_props.copy()
+                new_props.update(updates) # Apply the changes from the AI
+
+                # Prevent renaming to an existing state name via this action
+                if "name" in updates and updates["name"] != old_props["name"]:
+                    if scene.get_state_by_name(updates["name"]):
+                        raise ValueError(f"Cannot rename state to '{updates['name']}' as it already exists.")
+
+                cmd = EditItemPropertiesCommand(item_to_modify, old_props, new_props, f"AI: Modify State '{state_name}'")
+                undo_stack.push(cmd)
+            # --- END NEW ACTION HANDLER ---
+
             else:
                 raise ValueError(f"Unknown AI action: '{action}'")
 

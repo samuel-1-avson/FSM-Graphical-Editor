@@ -1,14 +1,17 @@
 # fsm_designer_project/ui/dialogs/settings_dialogs.py
 
 import sys
-# At the top of fsm_designer_project/ui/dialogs/settings_dialogs.py
+import platform
+import psutil
+import os
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QPushButton, QSpinBox, QComboBox, QDialogButtonBox,
     QColorDialog, QHBoxLayout, QLabel, QGroupBox, QStyle, QFontComboBox, QDoubleSpinBox,
     QCheckBox, QTabWidget, QWidget, QGraphicsScene, QGraphicsView, QScrollArea, QLineEdit,
     QInputDialog, QMessageBox, QFileDialog, QGraphicsItem, QApplication
 )
-from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QAction
+# --- FIX: Added QPalette to the imports ---
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QAction, QPalette
 from PyQt6.QtCore import Qt, QDir, pyqtSlot
 
 from ...managers.settings_manager import SettingsManager
